@@ -11,6 +11,8 @@ __author__ = "เพิ่มพงษ์"
 from pyrevit import forms, script, DB, HOST_APP
 import math
 import sys
+import os
+import codecs
 
 # ================================================================
 # 1. MATHEMATICAL LOGIC
@@ -47,7 +49,25 @@ class WarningSwallower(DB.IFailuresPreprocessor):
         return DB.FailureProcessingResult.Continue
 
 # ================================================================
-# 2. MAIN SCRIPT
+# 2. CONFIG & SETUP
+# ================================================================
+
+config = script.get_config()
+export_path = getattr(config, "export_path", "")
+
+# ตรวจสอบและตั้งค่า Export Path หากยังไม่มี
+if not export_path or not os.path.exists(export_path):
+    selected_folder = forms.pick_folder(title="📁 กรุณาเลือกโฟลเดอร์สำหรับตั้งค่า Export Path")
+    if selected_folder:
+        config.export_path = selected_folder
+        export_path = selected_folder
+        script.save_config()
+
+# ดึงค่าการตั้งค่าหมวดหมู่ที่เคยเลือกไว้
+prev_selections = getattr(config, "selected_categories", [])
+
+# ================================================================
+# 3. MAIN SCRIPT
 # ================================================================
 
 doc = __revit__.ActiveUIDocument.Document
@@ -74,24 +94,46 @@ options_category = {
     '🪑 Furniture': DB.BuiltInCategory.OST_Furniture,
     '🧩 Generic Models': DB.BuiltInCategory.OST_GenericModel,
     '📝 Detail Components': DB.BuiltInCategory.OST_DetailComponents,
+    '🪧 Signage': DB.BuiltInCategory.OST_Signage, # หมวดหมู่ Signage
 }
 
-selected_keys = forms.SelectFromList.show(
-    sorted(options_category.keys()),
+class CategoryOption(forms.TemplateListItem):
+    @property
+    def name(self):
+        return self.item
+
+# สร้างตัวเลือกและติ๊กถูกให้อัตโนมัติจากประวัติการใช้งาน
+options = []
+for k in sorted(options_category.keys()):
+    opt = CategoryOption(k)
+    if k in prev_selections:
+        opt.state = True
+    options.append(opt)
+
+selected = forms.SelectFromList.show(
+    options,
     multiselect=True,
     title="เลือกหมวดหมู่ (แก้ไขการ Set ค่าผิดพลาด)",
     button_name="🚀 เริ่มคำนวณ"
 )
 
-if not selected_keys:
+if not selected:
     sys.exit()
+
+# ตรวจสอบว่าค่าที่ return มาเป็น String หรือ Object
+selected_keys = [opt.name if hasattr(opt, 'name') else str(opt) for opt in selected]
+
+# บันทึกหมวดหมู่ที่เลือกลง Config
+config.selected_categories = selected_keys
+script.save_config()
 
 # รวบรวม Elements
 elements = []
 for key in selected_keys:
-    bic = options_category[key]
-    col = DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType().ToElements()
-    elements.extend(list(col))
+    if key in options_category:
+        bic = options_category[key]
+        col = DB.FilteredElementCollector(doc).OfCategory(bic).WhereElementIsNotElementType().ToElements()
+        elements.extend(list(col))
 
 if not elements:
     forms.alert("❌ ไม่พบ Element ในหมวดหมู่ที่เลือก")
@@ -259,7 +301,7 @@ with forms.ProgressBar(title="Calculating... {value}/{max_value}", cancellable=T
     t.Commit()
 
 # ================================================================
-# 3. REPORT UI
+# 4. REPORT UI & EXPORT
 # ================================================================
 
 output.print_md("# 📊 Coordinate Update Report")
@@ -279,6 +321,25 @@ if skipped_ids:
     output.print_md("`IDs: {}`".format(", ".join(skipped_ids[:50]) + ("..." if len(skipped_ids)>50 else "")))
 
 output.print_md("---")
+
+# --- Save CSV Report to Export Path (รองรับ IronPython 2.7) ---
+if export_path and os.path.exists(export_path):
+    try:
+        csv_file = os.path.join(export_path, "Coordinate_Update_Report.csv")
+        # ใช้ codecs แทนฟังก์ชัน open แบบเดิมเพื่อรองรับ Unicode/UTF-8 ใน IronPython
+        with codecs.open(csv_file, 'w', encoding='utf-8-sig') as f:
+            # เพิ่ม " " ครอบ base_point_info เพื่อป้องกันปัญหาจุลภาค (,) ในข้อความ
+            f.write('Project Base Point Info:,"{}"\n\n'.format(base_point_info))
+            f.write("Status,Count,Desc\n")
+            for row in table_data:
+                f.write('{},{},"{}"\n'.format(row[0], row[1], row[2]))
+                
+        output.print_md("### 📁 Report Exported")
+        output.print_md("บันทึกไฟล์รายงานไว้ที่: `{}`".format(csv_file))
+    except Exception as e:
+        output.print_md("### ❌ Export Error")
+        output.print_md("ไม่สามารถบันทึกไฟล์ได้: {}".format(e))
+
 if stats["success"] > 0:
     success_rate = (float(stats["success"]) / float(stats["total"])) * 100.0
     output.print_md("## 🎉 Success Rate: {:.1f}%".format(success_rate))

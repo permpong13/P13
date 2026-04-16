@@ -8,6 +8,8 @@ import os
 import tempfile
 from System.Collections.Generic import List
 
+from pyrevit import script, forms
+
 clr.AddReference('RevitAPI')
 clr.AddReference('RevitAPIUI')
 clr.AddReference('System.Windows.Forms')
@@ -31,7 +33,6 @@ STATUS_MAP = [
     ("2", "2 : ส่ง AS-BUILT")
 ]
 
-# รายการ Categories ทั้งหมด
 CAT_LIST = [
     "OST_AirTerminals", "OST_CableTrayFitting", "OST_CableTray", "OST_Ceilings",
     "OST_Columns", "OST_ConduitFitting", "OST_Conduits", "OST_CurtainWallPanels",
@@ -61,10 +62,8 @@ def get_target_categories():
     return valid_cats
 
 def get_identity_group_id():
-    try:
-        return DB.GroupTypeId.IdentityData
-    except:
-        return DB.BuiltInParameterGroup.PG_IDENTITY_DATA
+    try: return DB.GroupTypeId.IdentityData
+    except: return DB.BuiltInParameterGroup.PG_IDENTITY_DATA
 
 def get_workset_name(doc, elem):
     if doc.IsWorkshared:
@@ -141,16 +140,10 @@ def setup_parameter(doc, app, param_name, param_type, all_cat_names):
         group = sp_file.Groups.get_Item(group_name)
         if not group: group = sp_file.Groups.Create(group_name)
         try:
-            if param_type == "Text":
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.String.Text)
-            else:
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.Length)
+            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.String.Text)
             target_def = group.Definitions.Create(opt)
         except AttributeError:
-            if param_type == "Text":
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Text)
-            else:
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Length)
+            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Text)
             target_def = group.Definitions.Create(opt)
             
     if original_sp and app.SharedParametersFilename != original_sp:
@@ -182,24 +175,27 @@ def setup_parameter(doc, app, param_name, param_type, all_cat_names):
         t_param.RollBack()
         return "bind_error"
 
-
+# =====================================================
+# Main UI Form
+# =====================================================
 class ElementStatusForm(Form):
-    def __init__(self, doc, grouped_elements, setup_status):
+    def __init__(self, doc, grouped_elements, setup_status, scope_text):
         self.doc = doc
         self.grouped_elements = grouped_elements
         self.final_data = []
         self.setup_status = setup_status
+        self.scope_text = scope_text
         self.InitializeComponent()
 
     def InitializeComponent(self):
-        self.Text = "G-Element Status Manager (Auto-Setup Edition)"
-        self.Width, self.Height = 920, 880
+        self.Text = "G-Element Status Manager"
+        self.Width, self.Height = 960, 880
         self.StartPosition = FormStartPosition.CenterScreen
         self.Font = Font("Segoe UI", 9)
         self.BackColor = Color.White
 
         container = TableLayoutPanel(Dock=DockStyle.Fill, RowCount=7, ColumnCount=1)
-        container.RowStyles.Add(RowStyle(SizeType.Absolute, 80))
+        container.RowStyles.Add(RowStyle(SizeType.Absolute, 85))
         container.RowStyles.Add(RowStyle(SizeType.Absolute, 50))
         container.RowStyles.Add(RowStyle(SizeType.Absolute, 50))
         container.RowStyles.Add(RowStyle(SizeType.Percent, 100))
@@ -208,25 +204,25 @@ class ElementStatusForm(Form):
         
         # 1. Header
         header_panel = Panel(Dock=DockStyle.Fill, BackColor=Color.FromArgb(0, 70, 140))
-        lbl_title = Label(Text="Update Element Status (Revit 2026)", ForeColor=Color.White, 
-                          Font=Font("Segoe UI", 14, FontStyle.Bold), AutoSize=True, Location=Point(15, 12))
+        lbl_title = Label(Text="Update Element Status: " + self.scope_text, ForeColor=Color.White, 
+                          Font=Font("Segoe UI", 13, FontStyle.Bold), AutoSize=True, Location=Point(15, 12))
         
-        # แสดงสถานะการสร้าง Parameter ที่ทำงานให้อัตโนมัติ
         status_txt = "READY (Auto-Setup Completed)" if self.setup_status in ["created", "updated", "exists"] else "ERROR"
         status_clr = Color.LimeGreen if "READY" in status_txt else Color.OrangeRed
         self.lbl_status = Label(Text="Parameter Status: " + status_txt, ForeColor=status_clr,
-                               Font=Font("Segoe UI", 10, FontStyle.Bold), AutoSize=True, Location=Point(17, 42))
+                               Font=Font("Segoe UI", 10, FontStyle.Bold), AutoSize=True, Location=Point(17, 45))
         
         header_panel.Controls.Add(lbl_title)
         header_panel.Controls.Add(self.lbl_status)
 
-        # Selection & DataGrid
+        # Selection Buttons
         sel_panel = FlowLayoutPanel(Dock=DockStyle.Fill, Padding=Padding(10, 8, 0, 0))
         for t, f in [("Select All", self.select_all), ("Unselect All", self.unselect_all), 
                      ("Select Highlight", self.select_highlight), ("Unselect Highlight", self.unselect_highlight)]:
             b = Button(Text=t, Width=130, Height=32, BackColor=Color.WhiteSmoke)
             b.Click += f; sel_panel.Controls.Add(b)
 
+        # Highlight Setup
         hi_panel = FlowLayoutPanel(Dock=DockStyle.Fill, Padding=Padding(10, 8, 0, 0))
         hi_panel.Controls.Add(Label(Text="Set Status for Highlight:", AutoSize=True, Margin=Padding(0, 7, 5, 0)))
         self.cmb_hi = ComboBox(Width=120, DataSource=[s[0] for s in STATUS_MAP], DropDownStyle=ComboBoxStyle.DropDownList)
@@ -234,12 +230,13 @@ class ElementStatusForm(Form):
         btn_apply.Click += self.apply_highlight_status
         hi_panel.Controls.Add(self.cmb_hi); hi_panel.Controls.Add(btn_apply)
         
+        # DataGridView
         self.dgv = DataGridView(Dock=DockStyle.Fill, RowHeadersVisible=False, AllowUserToAddRows=False,
                                 SelectionMode=DataGridViewSelectionMode.FullRowSelect, BackgroundColor=Color.White)
         self.dgv.Columns.Add(DataGridViewCheckBoxColumn(Name="Selected", HeaderText="Update?", Width=70))
-        self.dgv.Columns.Add(DataGridViewTextBoxColumn(Name="Workset", HeaderText="Workset", Width=280, ReadOnly=True))
+        self.dgv.Columns.Add(DataGridViewTextBoxColumn(Name="GroupKey", HeaderText="Category [Workset]", Width=340, ReadOnly=True))
         self.dgv.Columns.Add(DataGridViewTextBoxColumn(Name="Current", HeaderText="Current Status", Width=120, ReadOnly=True))
-        self.dgv.Columns.Add(DataGridViewTextBoxColumn(Name="Count", HeaderText="Count", Width=80, ReadOnly=True))
+        self.dgv.Columns.Add(DataGridViewTextBoxColumn(Name="Count", HeaderText="Count", Width=70, ReadOnly=True))
         self.dgv.Columns.Add(DataGridViewComboBoxColumn(Name="NewStatus", HeaderText="New Status", Width=180, DataSource=[s[0] for s in STATUS_MAP]))
         self.populate_data()
 
@@ -274,9 +271,9 @@ class ElementStatusForm(Form):
             r.Cells["NewStatus"].Value = val; r.Cells["Selected"].Value = True
 
     def populate_data(self):
-        for ws in sorted(self.grouped_elements.keys()):
-            for status, el_list in self.split_by_status(self.grouped_elements[ws]["elements"]).items():
-                self.dgv.Rows.Add(False, ws, status, len(el_list), "0")
+        for key in sorted(self.grouped_elements.keys()):
+            for status, el_list in self.split_by_status(self.grouped_elements[key]["elements"]).items():
+                self.dgv.Rows.Add(False, key, status, len(el_list), "0")
 
     def split_by_status(self, elements):
         gs = {}
@@ -296,35 +293,103 @@ class ElementStatusForm(Form):
         self.final_data = []
         for r in self.dgv.Rows:
             if r.Cells["Selected"].Value:
-                self.final_data.append({"WS": r.Cells["Workset"].Value, "Old": r.Cells["Current"].Value, "New": r.Cells["NewStatus"].Value})
+                self.final_data.append({"GroupKey": r.Cells["GroupKey"].Value, "Old": r.Cells["Current"].Value, "New": r.Cells["NewStatus"].Value})
         if self.final_data: self.DialogResult = DialogResult.OK; self.Close()
 
 def main():
     doc = __revit__.ActiveUIDocument.Document
     app = doc.Application
     
-    # 1. จัดการ Parameter อัตโนมัติก่อนเปิดหน้าต่าง (Smart Setup)
+    # 1. จัดการ Parameter อัตโนมัติ 
     setup_status = setup_parameter(doc, app, PARAM_NAME, "Text", CAT_LIST)
 
-    # 2. ค้นหาชิ้นส่วน
+    # 2. ถามผู้ใช้ว่าต้องการ Scope ไหน
+    scope_options = ["1. เฉพาะหน้าต่างปัจจุบัน (Current View)", "2. ทั้งโครงการ (Entire Project)"]
+    selected_scope = forms.CommandSwitchWindow.show(scope_options, message="เลือกระยะการค้นหาชิ้นส่วน (Scope):")
+    
+    if not selected_scope:
+        return # ผู้ใช้กดยกเลิก
+        
+    is_current_view = "Current View" in selected_scope
+
+    # 3. เตรียมรายชื่อ Category ทั้งหมดจาก CAT_LIST มาให้เลือก (แปลงเป็นชื่อที่อ่านง่าย)
+    cat_options_dict = {}
+    for ost_name in CAT_LIST:
+        try:
+            bic = getattr(DB.BuiltInCategory, ost_name)
+            cat = doc.Settings.Categories.get_Item(bic)
+            if cat:
+                cat_options_dict[cat.Name] = ost_name
+        except: pass
+        
+    cat_names = sorted(cat_options_dict.keys())
+    
+    if not cat_names:
+        UI.TaskDialog.Show("G-Status", "ไม่พบข้อมูล Category ในระบบ")
+        return
+        
+    # ดึงค่าที่เคยเลือกไว้
+    config = script.get_config()
+    prev_cats = getattr(config, "gstatus_selected_cats", [])
+    
+    class CatOption(forms.TemplateListItem):
+        @property
+        def name(self): return self.item
+        
+    options = []
+    for c_name in cat_names:
+        opt = CatOption(c_name)
+        # ติ๊กเลือกล่วงหน้าจากความจำเดิม (ถ้ามี) หรือติ๊กทั้งหมดถ้าเพิ่งรันครั้งแรก
+        if not prev_cats or c_name in prev_cats:
+            opt.state = True
+        options.append(opt)
+        
+    selected_cats = forms.SelectFromList.show(
+        options,
+        multiselect=True,
+        title="เลือกหมวดหมู่ (Category) ที่ต้องการอัปเดต",
+        button_name="ดำเนินการต่อ ➔"
+    )
+    
+    if not selected_cats:
+        return 
+        
+    # บันทึก config และเก็บชื่อ Category ที่เลือก
+    sel_cat_names = [opt.name if hasattr(opt, 'name') else str(opt) for opt in selected_cats]
+    config.gstatus_selected_cats = sel_cat_names
+    script.save_config()
+    
+    # 4. ค้นหาชิ้นส่วนตาม Scope
     target_cats = get_target_categories()
     cats = List[DB.ElementId]([DB.ElementId(c) for c in target_cats])
-    elems = DB.FilteredElementCollector(doc, doc.ActiveView.Id).WherePasses(DB.ElementMulticategoryFilter(cats)).WhereElementIsNotElementType().ToElements()
+    multi_cat_filter = DB.ElementMulticategoryFilter(cats)
     
-    if not elems: 
-        UI.TaskDialog.Show("G-Status", "ไม่พบชิ้นส่วนใน View ปัจจุบัน")
+    if is_current_view:
+        elems = DB.FilteredElementCollector(doc, doc.ActiveView.Id).WherePasses(multi_cat_filter).WhereElementIsNotElementType().ToElements()
+    else:
+        elems = DB.FilteredElementCollector(doc).WherePasses(multi_cat_filter).WhereElementIsNotElementType().ToElements()
+        
+    # 5. กรองชิ้นส่วนให้เหลือเฉพาะ Category ที่เลือก
+    filtered_elems = [e for e in elems if e.Category and e.Category.Name in sel_cat_names]
+    
+    if not filtered_elems:
+        UI.TaskDialog.Show("G-Status", "ไม่มีชิ้นส่วนหลงเหลือหลังจากการกรอง Category (ไม่พบในโมเดล)")
         return
     
+    # 6. จัดกลุ่มข้อมูล (Group By: Category + Workset)
     grouped = {}
-    for el in elems:
+    for el in filtered_elems:
+        c_name = el.Category.Name if el.Category else "Unknown"
         ws = get_workset_name(doc, el)
-        if ws not in grouped: grouped[ws] = {"elements": []}
-        grouped[ws]["elements"].append(el)
+        key = "{} [{}]".format(c_name, ws) # แสดงผลเป็น "หมวดหมู่ [Workset]"
+        if key not in grouped: grouped[key] = {"elements": []}
+        grouped[key]["elements"].append(el)
 
-    # 3. เปิดหน้าต่าง UI
-    form = ElementStatusForm(doc, grouped, setup_status)
+    # 7. เปิดหน้าต่าง UI หลัก
+    scope_text = "Current View" if is_current_view else "Entire Project"
+    form = ElementStatusForm(doc, grouped, setup_status, scope_text)
+    
     if form.ShowDialog() == DialogResult.OK:
-        
         with DB.Transaction(doc, "Update G-Status") as tx:
             tx.Start()
             
@@ -343,9 +408,7 @@ def main():
 
             count = 0
             for task in form.final_data:
-                for el in grouped[task["WS"]]["elements"]:
-                    
-                    # ข้ามชิ้นส่วนใน Group หากไม่สามารถเปิด Vary by Group ได้
+                for el in grouped[task["GroupKey"]]["elements"]:
                     if el.GroupId != DB.ElementId.InvalidElementId:
                         if not varies_across_groups:
                             continue
