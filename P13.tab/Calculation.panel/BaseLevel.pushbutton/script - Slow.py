@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Set Base Level - Text Parameter (Optimized for Revit 2024+)"""
+"""Set Base Level - Text Parameter (Vary by Group) with Progress Bar"""
 
 __title__ = "Base_Level\nParameter"
 
@@ -13,6 +13,32 @@ app = doc.Application
 output = script.get_output()
 
 output.print_md("## **Base Level - งานโครงสร้าง สถาปัตย์ และงานระบบ MEP**")
+
+# =====================================================
+# ฟังก์ชันหาระดับขององค์ประกอบ
+# =====================================================
+def get_element_level(element):
+    try:
+        # วิธีที่ 1: Level จาก LevelId ของ element
+        if hasattr(element, 'LevelId') and element.LevelId != DB.ElementId.InvalidElementId:
+            level = doc.GetElement(element.LevelId)
+            if isinstance(level, DB.Level): return level
+        
+        # วิธีที่ 2: LEVEL_PARAM ขององค์ประกอบ
+        level_param = element.get_Parameter(DB.BuiltInParameter.LEVEL_PARAM)
+        if level_param and level_param.AsElementId() != DB.ElementId.InvalidElementId:
+            level = doc.GetElement(level_param.AsElementId())
+            if isinstance(level, DB.Level): return level
+                
+        # วิธีที่ 3: Host ที่มี Level
+        if hasattr(element, 'Host') and element.Host:
+            host = element.Host
+            if hasattr(host, 'LevelId') and host.LevelId != DB.ElementId.InvalidElementId:
+                level = doc.GetElement(host.LevelId)
+                if isinstance(level, DB.Level): return level
+    except:
+        pass
+    return None
 
 # =====================================================
 # รายการ BuiltInCategory
@@ -42,29 +68,6 @@ MEP_categories = [
 ]
 
 all_categories = structural_categories + architectural_categories + MEP_categories
-
-# =====================================================
-# ฟังก์ชันดึงค่า ID (รองรับทั้ง Revit เก่าและ 2024+)
-# =====================================================
-def get_id_value(element_id):
-    try:
-        # สำหรับ Revit 2024, 2025, 2026+
-        return int(element_id.Value)
-    except AttributeError:
-        # สำหรับ Revit 2023 ลงไป
-        return element_id.IntegerValue
-
-# ⭐️ OPTIMIZATION 1: สร้าง Mapping สำหรับ Category เพื่อลดเวลาค้นหา
-def get_category_ids(category_names):
-    ids = set()
-    for c in category_names:
-        try: ids.add(int(getattr(DB.BuiltInCategory, c)))
-        except: pass
-    return ids
-
-struct_cat_ids = get_category_ids(structural_categories)
-arch_cat_ids = get_category_ids(architectural_categories)
-mep_cat_ids = get_category_ids(MEP_categories)
 
 # =====================================================
 # จัดการ/สร้าง/อัปเดต Shared Parameter (ชนิด TEXT)
@@ -135,6 +138,7 @@ def setup_base_level_parameter(doc, app, all_cat_names):
         group = sp_file.Groups.get_Item(group_name)
         if not group: group = sp_file.Groups.Create(group_name)
         try:
+            # สร้าง Parameter เป็นชนิด Text (String) เพื่อให้ Vary by Group ได้
             opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.String.Text)
             target_def = group.Definitions.Create(opt)
         except AttributeError:
@@ -172,13 +176,18 @@ def setup_base_level_parameter(doc, app, all_cat_names):
 
 output.print_md("### **ตรวจสอบ Parameter**")
 param_status = setup_base_level_parameter(doc, app, all_categories)
-if param_status == "created": output.print_md("✅ **ระบบได้สร้างพารามิเตอร์ 'Base_Level' เป็นชนิด TEXT สำเร็จ**")
-elif param_status == "updated": output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' และอัปเดต Category เพิ่มเติมแล้ว**")
-elif param_status == "exists": output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' พร้อมใช้งาน**")
-else: output.print_md("⚠️ **ไม่สามารถสร้างพารามิเตอร์อัตโนมัติได้ (Status: {})**".format(param_status))
+if param_status == "created":
+    output.print_md("✅ **ระบบได้สร้างพารามิเตอร์ 'Base_Level' เป็นชนิด TEXT สำเร็จ**")
+elif param_status == "updated":
+    output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' และอัปเดต Category เพิ่มเติมแล้ว**")
+elif param_status == "exists":
+    output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' พร้อมใช้งาน**")
+else:
+    output.print_md("⚠️ **ไม่สามารถสร้างพารามิเตอร์อัตโนมัติได้ (Status: {})**".format(param_status))
+
 
 # =====================================================
-# ค้นหาและเตรียมข้อมูล (Fast Filter)
+# ค้นหาองค์ประกอบทั้งหมดด้วย MulticategoryFilter
 # =====================================================
 output.print_md("---")
 output.print_md("### **ค้นหาองค์ประกอบในทุกหมวดหมู่ (โปรดรอสักครู่...)**")
@@ -190,52 +199,58 @@ for c in all_categories:
 
 multi_filter = DB.ElementMulticategoryFilter(cat_list)
 collector = DB.FilteredElementCollector(doc).WherePasses(multi_filter).WhereElementIsNotElementType()
+all_elements_raw = list(collector)
 
+all_elements = []
 unique_elements = []
-nested_skipped_count = 0
-struct_count = 0
-arch_count = 0
-mep_count = 0
+seen_ids = set()
 
-# ⭐️ OPTIMIZATION 2: ลดขั้นตอนการวนหา Category Name และใช้ get_id_value เพื่อกัน Error
-for e in collector:
-    if isinstance(e, DB.FamilyInstance) and e.SuperComponent:
+category_results = {}
+structural_results = {}
+architectural_results = {}
+MEP_results = {}
+
+nested_skipped_count = 0
+
+for e in all_elements_raw:
+    if e.Id in seen_ids:
+        continue
+    seen_ids.add(e.Id)
+    
+    # ข้ามชิ้นส่วนที่เป็น Nested Family
+    if hasattr(e, 'SuperComponent') and e.SuperComponent:
         nested_skipped_count += 1
         continue
         
     unique_elements.append(e)
     
-    if e.Category:
-        cat_val = get_id_value(e.Category.Id)
-        if cat_val in struct_cat_ids: struct_count += 1
-        elif cat_val in arch_cat_ids: arch_count += 1
-        elif cat_val in mep_cat_ids: mep_count += 1
+    try:
+        cat_name_enum = [name for name, val in DB.BuiltInCategory.__dict__.items() if val == e.Category.BuiltInCategory.value__]
+        if cat_name_enum:
+            cat_name = cat_name_enum[0]
+            
+            category_results[cat_name] = category_results.get(cat_name, 0) + 1
+            
+            if cat_name in structural_categories:
+                structural_results[cat_name] = structural_results.get(cat_name, 0) + 1
+            elif cat_name in architectural_categories:
+                architectural_results[cat_name] = architectural_results.get(cat_name, 0) + 1
+            elif cat_name in MEP_categories:
+                MEP_results[cat_name] = MEP_results.get(cat_name, 0) + 1
+    except:
+        pass
 
+# =====================================================
+# แสดงผลแยกกลุ่มและสรุป
+# =====================================================
 output.print_md("### **สรุป**")
-output.print_md("**รวมงานโครงสร้าง:** {} รายการ".format(struct_count))
-output.print_md("**รวมงานสถาปัตย์:** {} รายการ".format(arch_count))
-output.print_md("**รวมงานระบบ MEP:** {} รายการ".format(mep_count))
+output.print_md("**รวมงานโครงสร้าง:** {} รายการ".format(sum(structural_results.values())))
+output.print_md("**รวมงานสถาปัตย์:** {} รายการ".format(sum(architectural_results.values())))
+output.print_md("**รวมงานระบบ MEP:** {} รายการ".format(sum(MEP_results.values())))
 output.print_md("**องค์ประกอบทั้งหมด (พร้อมทำงาน):** {} รายการ".format(len(unique_elements)))
 
 if not unique_elements:
     script.exit()
-
-# =====================================================
-# ระบบดึง Level แบบ Caching
-# =====================================================
-def get_element_level_id(element):
-    try:
-        if hasattr(element, 'LevelId') and element.LevelId != DB.ElementId.InvalidElementId:
-            return element.LevelId
-        level_param = element.get_Parameter(DB.BuiltInParameter.LEVEL_PARAM)
-        if level_param and level_param.AsElementId() != DB.ElementId.InvalidElementId:
-            return level_param.AsElementId()
-        if isinstance(element, DB.FamilyInstance) and element.Host:
-            host = element.Host
-            if hasattr(host, 'LevelId') and host.LevelId != DB.ElementId.InvalidElementId:
-                return host.LevelId
-    except: pass
-    return None
 
 # =====================================================
 # เริ่มตั้งค่า Base_Level พร้อม Progress Bar
@@ -245,6 +260,7 @@ output.print_md("### **กำลังตั้งค่า Base_Level ให้
 t = DB.Transaction(doc, "Set Base Level - ST, AR & MEP")
 t.Start()
 
+# บังคับเปิด AllowVaryBetweenGroups ทันที
 varies_across_groups = False
 iterator = doc.ParameterBindings.ForwardIterator()
 while iterator.MoveNext():
@@ -261,26 +277,27 @@ success_count = 0
 level_count = 0
 read_only_count = 0
 group_skipped_count = 0
+
 struct_success = 0
 arch_success = 0
 MEP_success = 0
 
+MEP_names = []
+for c in MEP_categories:
+    try: MEP_names.append(doc.Settings.Categories.get_Item(getattr(DB.BuiltInCategory, c)).Name)
+    except: pass
+
 total_elements = len(unique_elements)
 is_cancelled = False
 
-# ⭐️ OPTIMIZATION 3: Caching ข้อมูล Level เพื่อลดการอ่านซ้ำ (ช่วยลด RAM และเวลา)
-level_cache = {} 
-update_step = max(1, total_elements // 100) # อัปเดต Progress ทุกๆ 1% แทนที่จะอัปเดตทุกชิ้น
-
+# เริ่มใช้งาน Progress Bar
 with forms.ProgressBar(title='กำลังตั้งค่า Base_Level... ({value} จาก {max_value})', cancellable=True) as pb:
     for index, e in enumerate(unique_elements):
         
-        # อัปเดต Progress Bar เป็นระยะๆ เพื่อป้องกัน UI ค้าง
-        if index % update_step == 0:
-            if pb.cancelled:
-                is_cancelled = True
-                break
-            pb.update_progress(index + 1, total_elements)
+        # ตรวจสอบว่าผู้ใช้กดยกเลิกหรือไม่
+        if pb.cancelled:
+            is_cancelled = True
+            break
             
         try:
             if hasattr(e, 'GroupId') and e.GroupId != DB.ElementId.InvalidElementId:
@@ -288,48 +305,40 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
                     group_skipped_count += 1
                     continue
 
-            lvl_id = get_element_level_id(e)
-            if not lvl_id: continue
-
-            # ดึงข้อมูล Level จาก Cache ถ้ามีอยู่แล้ว
-            if lvl_id not in level_cache:
-                lvl_elem = doc.GetElement(lvl_id)
-                if isinstance(lvl_elem, DB.Level):
-                    level_cache[lvl_id] = {
-                        "elev_m": lvl_elem.Elevation * 0.3048,
-                        "raw_elev": lvl_elem.Elevation,
-                        "name": lvl_elem.Name
-                    }
-                else:
-                    level_cache[lvl_id] = None
-
-            lvl_data = level_cache[lvl_id]
-            if not lvl_data: continue
+            level = get_element_level(e)
+            if not level: continue
 
             level_count += 1
+
             p = e.LookupParameter("Base_Level")
             if not p: continue
             
             if not p.IsReadOnly:
-                cat_val = get_id_value(e.Category.Id) if e.Category else None
+                cat_name = e.Category.Name
+                elev_m = level.Elevation * 0.3048
                 
+                # รองรับทั้งแบบ Text (เวอร์ชันใหม่) และ Length
                 if p.StorageType == DB.StorageType.String:
-                    p.Set("{:.3f}".format(lvl_data["elev_m"]))
+                    p.Set("{:.3f}".format(elev_m)) # เขียนเป็น Text หน่วยเมตร
                     success_count += 1
                 elif p.StorageType == DB.StorageType.Double:
-                    p.Set(lvl_data["raw_elev"])
+                    p.Set(level.Elevation)
                     success_count += 1
                     
                 if success_count > 0:
-                    if cat_val in struct_cat_ids: struct_success += 1
-                    elif cat_val in mep_cat_ids: MEP_success += 1
-                    else: arch_success += 1
+                    if "Structural" in cat_name or "Foundation" in cat_name or "Rebar" in cat_name:
+                        struct_success += 1
+                    elif cat_name in MEP_names:
+                        MEP_success += 1
+                    else:
+                        arch_success += 1
             else:
                 read_only_count += 1
         except:
             continue
             
-    pb.update_progress(total_elements, total_elements) # อัปเดตครั้งสุดท้ายให้เต็ม 100%
+        # อัปเดต Progress Bar
+        pb.update_progress(index + 1, total_elements)
 
 t.Commit()
 
@@ -337,7 +346,8 @@ t.Commit()
 # แสดงผลลัพธ์
 # =====================================================
 output.print_md("### **ผลการตั้ง Base_Level**")
-if is_cancelled: output.print_md("🛑 **ผู้ใช้กดยกเลิกการทำงานกลางคัน! (บันทึกเฉพาะส่วนที่ทำเสร็จแล้ว)**")
+if is_cancelled:
+    output.print_md("🛑 **ผู้ใช้กดยกเลิกการทำงานกลางคัน! (บันทึกเฉพาะส่วนที่ทำเสร็จแล้ว)**")
 
 output.print_md("- องค์ประกอบที่มี Level ให้อ้างอิง: {}".format(level_count))
 output.print_md("---")
@@ -359,21 +369,23 @@ output.print_md("### **ตัวอย่างค่าที่ตั้ง Ba
 shown = 0
 for e in unique_elements:
     if shown >= 3: break
-    lvl_id = get_element_level_id(e)
+    level = get_element_level(e)
     p = e.LookupParameter("Base_Level")
-    
-    if not (lvl_id and p): continue
-    if lvl_id not in level_cache or not level_cache[lvl_id]: continue
+    if not (level and p): continue
 
-    lvl_data = level_cache[lvl_id]
+    elev_m = level.Elevation * 0.3048
     
-    if p.StorageType == DB.StorageType.String: base_val = p.AsString()
-    elif p.StorageType == DB.StorageType.Double: base_val = "{:.3f}".format(p.AsDouble() * 0.3048)
-    else: base_val = "N/A"
+    # ดึงค่ามาแสดงผลตาม StorageType
+    if p.StorageType == DB.StorageType.String:
+        base_val = p.AsString()
+    elif p.StorageType == DB.StorageType.Double:
+        base_val = "{:.3f}".format(p.AsDouble() * 0.3048)
+    else:
+        base_val = "N/A"
 
     output.print_md("{}. **{}**".format(shown+1, e.Category.Name))
-    output.print_md("   - Level: {}".format(lvl_data["name"]))
-    output.print_md("   - Elevation: {:.3f} m".format(lvl_data["elev_m"]))
+    output.print_md("   - Level: {}".format(level.Name))
+    output.print_md("   - Elevation: {:.3f} m".format(elev_m))
     output.print_md("   - Base_Level: {} m".format(base_val))
     shown += 1
 
