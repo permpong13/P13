@@ -1,0 +1,19 @@
+title: "Sync MH\nAbsolute Clean"
+
+tooltip: |
+  🇬🇧 [EN] Synchronize Manhole invert levels and dimensions with "Absolute Clean" logic.
+  Key Features:
+  • Absolute Clean: Instantly clears all target text parameters (INV, W, H, X1, X2) before recalculating to ensure data accuracy.
+  • Smart Calculation: Computes Invert Level (INV) by subtracting the Invert Offset from the 'Elevation at Top'.
+  • Dual-Condition Check: Updates data only if the direction is checked (A, B, C, or D) AND a pipe width (W) greater than zero is detected.
+  • Unit Conversion: Automatically converts internal Revit units to Meters with 3 decimal places.
+
+  🇹🇭 [TH] ซิงค์ข้อมูลระดับ Invert และขนาดท่อบ่อพักด้วยระบบ "Absolute Clean"
+  ฟังก์ชันหลัก:
+  • Absolute Clean: ล้างค่าเก่าในช่องพารามิเตอร์ข้อความ (INV, W, H, X1, X2) ให้ว่างเปล่าก่อนคำนวณใหม่เสมอ เพื่อป้องกันข้อมูลค้าง
+  • สูตรคำนวณแม่นยำ: คำนวณระดับท้องท่อ (INV) จาก 'ระดับหลังท่อ/ฝาบ่อ' ลบด้วย 'ระยะห่าง Invert'
+  • ระบบตรวจสอบ 2 ชั้น: จะคำนวณและลงค่าเฉพาะทิศที่มีการติ๊กถูก (A, B, C, หรือ D) และต้องมีขนาดท่อ (W) มากกว่า 0 เท่านั้น
+  • แปลงหน่วยอัตโนมัติ: แปลงค่าจากหน่วยภายใน Revit เป็นหน่วยเมตร (ทศนิยม 3 ตำแหน่ง) ให้อัตโนมัติ
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Sync MH invert levels and dimensions with absolute data cleaning logic. / ซิงค์ข้อมูลบ่อพักพร้อมระบบล้างค่าเก่าก่อนคำนวณเพื่อความถูกต้อง"

@@ -1,15 +1,13 @@
-title: "Sync to Update"
+title: "Tags\nLegend"
 
 tooltip: |
-  เครื่องมือสำหรับอัปเดตชุดคำสั่ง BIM (P13 Extension)
-  ให้เป็นเวอร์ชันล่าสุดจากเซิร์ฟเวอร์ส่วนกลาง
-    ฟังก์ชันหลัก:
-    • ตรวจสอบเวอร์ชันใหม่จากเครื่องหลัก (\\tee)
-    • ดึงข้อมูลเฉพาะไฟล์ที่มีการเปลี่ยนแปลง (Sync)
-    • ระบบป้องกันการทับไฟล์งานของเจ้าของเครื่อง (Permpong13)
-    • รีโหลดแถบเครื่องมืออัตโนมัติหลังอัปเดตเสร็จ
-    
-    หมายเหตุ: กรุณาเชื่อมต่อวง LAN ของออฟฟิศก่อนใช้งาน
+  🇬🇧 [EN] Tag Legend Components with custom parameter values (Revit 2024-2026 Compatible).
+  Key Features:
+  • Sync Mode: Update text values while keeping existing tag positions.
+
+  🇹🇭 [TH] สร้างข้อความกำกับ (Tag) ให้กับ Legend Components โดยเลือกดึงค่าพารามิเตอร์ได้อิสระ (รองรับ Revit 2024-2026)
+  ฟังก์ชันหลัก:
+  • โหมดซิงค์ข้อมูล: อัปเดตเฉพาะเนื้อหาข้อความโดยยังคงรักษาตำแหน่งเดิมที่เคยจัดวางไว้
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Sync and update BIM tools from the central server to the local machine."
+description: "Tag legend components with multi-parameter support and smart placement. / สร้างและอัปเดตแท็ก Legend ด้วยพารามิเตอร์ที่ต้องการพร้อมระบบจัดตำแหน่งอัจฉริยะ"

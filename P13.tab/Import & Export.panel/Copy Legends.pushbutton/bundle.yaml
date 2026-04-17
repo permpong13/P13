@@ -1,18 +1,29 @@
-title: "CopyLegend\nto Sheets"
+title: "Copy Legend\nto Sheets"
 
 tooltip: |
-  เครื่องมือจัดการ Legend บน Sheet (Sync Position)
-  ช่วยในการคัดลอกและจัดวาง Legend ให้ตรงตำแหน่งเดียวกันในหลายๆ Sheet
-    ฟังก์ชันหลัก:
-    • คัดลอก Legend จาก Sheet ต้นแบบไปยัง Sheet ปลายทางที่เลือก
-    • หากมี Legend นั้นอยู่แล้ว ระบบจะปรับตำแหน่ง (Box Center) ให้ตรงกับต้นฉบับ
-    • อัปเดตประเภท View Title ให้ตรงตามต้นฉบับอัตโนมัติ
-    • รองรับการเลือก Legend และ Sheet ปลายทางได้ครั้งละหลายรายการ
+  🇬🇧 [EN] Copy and synchronize Legend positions across multiple sheets.
+  Key Features:
+  • Copies selected Legends from the active sheet to target sheets.
+  • If a Legend already exists, its position is updated to match the source exactly (Sync Position).
+  • Automatically syncs the Viewport Type (View Title) to match the source.
+  • Supports processing multiple Legends and target sheets simultaneously.
   
-    วิธีใช้งาน:
-    1. เปิดหน้า Sheet ที่มี Legend ต้นแบบที่ต้องการ
-    2. รันคำสั่งนี้ และเลือก Legend ที่ต้องการ Sync
-    3. เลือก Sheet ปลายทางที่ต้องการส่ง Legend ไปวาง
+  Usage:
+  1. Open the sheet containing your source Legends.
+  2. Run the command and select Legends to sync.
+  3. Select target sheets to apply.
 
-author: "เพิ่มพงษ์ ทวีกุล | P13"
-description: "คัดลอกและอัปเดตตำแหน่ง Legend บน Sheet ให้ตรงกันอัตโนมัติ"
+  🇹🇭 [TH] เครื่องมือคัดลอกและซิงค์ตำแหน่ง Legend ข้าม Sheet
+  ฟังก์ชันหลัก:
+  • คัดลอก Legend จาก Sheet ต้นแบบไปยัง Sheet ปลายทาง
+  • หากมี Legend นั้นอยู่แล้ว ระบบจะปรับตำแหน่งให้ตรงกับต้นฉบับพอดี (Sync Position)
+  • อัปเดตประเภท Viewport (View Title) ให้ตรงตามต้นฉบับอัตโนมัติ
+  • รองรับการเลือก Legend และ Sheet ปลายทางได้ครั้งละหลายรายการ
+  
+  วิธีใช้งาน:
+  1. เปิดหน้า Sheet ที่มี Legend ต้นแบบที่จัดวางไว้แล้ว
+  2. รันคำสั่งและเลือก Legend ต้นแบบที่ต้องการ Sync
+  3. เลือก Sheet ปลายทางทั้งหมดที่ต้องการนำไปวาง
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Copy and sync Legend positions and Viewport Types across sheets. / คัดลอกและอัปเดตตำแหน่ง Legend บน Sheet ให้ตรงกันอัตโนมัติ"

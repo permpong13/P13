@@ -1,21 +1,25 @@
 title: "S-Filter"
 
 tooltip: |
-  เครื่องมือกรองวัตถุขั้นสุดยอด (Ultimate Filter) สำหรับ Revit พร้อมระบบ AI และ UX ระดับสูง
-  
-  ฟังก์ชันหลัก (อัปเกรดใหม่):
-  • 🔀 Custom Grouping: จัดกลุ่ม Tree View ตามหมวดหมู่, ชั้น (Level), หรือ Workset ได้อิสระ
-  • 🧠 Rule-Based Filter: กรอง Parameter ด้วยเงื่อนไขคณิตศาสตร์ (>, <, =, Contains)
-  • 🎨 Highlight Tool: สาดสีเหลืองสะท้อนแสงใส่วัตถุเพื่อการตรวจสอบที่ง่ายขึ้น
-  • ⏳ Loading UX: แสดงสัญลักษณ์กำลังโหลดข้อมูลแบบลื่นไหล
-  • 🔗 Link Support: รองรับการกวาดข้อมูลจากไฟล์โมเดล Link
-  • 💾 Memory: บันทึกและเรียกคืนชุดวัตถุข้ามการทำงานได้
-  
-  การใช้งาน:
-  1. กดรันสคริปต์ S-Filter
-  2. เลือกแหล่งข้อมูลและรูปแบบการจัดกลุ่ม (ด้านขวา)
-  3. ติ๊กเลือกวัตถุ หรือพิมพ์ค้นหาแล้วกด Enter
-  4. ใช้ปุ่ม Action ด้านล่าง (Select / Isolate / Highlight / Hide)
+  เครื่องมือกรองวัตถุขั้นสุดยอด (Ultimate Filter) สำหรับ Revit 
+  พร้อมระบบ AI การจัดกลุ่ม และ UX ระดับสูงที่รองรับไฟล์ Link
+
+  [ENG]
+  - Custom Grouping: Dynamically group elements in the Tree View by Category, Level, or Workset.
+  - Smart Selection Scopes: Filter elements from the current selection, active view, or the entire model. Includes options to auto-expand selection to hosts, same level, or same workset.
+  - Rule-Based Filter: Deep-filter parameters using mathematical/logical conditions (Equals, Contains, Greater Than, Less Than).
+  - Quick Actions: Instantly Select, Isolate, Hide, or Highlight (apply yellow graphic overrides) the filtered elements.
+  - Link & Memory Support: Seamlessly scan elements inside Linked Models and use the Memory tool to save/restore selections across sessions.
+  - Enhanced UX: Features a live progress bar for heavy processing and real-time search filtering.
+
+  [TH]
+  - จัดกลุ่มอิสระ (Custom Grouping): จัดกลุ่มแสดงผล Tree View ได้ตามหมวดหมู่ (Category), ชั้น (Level) หรือ Workset
+  - ขอบเขตการเลือกอัจฉริยะ (Smart Selection Scopes): กำหนดให้ค้นหาเฉพาะที่เลือกไว้, ในมุมมอง หรือทั้งโปรเจกต์ได้ พร้อมออปชันขยายการเลือกไปยัง Host, เลเวลเดียวกัน หรือ Workset เดียวกัน
+  - ตัวกรองแบบมีเงื่อนไข (Rule-Based Filter): เจาะลึกการกรอง Parameter ด้วยเงื่อนไขทางคณิตศาสตร์ (=, Contains, >, <)
+  - เครื่องมือจัดการด่วน (Quick Actions): สั่ง Select, Isolate, Hide หรือ Highlight (สาดสีเหลืองสะท้อนแสง) ใส่วัตถุเป้าหมายได้ทันที
+  - รองรับ Link และระบบความจำ (Link & Memory Support): กวาดข้อมูลทะลุไฟล์ Link ได้ และสามารถกด Save/Restore ชุดวัตถุที่เลือกไว้ข้ามการทำงานได้
+  - ประสบการณ์ใช้งานขั้นสูง (Enhanced UX): มีระบบค้นหาแบบเรียลไทม์ และ Progress Bar แสดงสถานะโหลดข้อมูลเพื่อป้องกันโปรแกรมค้าง
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Ultimate Revit element filter with Custom Grouping, Rule-based Parameters, Highlighting, and Memory features."
+
+description: "Ultimate Revit element filter with Custom Grouping, Rule-based Parameters, Highlighting, Linked model support, and Memory features. / เครื่องมือกรองวัตถุขั้นสุดยอด"

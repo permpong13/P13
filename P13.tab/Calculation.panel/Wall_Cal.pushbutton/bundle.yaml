@@ -1,8 +1,17 @@
 title: "Wall Top\nCal"
 
 tooltip: |
-  คำนวณและอัปเดตพารามิเตอร์ระดับความสูงของผนัง (Fixed Version for Revit 2026)
+  🇬🇧 [EN] Calculate and update wall elevation parameters (Fixed for Revit 2026).
+  Calculation Formulas:
+  • Top of Wall = Base Elevation + Base Offset + Unconnected Height
+  • Level_Bottom_of_Column = Base Elevation + Base Offset
   
+  Updated Parameters:
+  1. Top of Wall
+  2. Level_Bottom_of_Column
+  3. Base_Level (Auto-generates Shared Parameters if missing)
+
+  🇹🇭 [TH] คำนวณและอัปเดตพารามิเตอร์ระดับความสูงของผนัง (Fixed Version สำหรับ Revit 2026)
   สูตรการคำนวณ:
   • Top of Wall = Base Elevation + Base Offset + Unconnected Height
   • Level_Bottom_of_Column = Base Elevation + Base Offset
@@ -10,10 +19,7 @@ tooltip: |
   พารามิเตอร์ที่อัปเดต:
   1. Top of Wall
   2. Level_Bottom_of_Column
-  3. Base_Level
-  
-author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: |
-  สคริปต์สำหรับรวบรวมผนังทั้งหมดในโปรเจกต์ เพื่อคำนวณและเขียนค่าระดับความสูง
-  ลงใน Parameter โดยรองรับการดึงค่าจากพารามิเตอร์มาตรฐานของ Revit 2026
+  3. Base_Level (ตรวจสอบและสร้าง Shared Parameter อัตโนมัติหากไม่มี)
 
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Calculate wall elevations and update parameters based on Base and Height. / รวบรวมผนังทั้งหมดเพื่อคำนวณและเขียนค่าระดับความสูงลงใน Parameter"

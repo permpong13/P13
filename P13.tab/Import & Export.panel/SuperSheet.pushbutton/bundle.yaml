@@ -1,24 +1,23 @@
 title: "SuperSheet\nExporter"
 
 tooltip: |
-  เครื่องมือส่งออกแบบแปลนระดับมืออาชีพ - ส่งออกแบบแปลนหลายรูปแบบพร้อมตั้งชื่อไฟล์อัจฉริยะ
-  ▸ รองรับ PDF / DWG / IFC / NWC
-  ▸ ตั้งชื่อไฟล์แบบกำหนดเองด้วยโทเคนพารามิเตอร์
-  ▸ ระบบ Profile สำหรับบันทึกการตั้งค่าใช้ซ้ำ
-  ▸ รวมหลายชีตเป็นไฟล์ PDF เดียว (Combine PDF)
-  ▸ ตัวเลือกขั้นสูงสำหรับ PDF: View links in blue, Hide ref/worksets, Hide unreferenced view tags, Hide scope boxes, Hide crop boundaries, Replace halftone, Region edges mask
-  ▸ สร้างโฟลเดอร์อัตโนมัติและรายงาน Excel
-  ▸ กรองแบบแปลนด้วย Sheet Set และเลือกเป็นชุด
-  ▸ โหลด Profile แบบเงียบ ไม่มี Pop-up ถาม
-  ▸ แสดงชื่อไฟล์ล่วงหน้าแบบ Real-time
-  ▸ ตัวเลือก PDF สีหรือขาวดำ
-  
-    วิธีใช้งาน
-  1. วางไฟล์ทั้งหมดในโฟลเดอร์เดียวกัน
-  2. ตรวจสอบว่า Revit มีสิทธิ์ในการส่งออก
-  3. ตั้งค่าพาธปลายทางที่มีสิทธิ์เขียนไฟล์
-  4. สำหรับประสิทธิภาพสูงสุด ปิดโปรแกรมอื่นขณะส่งออกแบบชุดใหญ่
+  🇬🇧 [EN] Professional batch exporter for multiple formats (PDF, DWG, IFC, NWC) with smart naming.
+  Key Features:
+  • Custom file naming using parameter tokens (e.g., {SheetNumber}) with real-time preview.
+  • Save, export, and load Export Profiles for repeated workflows.
+  • Combine multiple sheets into a single PDF or export them individually.
+  • Advanced PDF Options (hide unreferenced tags, hide scope boxes, view links in blue, etc.).
+  • Auto-create subfolders and automatically generate Excel (CSV) transmittal reports.
+  • Quickly filter sheets by Name, Number, or Revit Sheet Sets.
+
+  🇹🇭 [TH] เครื่องมือส่งออกแบบแปลนระดับมืออาชีพ รองรับหลายฟอร์แมต (PDF, DWG, IFC, NWC) พร้อมระบบตั้งชื่อไฟล์อัจฉริยะ
+  ฟังก์ชันหลัก:
+  • ตั้งชื่อไฟล์แบบกำหนดเองด้วย Parameter Tokens พร้อมแสดงตัวอย่างชื่อไฟล์ล่วงหน้าแบบ Real-time
+  • ระบบ Profile สำหรับบันทึก นำเข้า และส่งออกการตั้งค่าเพื่อใช้งานซ้ำได้อย่างรวดเร็ว
+  • รวมหลาย Sheet เป็นไฟล์ PDF เดียว (Combine PDF) หรือสั่งส่งออกแยกไฟล์ได้
+  • ตัวเลือกขั้นสูงสำหรับ PDF (เช่น ซ่อน Tag ที่ไม่ได้ใช้อ้างอิง, ซ่อน Scope boxes, แสดงลิงก์สีน้ำเงิน)
+  • จัดการสร้างโฟลเดอร์ย่อย (PDF/DWG) ให้อัตโนมัติ และออกรายงาน Excel (CSV) Transmittal
+  • ค้นหาและกรองแบบแปลนที่ต้องการด้วยชื่อ, หมายเลข หรือดึงข้อมูลจาก Sheet Set ของ Revit
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "SuperSheet Exporter"
-
+description: "Professional batch sheet exporter with smart naming and advanced PDF options. / เครื่องมือส่งออกแบบแปลนหลายฟอร์แมตพร้อมระบบตั้งชื่ออัจฉริยะ"

@@ -1,13 +1,23 @@
-title: "Numbering\nby Select"
+title: "Numbering\nby Manual"
 
 tooltip: |
-  เครื่องมือสำหรับกำหนดหมายเลขใหม่ให้กับองค์ประกอบตามที่ผู้ใช้เลือก
-  - รองรับทุกหมวดหมู่หลัก (ประตู, หน้าต่าง, โครงสร้าง, ผนัง, พื้น, ฯลฯ)
-  - พิมพ์ชื่อ Parameter เองได้ (Mark, Type Mark, Comments, Shared Parameter ฯลฯ)
-  - กำหนด Prefix, จำนวนหลัก, และเริ่มต้นได้เอง
-  - ป้องกันหมายเลขซ้ำโดยอัตโนมัติ
-  - ใช้กับองค์ประกอบทั้ง Instance และ Type Parameter
+  เครื่องมือรันหมายเลขแบบคลิกเลือกเอง (Live Pick) 
+  รองรับการพิมพ์ระบุชื่อ Parameter ได้อย่างอิสระ (Instance / Type / Shared)
 
+  [ENG]
+  - Live Pick Mode: Interactively click elements one-by-one in the model to number them sequentially. Press ESC to finish.
+  - Custom Parameters: Manually type any parameter name (e.g., Mark, Type Mark). The tool smartly searches for Instance, Built-in, and Type parameters.
+  - Broad Categories & Piles: Supports a wide range of categories, including a specialized filter for Piles (เสาเข็ม) that strictly checks the family name.
+  - Smart Memory: Automatically saves your last used parameter name, prefix, and digit count per category for faster future use.
+  - Flexible Formatting: Define custom prefixes and digit padding (e.g., 3 digits = 001).
+
+  [TH]
+  - โหมดคลิกสด (Live Pick): คลิกเลือกชิ้นงานในโมเดลทีละชิ้นเพื่อรันหมายเลขเรียงลำดับไปเรื่อยๆ (กด ESC เพื่อจบการทำงาน)
+  - พารามิเตอร์อิสระ (Custom Parameters): พิมพ์ระบุชื่อ Parameter ได้ตามต้องการ (ระบบจะช่วยค้นหาทั้งระดับ Instance, Type และ Built-in ให้อัตโนมัติ)
+  - ครอบคลุมหลายหมวดหมู่: รองรับ Category หลักเกือบทั้งหมด พร้อมตัวกรองพิเศษสำหรับหมวด "เสาเข็ม" ที่จะตรวจจับเฉพาะ Family ที่มีคำว่า PILE
+  - ระบบจดจำการตั้งค่า (Smart Memory): โปรแกรมจะจดจำชื่อ Parameter, Prefix และจำนวนหลักที่เคยตั้งไว้ล่าสุดแยกตามแต่ละหมวดหมู่
+  - จัดรูปแบบตัวเลข (Flexible Formatting): กำหนดคำนำหน้า (Prefix) และจำนวนหลักของตัวเลขได้เอง (เช่น 3 หลัก = 001)
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Manual re-numbering tool for user-selected elements with custom parameter support (Shared / Built‑in / Instance / Type)."
+
+description: "Manual re-numbering tool with Live Pick mode, smart memory, and custom parameter text input (Instance/Type). / เครื่องมือรันหมายเลขแบบคลิกเลือกเองพร้อมระบุพารามิเตอร์อิสระ"

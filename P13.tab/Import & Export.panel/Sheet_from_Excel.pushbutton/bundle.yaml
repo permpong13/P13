@@ -1,12 +1,29 @@
 title: "Sheets\nby Excel"
 
 tooltip: |
-    สร้าง Sheet จำนวนมากอัตโนมัติจาก Clipboard
-        วิธีใช้งาน:
-    1. ใน Excel: ลากคลุมข้อมูล (Number และ Name) แล้วกด Copy
-    2. ใน Revit: กดปุ่มนี้
-    3. ระบบจะอ่านข้อมูลและให้เลือก Titleblock เพื่อสร้างทันที
+  🇬🇧 [EN] Batch create multiple Sheets automatically by reading data directly from the Clipboard.
+  Key Features:
+  • Instantly reads copied data (Tab or Comma separated) for Sheet Number and Sheet Name.
+  • Remembers the last selected Titleblock for a faster workflow.
+  • Auto-detects and skips existing Sheet Numbers to prevent duplication errors.
+  • Provides a detailed result report showing successfully created and skipped sheets.
+  
+  Usage:
+  1. In Excel, highlight your data (Number and Name columns) and copy (Ctrl+C).
+  2. Run this command in Revit.
+  3. Select your Titleblock and let the script do the rest.
 
-author: "เพิ่มพงษ์ ทวีกุล | P13"
-description: "Sheets from Excel"
+  🇹🇭 [TH] สร้าง Sheet จำนวนมากอัตโนมัติ โดยการอ่านข้อมูลจาก Clipboard โดยตรง
+  ฟังก์ชันหลัก:
+  • อ่านข้อมูลที่ Copy ไว้ทันที (รองรับคอลัมน์ Number และ Name ที่คั่นด้วย Tab หรือลูกน้ำ)
+  • ระบบจดจำ Titleblock ล่าสุดที่เลือก เพื่อความรวดเร็วในการทำงานครั้งต่อไป
+  • ตรวจสอบและข้าม Sheet Number ที่มีอยู่แล้วในโปรเจกต์อัตโนมัติ เพื่อป้องกัน Error
+  • แสดงหน้าต่างสรุปผลการทำงาน (จำนวนที่สร้างสำเร็จ และรายการที่ถูกข้าม)
+  
+  วิธีใช้งาน:
+  1. ในโปรแกรม Excel: ลากคลุมข้อมูล (Number และ Name) แล้วกด Copy
+  2. ในโปรแกรม Revit: กดเรียกคำสั่งนี้
+  3. ระบบจะอ่านข้อมูลให้ทันที เพียงแค่เลือก Titleblock ที่ต้องการใช้
 
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Batch create sheets from Clipboard (Excel) with duplicate checking. / สร้าง Sheet จาก Clipboard (Excel) อัตโนมัติพร้อมระบบกันซ้ำ"

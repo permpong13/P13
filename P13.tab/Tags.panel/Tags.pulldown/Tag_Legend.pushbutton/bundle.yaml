@@ -1,19 +1,23 @@
 title: "Tags\nLegend"
 
 tooltip: |
-  สคริปต์นี้ใช้สำหรับสร้างข้อความกำกับ (Tag Text) ให้กับ Legend Components  
-  โดยผู้ใช้สามารถเลือกพารามิเตอร์ที่ต้องการแสดงได้อย่างอิสระ
-    ความสามารถหลัก:
-    • เลือกพารามิเตอร์ที่ต้องการแสดงจาก Family Type  
-    • รองรับหลายพารามิเตอร์ในครั้งเดียว  
-    • เลือกตำแหน่งการวางข้อความ:
-        - Top / Bottom
-        - Left / Centre / Right  
-    • เลือก Text Style ได้  
-    • รองรับตัวเลือก “แสดงชื่อพารามิเตอร์” หรือ “แสดงเฉพาะค่า”  
-    • จัดตำแหน่ง TextNote ใกล้องค์ประกอบใน Legend โดยอัตโนมัติ  
+  🇬🇧 [EN] Tag Legend Components with custom parameter values (Revit 2024-2026 Compatible).
+  Key Features:
+  • Flexible Selection: Process all elements in the view or manually pick components on screen.
+  • Auto-Detect Parameters: Scans family types to let you choose multiple parameters to display.
+  • Precise Positioning: 9 alignment options with custom offset and automatic text alignment handling.
+  • Sync Mode: Update text values while keeping existing tag positions.
+  • Smart Cleanup: Automatically deletes unused or duplicate tags in the view.
+  • Persistent Settings: Remembers your last used styles, positions, and offsets for a faster workflow.
 
+  🇹🇭 [TH] สร้างข้อความกำกับ (Tag) ให้กับ Legend Components โดยเลือกดึงค่าพารามิเตอร์ได้อิสระ (รองรับ Revit 2024-2026)
+  ฟังก์ชันหลัก:
+  • เลือกทำงานได้หลากหลาย: ทั้งการเลือกชิ้นงานทั้งหมดใน View หรือคลิกเลือกเองทีละชิ้น
+  • ตรวจหา Parameter อัตโนมัติ: ดึงข้อมูลจาก Family Type ให้คุณเลือกแสดงผลได้หลายรายการพร้อมกัน
+  • ปรับตำแหน่งแม่นยำ: เลือกวางได้ 9 ทิศทาง พร้อมกำหนดระยะ Offset และจัดแนวตัวอักษรอัตโนมัติ
+  • โหมดซิงค์ข้อมูล: อัปเดตเฉพาะเนื้อหาข้อความโดยยังคงรักษาตำแหน่งเดิมที่เคยจัดวางไว้
+  • ระบบล้างข้อมูล: ลบแท็กที่ไม่ได้ใช้งานหรือแท็กซ้ำซ้อนใน View ให้อัตโนมัติ
+  • จดจำการตั้งค่า: ระบบจำค่า Text Style, ตำแหน่ง และระยะล่าสุดที่เคยใช้งาน
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Tag legend components by selecting parameters and placement options."
-
+description: "Tag legend components with multi-parameter support and smart placement. / สร้างและอัปเดตแท็ก Legend ด้วยพารามิเตอร์ที่ต้องการพร้อมระบบจัดตำแหน่งอัจฉริยะ"

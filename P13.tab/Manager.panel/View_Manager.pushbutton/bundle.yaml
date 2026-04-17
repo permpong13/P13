@@ -2,22 +2,22 @@ title: "View\nManager"
 
 tooltip: |
   เครื่องมือจัดการ View ขั้นสูง (Advanced Filter Edition) 
-  ช่วยให้ตรวจสอบ ค้นหา และจัดการ View ในโครงการขนาดใหญ่ได้อย่างรวดเร็ว
-  รองรับการทำงานบน Revit 2026 (.NET 8) ได้อย่างเสถียร
+  ช่วยให้ตรวจสอบ ค้นหา และจัดการ View ในโครงการขนาดใหญ่ได้อย่างรวดเร็ว (รองรับ Revit 2026)
 
-  ⭐ ฟังก์ชันหลัก:
-  • Advanced Filtering System:
-      - กรองตามสถานะ (Orphan Views / All Views)
-      - กรองตามสาขางาน (Discipline) และ Phase ของโครงการ
-      - กรองตามระดับรายละเอียด (Detail Level: Coarse/Medium/Fine)
-  • Real-time Search: ค้นหาชื่อ View แบบแสดงผลทันทีที่พิมพ์
-  • Batch Operations:
-      - เลือกหลายรายการพร้อมกันเพื่อ ลบ, ใส่ Prefix หรือเปลี่ยนชื่อ
-      - Rename ด้วย Pattern รันตัวเลขอัตโนมัติ {n}
-  • Smart Export & Memory:
-      - ส่งออกรายงานเป็น .txt
-      - จดจำ Folder Path ล่าสุดที่เคยใช้งาน (ไม่ต้องเลือกใหม่ทุกครั้ง)
-  • Quality Control: เช็คชื่อซ้ำ, แสดงสถิติ View ทั้งโครงการ
+  [ENG]
+  - Advanced Filtering System: Categorizes views into "Orphan" (unused) and "All Views". Filter by Type, Discipline, Phase, and Detail Level.
+  - Real-time Search: Instantly find views by typing their names.
+  - Batch Operations: Select multiple views at once to Delete, Add Prefix, Rename using a number pattern {n}, or Set Detail Level (Coarse/Medium/Fine).
+  - Smart Export & Memory: Export view reports to a .txt file. The tool remembers your last used folder path automatically.
+  - Quality Control: Check for duplicate view names and show overall view statistics for the project.
+
+  [TH]
+  - ระบบตัวกรองขั้นสูง (Advanced Filtering): แยกแท็บแสดงผล View ที่ยังไม่ได้ใช้งาน (Orphan) และ View ทั้งหมด กรองข้อมูลได้ตามประเภท, สาขางาน (Discipline), Phase และ Detail Level
+  - ค้นหาแบบเรียลไทม์ (Real-time Search): ค้นหาชื่อ View แบบแสดงผลทันทีที่พิมพ์
+  - การจัดการแบบกลุ่ม (Batch Operations): เลือกหลายรายการพร้อมกันเพื่อ ลบ, ใส่ Prefix, เปลี่ยนชื่อด้วย Pattern รันตัวเลข {n} หรือตั้งค่า Detail Level (Coarse/Medium/Fine)
+  - ระบบส่งออกอัจฉริยะ (Smart Export & Memory): ส่งออกรายงาน View เป็นไฟล์ .txt พร้อมจดจำ Folder Path ล่าสุดที่เคยใช้งาน (ไม่ต้องเลือกโฟลเดอร์ใหม่ทุกครั้ง)
+  - การตรวจสอบคุณภาพ (Quality Control): ตรวจหาชื่อ View ที่ตั้งซ้ำกัน และแสดงสถิติจำนวน View ทั้งหมดในโครงการ
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Advanced view manager with multi-logic filters, batch tools, and persistent export settings for BIM workflows."
+
+description: "Advanced view manager with multi-logic filters, batch tools, and persistent export settings / เครื่องมือจัดการ View ขั้นสูง"

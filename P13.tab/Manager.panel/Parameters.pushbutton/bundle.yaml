@@ -1,23 +1,19 @@
-# bundle.yaml
-title: "Parameter\nManager"
+title: "G-Element\nStatus"
 
 tooltip: |
-  จัดการ Project Parameters อย่างครบวงจร (Export, Import, ลบ, รายงาน)
-  
-  📤 Export JSON: ส่งออก Parameter ที่เลือกเป็นไฟล์ JSON (รองรับ Instance/Type, หมวดหมู่, ชนิดข้อมูล)
-  📥 Import JSON: นำเข้า Parameter จากไฟล์ JSON กลับสู่โปรเจกต์ (พร้อมตรวจสอบ GUID และ Category)
-  🗑️ ลบแบบเลือกเอง: เลือก Parameter ใดก็ได้ พร้อมพยายามลบ (Force Delete) แม้ระบบจะบอกว่า "ถูกใช้งาน"
-  🧹 ลบที่ไม่ใช้งาน: ค้นหา Parameter ที่ไม่มีค่าจริงในโมเดล (อิงจาก Element และ Type) และให้เลือกลบ
-  📊 รายงานสรุป: แสดงสถิติ (ทั้งหมด/ใช้งาน/ไม่ใช้งาน/Instance/Shared) และรายชื่อ พร้อมส่งออกเป็นไฟล์ .txt ได้
-  🔍 ดูรายละเอียด: แสดงชนิด, Group, Binding, หมวดหมู่, สถานะ Shared/InUse ของ Parameter ที่เลือก
+  🇬🇧 [EN] Manage and update the "g_Element Status" parameter for elements in the active view (Revit 2026 Compatible).
+  Key Features:
+  • Smart Auto-Setup: Automatically detects, creates, and binds the Shared Parameter to over 60 categories if missing.
+  • Workset Grouping: Organizes elements by Workset and their current status for precise tracking and updating.
+  • Model Group Support: Auto-enables 'Varies Across Groups' to allow updating elements locked inside Model Groups.
+  • UI Dashboard: Batch update statuses with Highlight selection, Apply to List, and a clear status legend (0 to 2).
+
+  🇹🇭 [TH] จัดการและอัปเดตสถานะองค์ประกอบ (g_Element Status) ใน View ปัจจุบัน (รองรับ Revit 2026)
+  ฟังก์ชันหลัก:
+  • ระบบ Auto-Setup: ตรวจสอบ สร้าง และผูก Shared Parameter เข้ากับ Category กว่า 60 หมวดหมู่ให้อัตโนมัติหากยังไม่มีในโปรเจกต์
+  • จัดกลุ่มข้อมูล (Workset Grouping): แสดงรายการแยกตาม Workset และสถานะปัจจุบัน เพื่อความแม่นยำในการเลือกอัปเดต
+  • รองรับ Model Group: เปิดใช้งาน 'Varies Across Groups' ให้อัตโนมัติ เพื่อให้สามารถแก้ไขชิ้นงานที่อยู่ในกรุ๊ปได้
+  • หน้าต่าง UI Dashboard: จัดการแบบกลุ่มอย่างรวดเร็วด้วยระบบ Select Highlight และมีคำอธิบายสถานะ (0-2) ไว้อย่างชัดเจน
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-
-description: |
-  เครื่องมือแบบ All‑in‑One สำหรับ Project Parameters และ Shared Parameters
-  - รองรับ Revit 2024, 2025, 2026 (ForgeTypeId + SpecTypeId)
-  - ตรวจสอบการใช้งาน Parameter อย่างแม่นยำ (สุ่มตัวอย่าง Element + ElementType หลายร้อยรายการ)
-  - พยายามลบ Parameter ได้แม้เป็น Shared (API จะแจ้งสาเหตุหากไม่สำเร็จ)
-  - ไม่เปิด Output Console ของ pyRevit ทุกฟังก์ชันใช้ forms.alert() ทั้งหมด
-  - จดจำโฟลเดอร์ล่าสุดสำหรับ Import/Export อัตโนมัติ
-  - ทำงานภายใต้ Transaction ที่ปลอดภัย ยกเลิกได้หากเกิดข้อผิดพลาด
+description: "Manage 'g_Element Status' by Workset with auto-parameter setup. / จัดการและอัปเดตสถานะ g_Element Status แยกตาม Workset พร้อมระบบสร้าง Parameter อัตโนมัติ"

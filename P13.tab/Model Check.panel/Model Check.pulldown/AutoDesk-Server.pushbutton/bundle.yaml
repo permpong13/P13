@@ -1,10 +1,19 @@
 title: "AutoDesk\nCheck Server"
 
 tooltip: |
-  pyRevit Script สำหรับตรวจสอบสถานะเซิร์ฟเวอร์ของ Autodesk
-  เพื่อดูว่า Online / Offline / Timeout
+  🇬🇧 [EN] Check the real-time health status of Autodesk Cloud Services.
+  Key Features:
+  • Monitors specifically: "Revit Cloud Worksharing / Cloud Models".
+  • Double-check logic: Performs two scans with a 10-second delay to ensure status accuracy and stability.
+  • Smart Detection: Identifies Operational, Outage, and Degraded Performance states.
+  • Quick Access: Option to instantly open the official Autodesk Health Dashboard in your browser.
 
+  🇹🇭 [TH] ตรวจสอบสถานะการทำงานของเซิร์ฟเวอร์ Autodesk Cloud แบบ Real-time
+  ฟังก์ชันหลัก:
+  • ตรวจสอบบริการเฉพาะเจาะจง: เน้นที่ "Revit Cloud Worksharing / Cloud Models" เป็นหลัก
+  • ระบบตรวจสอบซ้ำ: ทำการสแกน 2 ครั้งห่างกัน 10 วินาที เพื่อยืนยันความถูกต้องของสถานะก่อนแจ้งเตือน
+  • ตรวจจับสถานะละเอียด: แจ้งเตือนเมื่อระบบปกติ, ขัดข้อง (Outage), หรือทำงานช้า (Degraded)
+  • ทางลัดหน้าเว็บ: มีตัวเลือกเปิดหน้า Autodesk Health Dashboard บนเบราว์เซอร์ได้ทันทีจากตัวโปรแกรม
 
-author: "เพิ่มพงษ์ ทวีกุล | P13"
-description: "pyRevit tool for checking Autodesk server status (online/offline)."
-
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Check status of Revit Cloud Worksharing and Autodesk Services. / ตรวจสอบสถานะเซิร์ฟเวอร์ Autodesk และระบบ Cloud Models"

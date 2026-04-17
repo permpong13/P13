@@ -1,15 +1,27 @@
-title: "WorkSets\nManager"
+title: "Workset\nManager"
 
 tooltip: |
-  เครื่องมือจัดการ WorkSets ขั้นสูง ช่วยให้ตรวจสอบ ค้นหา ลบ
-    แสดง Worksets ทั้งหมด ในแท็บต่างๆ
-    สร้าง Workset ใหม่
-    ลบ Workset (เฉพาะ Workset ว่างเท่านั้น)
-    เปลี่ยนชื่อ Workset
-    แสดงสถิติ Worksets
-    ส่งออกรายการ เป็นไฟล์ text
+  เครื่องมือจัดการ Workset ขั้นสูงแบบครบวงจร
+  (แสดงผลแยกแท็บ, ค้นหา, สร้าง, ลบ, เปลี่ยนชื่อ, ย้ายชิ้นงาน และลบ Workset ว่างอัตโนมัติ)
+  
+  [ENG]
+  - Tabbed Interface: View all worksets, worksets with elements, or empty worksets in categorized tabs.
+  - Search & Filter: Quickly find worksets by name, owner, or ID.
+  - Manage Worksets: Create, rename, or safely delete worksets (prevents deleting active/populated ones).
+  - Element Control: Select all elements in a specific workset or bulk-move elements between worksets.
+  - Set Default: Easily set any workset as the active/default workset for new elements.
+  - Smart Cleanup: Automatically identify and delete all unused/empty worksets in one click.
+  
+  [TH]
+  - อินเทอร์เฟซแบบแท็บ (Tabbed Interface): แยกการแสดงผล Worksets ทั้งหมด, Worksets ที่มีองค์ประกอบ และ Worksets ว่าง
+  - ค้นหาและกรองข้อมูล (Search & Filter): ค้นหา Workset ได้อย่างรวดเร็วจากชื่อ, เจ้าของ หรือ ID
+  - จัดการ Worksets (Manage Worksets): สร้าง, เปลี่ยนชื่อ และลบ Workset (พร้อมระบบป้องกันการลบ Workset ที่มีชิ้นงานหรือเป็น Workset เริ่มต้น)
+  - จัดการชิ้นงาน (Element Control): ดึง Selection ชิ้นงานทั้งหมดใน Workset นั้นๆ หรือย้ายชิ้นงานข้าม Workset ได้คราวละมากๆ
+  - ตั้งค่าเริ่มต้น (Set Default): กำหนด Workset ที่เลือกให้เป็น Active Workset เริ่มต้น
+  - ทำความสะอาด (Smart Cleanup): ตรวจหาและลบ Workset ที่ไม่ได้ใช้งาน (Workset ว่าง) ทั้งหมดได้ในคลิกเดียว
+  
+  
+author: "เพิ่มพงษ์ ทวีกุล | P13"
 
-
-author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Advanced WorkSet Manager tools"
-
+description: |
+  Advanced Workset Manager tools / เครื่องมือจัดการ Workset ขั้นสูงแบบครบวงจร:

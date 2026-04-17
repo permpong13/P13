@@ -1,23 +1,20 @@
 title: "DisAllow\nBeam-Joint"
 
 tooltip: |
-  เครื่องมือนี้ใช้สำหรับปิดการ Join ของ Beam / Brace โดยเลือกได้ว่าจะปิดที่ด้าน Start หรือ End  
-  เหมาะสำหรับผู้ใช้งานที่ต้องการควบคุมรูปทรงของคานหรือเหล็กโครงสร้างไม่ให้ Revit ทำการ Join อัตโนมัติ
-    ฟังก์ชันหลัก:
-    • เลือกได้ว่าจะ Disallow Join ที่หัว (Start)
-    • เลือกได้ว่าจะ Disallow Join ที่ท้าย (End)
-    • ทำงานเฉพาะกับ Structural Framing เช่น Beam, Brace
-    • รายงานจำนวนที่ปิด Join สำเร็จ
-    • รองรับการทำงานแบบหลายตัวพร้อมกัน (Multi-Selection)
-    การใช้งาน:
-    1. เลือก Beam หรือ Brace ในโมเดล
-    2. รันสคริปต์
-    3. ระบบจะถาม:
-         - ต้องการ Disallow ที่หัว (Start) ไหม?
-         - ต้องการ Disallow ที่ท้าย (End) ไหม?
-    4. ระบบจะปิด Join ตามตัวเลือกของผู้ใช้
+  เครื่องมือสำหรับปิดการเชื่อมต่อ (Disallow Join) หัว-ท้ายของ Beam และ Brace แบบอัตโนมัติ
 
+  [ENG]
+  - Interactive Prompts: Choose to disallow join at the Start point, End point, or both.
+  - Smart Filtering: Automatically filters and processes only Structural Framing elements (Beams/Braces) from your active selection.
+  - Batch Processing: Select multiple framing elements and apply the disallow join command simultaneously.
+  - Progress Tracking: Provides a summary report on the number of elements successfully updated.
+
+  [TH]
+  - ตัวเลือกตอบโต้ (Interactive Prompts): เลือกระบุได้ว่าจะปิดการ Join ที่ฝั่งหัว (Start), ฝั่งท้าย (End) หรือทั้งสองฝั่ง
+  - กรองชิ้นงานอัจฉริยะ (Smart Filtering): กรองและทำงานเฉพาะชิ้นงานหมวด Structural Framing (คาน และ ค้ำยัน) จากรายการที่เลือก
+  - การทำงานแบบกลุ่ม (Batch Processing): รองรับการเลือกชิ้นงานหลายตัวพร้อมกัน เพื่อสั่ง Disallow Join ในครั้งเดียว
+  - สรุปผลการทำงาน (Progress Tracking): แจ้งเตือนและสรุปจำนวนชิ้นงานทั้งหมดที่ดำเนินการปิด Join สำเร็จ
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Disallow beam/brace join at Start/End points with multi-selection support."
 
+description: "Disallow structural framing (beam/brace) joints at Start/End points with multi-selection support. / เครื่องมือปิดการ Join หัว-ท้ายของคานและค้ำยัน"

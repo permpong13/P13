@@ -1,9 +1,23 @@
 title: "Family\nReload"
 
 tooltip: |
-  เครื่องมือส่งออก Family Reload
+  เครื่องมือโหลดแฟมิลีซ้ำจากโฟลเดอร์ (Family Reload) 
+  พร้อมระบบสแกนโฟลเดอร์ย่อยและตรวจสอบไฟล์เสียอัตโนมัติ
 
+  [ENG]
+  - Folder Scan: Recursively scans a selected folder and its subfolders for .RFA files.
+  - Smart Matching: Matches files to existing families in the model using the filename (faster processing without opening RFA files in the background).
+  - Corrupt Check & Auto-Reload: Performs a best-effort check to detect corrupt or suspect families in your active model. Automatically forces a reload for these corrupted elements.
+  - Interactive UI: Provides a multi-select list allowing you to manually choose which healthy families to reload.
+  - Live Progress: Displays real-time progress bars and generates a detailed summary report of successful and failed reloads.
 
-author: "..."
-description: "Family Reload"
+  [TH]
+  - สแกนโฟลเดอร์ (Folder Scan): สแกนหาไฟล์ .RFA ในโฟลเดอร์หลักและโฟลเดอร์ย่อยทั้งหมดแบบอัตโนมัติ
+  - การจับคู่อัจฉริยะ (Smart Matching): จับคู่ไฟล์กับ Family ที่มีอยู่ในโมเดลโดยอิงจากชื่อไฟล์ (ประมวลผลไวโดยไม่ต้องเปิดอ่านไฟล์ RFA เบื้องหลัง)
+  - ตรวจสอบไฟล์เสีย (Corrupt Check & Auto-Reload): ตรวจหา Family ในโปรเจกต์ที่มีความเสี่ยงว่าจะพังหรือเสียหาย (Suspect/Corrupt) พร้อมบังคับ Reload ทับไฟล์ที่เสียให้อัตโนมัติ
+  - เลือกรายการได้ (Interactive UI): หน้าต่าง UI สำหรับให้ผู้ใช้งานเลือกติ๊กเฉพาะ Family ที่ต้องการอัปเดตได้แบบ Multi-select
+  - รายงานสถานะ (Live Progress): มีแถบแสดงความคืบหน้า (Progress Bar) แบบเรียลไทม์ และสรุปผลการทำงานเมื่อเสร็จสิ้น
 
+author: "xxx"
+
+description: "Smart family reloader with recursive folder scanning, corrupt family detection, and auto-reload features. / เครื่องมืออัปเดตแฟมิลีพร้อมระบบตรวจสอบและซ่อมแซมไฟล์เสีย"

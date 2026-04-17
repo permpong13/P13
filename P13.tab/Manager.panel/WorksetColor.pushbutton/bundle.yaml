@@ -5,14 +5,21 @@ tooltip: |
   - Rainbow Mode: เปลี่ยนสีทุก Workset ให้แตกต่างกันอัตโนมัติเพื่อให้แยกแยะง่าย
   - Focus Mode: เน้นสีเฉพาะ Workset ที่เลือก และปรับรายการอื่นให้เป็นสีจาง (Halftone)
   - Reset View: ล้างค่าการตั้งค่าสีทั้งหมดเพื่อกลับสู่สถานะปกติของมุมมอง
-
+  
+  [ENG]
+  - Rainbow Mode: Automatically assigns unique solid colors to all worksets for clear visualization.
+  - Exclude Grids: Option to exclude 'Shared Levels and Grids' during Rainbow Mode.
+  - Focus Mode: Highlights a selected workset in blue while applying halftone and transparency (70%) to all other elements.
+  - Reset View: Clears all graphic overrides and restores the view to its original state.
+  
+  [TH]
+  - โหมดสายรุ้ง (Rainbow Mode): สุ่มและเปลี่ยนสีพื้นผิวให้แต่ละ Workset อัตโนมัติเพื่อให้แยกแยะชิ้นงานได้ง่าย
+  - ยกเว้นเส้นกริด (Exclude Grids): ตัวเลือกสำหรับข้ามการทำสีในส่วนของ 'Shared Levels and Grids'
+  - โหมดโฟกัส (Focus Mode): เน้นสีน้ำเงินเฉพาะ Workset ที่ต้องการ และปรับชิ้นงานอื่นให้โปร่งใส (70%) และสีจางลง (Halftone)
+  - รีเซ็ตมุมมอง (Reset View): ล้างค่าการตั้งค่ากราฟิกและสีทับซ้อนทั้งหมดเพื่อกลับสู่สถานะเดิม
+  
+  
 author: "เพิ่มพงษ์ ทวีกุล | P13"
+
 description: |
-  Advanced Revit family and type management utility featuring:
-  - Direct Grid Editing: Rename types directly in the data grid.
-  - Favorites System: Bookmark frequently used families for quick access.
-  - Live Preview: High-resolution image tooltips on hover.
-  - Batch Operations: Rename, Prefix/Suffix, Duplicate, and Parameter editing.
-  - Usage Analytics: Track instance counts, identify unused types, and filter in-place or nested families.
-  - Export Tools: Export data to Excel and generate Type Catalogs.
-  - Auto-Settings: Remembers previous export paths and user preferences.
+  Advanced Workset visualization tool featuring / เครื่องมือจัดการการแสดงผล Workset ขั้นสูง:

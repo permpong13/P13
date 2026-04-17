@@ -1,14 +1,19 @@
 title: "Column Cal\nParameters"
 
 tooltip: |
-  คำนวณและตั้งค่า Parameter สำหรับเสาโครงสร้าง (Structural Columns)
+  🇬🇧 [EN] Calculate and set parameters for Structural Columns
+  based on the following values:
+    • Base Level
+    • Top Level
+    • Base Offset
+    • Top Offset
+
+  🇹🇭 [TH] คำนวณและตั้งค่า Parameter สำหรับเสาโครงสร้าง (Structural Columns)
   โดยอ้างอิงค่าดังต่อไปนี้:
     • Base Level
     • Top Level
     • Base Offset
     • Top Offset
 
-
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Compute and set structural column level parameters including base, top, and offsets."
-
+description: "Compute and set structural column level parameters including base, top, and offsets. / คำนวณและตั้งค่าพารามิเตอร์ของเสาโครงสร้าง (Base, Top, Offsets)"

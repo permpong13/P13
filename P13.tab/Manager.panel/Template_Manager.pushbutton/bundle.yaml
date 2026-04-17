@@ -1,34 +1,21 @@
 title: "Template\nManager"
 
 tooltip: |
-  ลบ View Templates แบบระบุเฉพาะรายการที่ต้องการ พร้อมระบบตรวจสอบการใช้งานก่อนลบ  
-  ปลอดภัย เหมาะสำหรับทำความสะอาดโมเดลที่มี Template ค้างจำนวนมาก
-    ฟีเจอร์หลัก:
-    • แสดง View Templates ทั้งหมดพร้อมจำนวน View ที่ใช้อยู่  
-    • แสดง Preview ก่อนลบ:
-        - 🟢 ปลอดภัย (ไม่ถูกใช้งาน)  
-        - 🟡 มี View ใช้อยู่บางส่วน  
-        - 🔴 มี View ใช้อยู่จำนวนมาก  
-    • ลบเฉพาะ Templates ที่เลือกเท่านั้น  
-    • ยืนยันการลบก่อนดำเนินการจริง  
-    • ทำงานแบบรวดเร็ว ปลอดภัย ไม่แตะ View อื่น
-    
-  View Template Quick Apply – Short Description  
-  เครื่องมือนี้ช่วยให้คุณเลือก View Template และนำไปใช้กับหลาย View 
-  ได้อย่างรวดเร็วมาก เหมาะสำหรับงานจัดมาตรฐานมุมมองของโปรเจกต์
-    ฟังก์ชันหลัก:
-    • เลือก View Template จากรายชื่อทั้งหมด  
-    • ตั้ง Template ที่เลือกให้เป็น Default สำหรับครั้งถัดไป  
-    • หากไม่เลือก View → ระบบจะดึงทุก View (ที่ไม่ใช่ Template) มาให้เลือกทันที  
-    • แสดงรายการ View พร้อมสถานะ:
-         - Current Template: None / Existing Template Name  
-    • รองรับการเลือกหลาย View พร้อมกัน (Multi-Select)  
-    • กด Apply เพื่อใช้ Template พร้อมกันหลาย View  
-    รายงานผลลัพธ์:
-    ✔ สำเร็จจำนวนกี่ View  
-    ❌ View ไหนไม่สามารถใช้ Template ได้ พร้อมเหตุผล
+  🇬🇧 [EN] Ultimate View Template management and batch application tool (All-in-One).
+  Key Features:
+  • Usage Analysis & Dashboard: Scans all View Templates, separates Used from Unused, and displays instance counts.
+  • Batch Operations: Bulk Rename (Prefix/Find & Replace) and Duplicate templates with custom suffixes.
+  • Safe Cleanup: Preview and selectively delete unused templates to safely reduce file size.
+  • Export to Excel (CSV): Generates usage reports and automatically remembers your chosen export folder (Prompts if no path is set).
+  • Quick Apply: Quickly select and apply View Templates to multiple views simultaneously.
 
+  🇹🇭 [TH] เครื่องมือจัดการและใช้งาน View Template ระดับโปรแบบ All-in-One
+  ฟังก์ชันหลัก:
+  • วิเคราะห์การใช้งาน (Dashboard): ตรวจสอบ View Template ทั้งหมด แยกรายการที่ถูกใช้งาน/ไม่ได้ใช้งาน พร้อมนับจำนวนอ้างอิง
+  • จัดการแบบกลุ่ม (Batch Actions): เปลี่ยนชื่อพร้อมกัน (Prefix/Find & Replace) และคัดลอก (Duplicate) Template
+  • ทำความสะอาดอย่างปลอดภัย: เลือกลบเฉพาะ Template ที่ไม่ได้ใช้งาน (Unused) เพื่อลดขนาดไฟล์โปรเจกต์
+  • ส่งออกรายงาน (Export to Excel): บันทึกข้อมูลเป็น CSV พร้อมระบบจดจำโฟลเดอร์ (หากไม่มีค่าเดิมจะแสดงหน้าต่างให้เลือก Path ใหม่ทันที)
+  • Quick Apply (ฟีเจอร์เดิม): ระบบเลือกและนำ View Template ไปใช้กับหลายๆ View พร้อมกันได้อย่างรวดเร็ว
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Selective deletion of unused or unwanted view templates with usage checking and preview.& Fast batch apply of View Templates with auto-detection, defaults, and detailed results."
-
+description: "Manage, rename, duplicate, export, and quick apply View Templates. / จัดการ เปลี่ยนชื่อ ลบ ส่งออก และตั้งค่า View Templates แบบรวดเร็ว"

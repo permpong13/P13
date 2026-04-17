@@ -1,20 +1,21 @@
 title: "Pipes Flow\nDirections"
 
 tooltip: |
-  สร้างสัญลักษณ์ลูกศรบอกทิศทางการไหลบนท่อทั้งหมดใน Plan View  
-  รองรับการเลือก Family / Type สำหรับลูกศร และกำหนดระยะห่างระหว่างลูกศรเองได้
-    ฟีเจอร์หลัก:
-    • รองรับ SMART Flow Detection:
-        - วิเคราะห์จาก Slope
-        - ระดับความสูง (Elevation)
-        - การเชื่อมต่อ (Connectors)
-        - ประเภทระบบท่อ (MEP System)
-        - Neighbor Pipes รอบข้าง
-    • กำหนดระยะวางลูกศรเป็นเมตร (Auto Convert to Feet)
-    • เลือก Family/Type ของ Detail Items เพื่อใช้เป็นลูกศร
-    • วางลูกศรตามความยาวท่อแบบอัตโนมัติ
-    • หมุนลูกศรให้ตรงกับทิศทางการไหลจริง
+  🇬🇧 [EN] Generate pipe flow direction arrows using SMART Flow Detection (Rule-Based AI).
+  Key Features:
+  • SMART Detection: Analyzes Slope, Elevation, Connections (pumps/valves), MEP Systems, and Neighbor pipes to determine flow direction.
+  • Confidence Score: Calculates and displays the probability of the detected direction.
+  • Custom Spacing: Set arrow intervals in meters with automatic conversion and placement.
+  • Flexible Selection: Choose any Detail Item family and type to serve as the flow arrow.
+  • Auto-Rotation: Automatically aligns and rotates arrows to match the calculated flow path.
+
+  🇹🇭 [TH] สร้างสัญลักษณ์ลูกศรบอกทิศทางการไหลด้วยระบบ SMART Flow Detection (Rule-Based AI)
+  ฟังก์ชันหลัก:
+  • SMART Detection: วิเคราะห์ทิศทางอย่างชาญฉลาดจาก Slope, ระดับความสูง, การเชื่อมต่ออุปกรณ์ (ปั๊ม/วาล์ว), ประเภทระบบท่อ และท่อข้างเคียง
+  • คำนวณความมั่นใจ: แสดงเปอร์เซ็นต์ความน่าจะเป็นของทิศทางการไหลที่ตรวจพบ
+  • กำหนดระยะอิสระ: ระบุระยะห่างระหว่างลูกศรเป็นหน่วยเมตร พร้อมระบบคำนวณและจัดวางอัตโนมัติ
+  • เลือกสัญลักษณ์ได้: เลือกใช้ Detail Item Family และ Type ใดก็ได้ในโปรเจกต์มาเป็นลูกศร
+  • หมุนลูกศรอัตโนมัติ: ปรับทิศทางและการหมุนของลูกศรให้ตรงตามแนวการไหลของท่อจริง
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Generate pipe flow direction arrows with rule-based SMART flow analysis and automatic placement."
-
+description: "Generate pipe flow arrows with rule-based SMART flow analysis and automatic placement. / สร้างลูกศรทิศทางการไหลของท่อด้วยระบบวิเคราะห์อัจฉริยะและการจัดวางอัตโนมัติ"

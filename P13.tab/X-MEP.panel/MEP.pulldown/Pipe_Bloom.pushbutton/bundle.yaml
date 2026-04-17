@@ -1,17 +1,31 @@
 title: "Bloom\nPipes"
 
 tooltip: |
-    - รองรับ Pipe, Duct, Fittings, Accessories และ Equipment
-    - เลือกทิศทางได้ทั้ง 90° และ 45° (Up, Down, Left, Right)
-    - Multi-Port: เลือกต่อท่อออกจากหลายรูพร้อมกันได้ (เช่น ถังน้ำ)
-    - Auto System: ค้นหา System Type ให้อัตโนมัติกรณีเริ่มเดินท่อใหม่
-    - Remember: จดจำค่าความยาวล่าสุดที่ใช้งาน
-    How to use:
-    1. เลือกวัตถุที่ต้องการต่อท่อ (เลือกชิ้นเดียว)
-    2. กดปุ่มคำสั่ง
-    3. หากมีหลายรู ให้เลือกรูที่ต้องการ (เลือกได้มากกว่า 1)
-    4. เลือกทิศทางและความยาว
+  🇬🇧 [EN] Powerful extension tool for MEP curves (Pipes/Ducts) with multi-connector support (V5).
+  Key Features:
+  • Multi-Port Selection: Select and bloom from multiple open connectors simultaneously.
+  • 45° & 90° Elbows: Supports Up, Down, Left, Right, and Straight extensions.
+  • Auto System Mapping: Automatically detects or finds fallback system types for new runs.
+  • Persistent Memory: Remembers your last used extension length for a faster workflow.
+  • Universal Support: Compatible with Pipes, Ducts, Fittings, Accessories, and Equipment.
+
+  How to use:
+  1. Select ONE MEP element (e.g., Equipment, Tank, or Pipe).
+  2. Choose one or more open connectors from the popup list.
+  3. Select the desired direction and specify the extension length.
+
+  🇹🇭 [TH] เครื่องมือต่อท่อ (Pipe) และท่อลม (Duct) แบบหลายจุดพร้อมกันเวอร์ชัน V5
+  ฟังก์ชันหลัก:
+  • Multi-Port: เลือกต่อท่อออกจากหลายรูเปิดพร้อมกันได้ในครั้งเดียว
+  • ต่อท่อ 45° และ 90°: รองรับทิศทาง บน, ล่าง, ซ้าย, ขวา และแบบต่อตรง
+  • ระบบค้นหาระบบ: ค้นหา System Type ให้อัตโนมัติกรณีเริ่มเดินท่อใหม่
+  • ระบบจดจำค่า: จดจำความยาวล่าสุดที่เคยใช้งาน ไม่ต้องกรอกใหม่ทุกครั้ง
+  • รองรับวัตถุหลากหลาย: ครอบคลุมทั้ง Pipe, Duct, Fittings, Accessories และ Equipment
+
+  วิธีใช้งาน:
+  1. เลือกวัตถุต้นทางที่ต้องการต่อท่อเพียง 1 ชิ้น
+  2. เลือกรูเปิดที่ต้องการต่อท่อจากรายการ (เลือกได้มากกว่า 1 รู)
+  3. เลือกทิศทางและระบุความยาวที่ต้องการ
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "เครื่องมือสำหรับต่อท่อ (Pipe) หรือท่อลม (Duct) ออกจากปลายเปิดของวัตถุ โดยสามารถกำหนดทิศทาง (บน/ล่าง/ซ้าย/ขวา) และใส่ข้องอ (Elbow) ให้ทันที"
-
+description: "Extend pipes/ducts from multiple connectors with auto-elbows and system detection. / ต่อท่อและท่อลมออกจากหลายจุดพร้อมกัน ปรับทิศทางและใส่ข้องออัตโนมัติ"

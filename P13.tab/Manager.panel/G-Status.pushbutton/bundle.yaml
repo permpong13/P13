@@ -1,19 +1,19 @@
 title: "G-Element\nStatus"
 
 tooltip: |
-  เครื่องมือจัดการสถานะองค์ประกอบ (g_Element Status) 
-  รองรับ Revit 2024 - 2026 อย่างเต็มรูปแบบ
-  
-  ฟังก์ชันเด่น:
-  • Smart Scanning: ตรวจสอบองค์ประกอบที่มองเห็นใน Active View ตามหมวดหมู่ (Categories) ที่กำหนดมากกว่า 60 ประเภท
-  • Workset Grouping: แสดงรายการแยกตาม Workset และค่าสถานะปัจจุบัน เพื่อความแม่นยำในการเลือกอัปเดต
-  • Parameter Auto-Config: ระบบตรวจสอบและช่วยสร้าง/เพิ่มหมวดหมู่ (Categories) ให้กับ Shared Parameter โดยอัตโนมัติ
-  • Multi-Type Support: รองรับ Parameter ทั้งรูปแบบตัวเลข (Integer/Double) และข้อความ (String)
-  • UI Dashboard: หน้าต่างจัดการที่ระบุคำนิยามสถานะ (0-2) ไว้อย่างชัดเจน พร้อมระบบ Select Highlight เพื่อความรวดเร็ว
+  🇬🇧 [EN] Manage and update the "g_Element Status" parameter for elements in the active view (Revit 2024-2026 Compatible).
+  Key Features:
+  • Smart Auto-Setup: Automatically detects, creates, and binds the Shared Parameter to over 60 categories if missing.
+  • Workset Grouping: Organizes elements by Workset and their current status for precise tracking.
+  • Model Group Support: Features automatic 'Varies Across Groups' enablement to allow updating elements locked inside groups.
+  • UI Dashboard: Batch update statuses (0, 0.1, 0.5, 1, 2) with clear definitions and "Select Highlight" functionality.
 
+  🇹🇭 [TH] จัดการและอัปเดตสถานะองค์ประกอบ (g_Element Status) ใน View ปัจจุบัน (รองรับ Revit 2024-2026)
+  ฟังก์ชันหลัก:
+  • ระบบ Auto-Setup: ตรวจสอบ สร้าง และผูก Shared Parameter เข้ากับ Category กว่า 60 หมวดหมู่ให้อัตโนมัติหากยังไม่มีในโปรเจกต์
+  • จัดกลุ่มข้อมูล (Workset Grouping): แสดงรายการแยกตาม Workset และสถานะปัจจุบัน เพื่อความแม่นยำในการเลือกอัปเดต
+  • รองรับ Model Group: เปิดใช้งาน 'Varies Across Groups' ให้อัตโนมัติ เพื่อให้สามารถแก้ไขชิ้นงานที่อยู่ในกรุ๊ปได้
+  • หน้าต่าง UI Dashboard: จัดการแบบกลุ่มอย่างรวดเร็ว พร้อมคำนิยามสถานะ (0, 0.1, 0.5, 1, 2) และระบบ Select Highlight
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: |
-  อัปเดตค่าพารามิเตอร์ g_Element Status สำหรับองค์ประกอบในมุมมองปัจจุบัน 
-  โดยมีการแบ่งกลุ่มข้อมูลตาม Workset และค่าเดิมที่พบ 
-  (Compatible with .NET 8 / Revit 2026 API)
+description: "Manage 'g_Element Status' by Workset with auto-parameter setup. / จัดการและอัปเดตสถานะ g_Element Status แยกตาม Workset พร้อมระบบสร้างพารามิเตอร์อัตโนมัติ"

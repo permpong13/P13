@@ -1,21 +1,19 @@
 title: "ImportCAD\nManager"
 
 tooltip: |
-  คำสั่งนี้ใช้เพื่อ:
-    • ค้นหา CAD ตามชื่อ, View, หรือ Path
-    • เปิดไปยัง View ที่มีการเชื่อมโยง CAD นั้น (Jump to View)
-    • ทำงานกับ CAD ได้หลายแบบ:
-        - Explode ทีละตัว
-        - Explode เฉพาะรายการที่เลือก
-        - Explode ทั้งหมด
-        - Delete ทีละตัว
-        - Delete เฉพาะที่เลือก
-        - Delete ทั้งหมด
-    • Refresh รายการ CAD ได้ทันที
-    • ระบบค้นหาแบบ Real-Time Filter
-    • UI แบบ DataGrid ใช้งานง่ายและรวดเร็ว
+  🇬🇧 [EN] Manage, locate, explode, or delete CAD Imports across the project (Revit 2025/2026 Compatible).
+  Key Features:
+  • Real-time search and filter by CAD Name, View Name, or File Path.
+  • Double-click an item to instantly open the View containing that CAD.
+  • Batch operations: Explode or Delete selected items, or apply to All at once.
+  • User-friendly DataGrid UI with progress tracking and instant refresh.
 
+  🇹🇭 [TH] จัดการ ค้นหา ระเบิด (Explode) หรือลบไฟล์ CAD ที่นำเข้ามาในโปรเจกต์ (รองรับ Revit 2025/2026)
+  ฟังก์ชันหลัก:
+  • ระบบค้นหาและกรองข้อมูลแบบ Real-time ด้วยชื่อ CAD, ชื่อ View หรือ Path ของไฟล์
+  • ดับเบิลคลิกที่รายการเพื่อเปิดไปยัง View ที่มี CAD ชิ้นนั้นอยู่ทันที (Jump to View)
+  • การทำงานแบบกลุ่ม: เลือก Explode หรือ Delete เฉพาะรายการที่เลือก หรือทำทั้งหมดพร้อมกันได้
+  • หน้าต่าง UI แบบ DataGrid ใช้งานง่าย รวดเร็ว พร้อมแถบแสดงความคืบหน้า (Progress bar)
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Manage, filter, locate, explode, and remove imported CAD files through a powerful DataGrid UI."
-
+description: "Manage, filter, explode, and delete CAD imports through a DataGrid UI. / จัดการ ค้นหา ระเบิด และลบ CAD Imports อย่างรวดเร็ว"

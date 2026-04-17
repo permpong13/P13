@@ -1,20 +1,21 @@
 title: "Detail Items\nfrom CSV"
 
 tooltip: |
-  คำสั่งนี้ใช้เพื่อ:
-    • อ่านไฟล์ CSV ที่มีข้อมูลพิกัด Easting/Northing (เมตร)
-    • แปลงพิกัด Survey → Revit Coordinates (ฟุต)
-      โดยอ้างอิง:
-        - Project Base Point
-        - True North Angle (Project Rotation)
-        - Project Base Point Offset
-    • สร้าง Detail Items อัตโนมัติใน Plan View
-    • ตั้งค่าพารามิเตอร์ให้แต่ละจุด:
-        - Mark
-        - Comments
-        - Survey_E
-        - Survey_N
+  🇬🇧 [EN] Import CSV coordinates to automatically place Detail Items in Plan Views (Revit 2026 Optimized).
+  Key Features:
+  • Auto-detects Project Base Point (PBP) and True North Angle with a verification UI.
+  • Precise coordinate transformation including Project Base Point Offset.
+  • Remembers the last used folder path for quick CSV selection.
+  • Updates parameters for each point: Mark, Comments, Survey_E, and Survey_N.
+  • Fallback System: Automatically draws simple geometry if no Detail Item families are found in the project.
 
+  🇹🇭 [TH] นำเข้าพิกัดจากไฟล์ CSV เพื่อสร้าง Detail Items บน Plan View อัตโนมัติ (รองรับ Revit 2026)
+  ฟังก์ชันหลัก:
+  • ดึงค่า Project Base Point (PBP) และมุม True North อัตโนมัติ พร้อมหน้าต่างตรวจสอบและแก้ไขค่า
+  • แปลงพิกัดแม่นยำ โดยคำนวณรวมค่า Project Base Point Offset ในโมเดล
+  • ระบบจดจำโฟลเดอร์ล่าสุดที่ใช้งาน เพื่อความรวดเร็วในการเลือกไฟล์ CSV
+  • อัปเดตพารามิเตอร์ให้อัตโนมัติ: Mark, Comments, Survey_E และ Survey_N
+  • ระบบวาดรูปทรงพื้นฐาน: หากไม่พบ Family ในโปรเจกต์ ระบบจะวาดรูปทรงทดแทนให้ทันที
 
 author: "เพิ่มพงษ์ ทวีกุล | P13"
-description: "Import CSV coordinates and place detail items by converting Survey E/N to Revit coordinates."
+description: "Import CSV coordinates and place detail items by converting Survey E/N to Revit coordinates. / นำเข้าพิกัด CSV เพื่อสร้างและวาง Detail Items อัตโนมัติอ้างอิงจาก PBP"

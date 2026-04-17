@@ -1,9 +1,21 @@
 title: "Grids-2D"
 
 tooltip: |
-  วิธีนี้จะช่วยให้คุณเปลี่ยน Grid ทุกเส้นในวิวปัจจุบันให้เป็น 2D ได้ในคลิกเดียว
+  เครื่องมือเปลี่ยนเส้น Grid เป็น 2D (View Specific) 
+  ช่วยเปลี่ยนเส้น Grid ทั้งหมดในมุมมองปัจจุบันให้เป็นแบบ 2D ได้ในคลิกเดียว
 
+  [ENG]
+  - Automated Conversion: Instantly converts all Grid lines in the active view to 2D extent mode (View Specific).
+  - View Specific: Changes are applied only to the current view without affecting the 3D extents of the grids in other views.
+  - Both Ends: Modifies both ends (End 0 and End 1) of the grid lines simultaneously.
+  - Progress Summary: Displays a report on the total number of grids successfully changed.
+
+  [TH]
+  - แปลงอัตโนมัติ (Automated Conversion): เปลี่ยนเส้น Grid ทั้งหมดในมุมมองปัจจุบันให้เป็นแบบ 2D ในคลิกเดียว
+  - เฉพาะมุมมองปัจจุบัน (View Specific): การเปลี่ยนแปลงจะมีผลเฉพาะ View ที่เปิดอยู่เท่านั้น ไม่กระทบ 3D Extent ในมุมมองอื่นๆ
+  - จัดการทั้งสองฝั่ง (Both Ends): ปรับสถานะการแสดงผลทั้งฝั่งหัว (End 0) และท้าย (End 1) ของเส้นกริดพร้อมกัน
+  - สรุปผลการทำงาน (Progress Summary): แสดงรายงานแจ้งจำนวนเส้นกริดทั้งหมดที่ถูกเปลี่ยนสถานะสำเร็จ
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Make Grids 2D in View"
 
+description: "Instantly convert all grids to 2D view-specific extents in the active view. / เครื่องมือเปลี่ยนเส้นกริดในมุมมองปัจจุบันให้เป็นแบบ 2D"

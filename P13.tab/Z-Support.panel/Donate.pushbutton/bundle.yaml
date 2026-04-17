@@ -1,2 +1,19 @@
-title: "Donate"
-tooltip: "สนับสนุนการพัฒนาผ่าน PayPal หรือ QR Code"
+title: "Donate\nSupport"
+
+tooltip: |
+  🇬🇧 [EN] Support the development and maintenance of p13.extension.
+  Available Donation Methods:
+  • PayPal
+  • PromptPay (QR Code)
+  
+  Your support helps keep this extension updated and free for everyone!
+
+  🇹🇭 [TH] สนับสนุนการพัฒนาและดูแล p13.extension เพื่อเป็นกำลังใจในการสร้างสรรค์เครื่องมือใหม่ๆ
+  ช่องทางการสนับสนุน:
+  • PayPal
+  • PromptPay (สแกน QR Code)
+  
+  ขอบคุณสำหรับการสนับสนุนให้โปรเจกต์นี้เดินหน้าต่อไป
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Support p13.extension development via PayPal or PromptPay. / สนับสนุนการพัฒนา p13.extension ผ่าน PayPal หรือ PromptPay"

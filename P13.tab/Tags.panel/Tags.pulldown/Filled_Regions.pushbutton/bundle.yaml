@@ -1,16 +1,23 @@
 title: "Filled Regions\n& List"
 
 tooltip: |
-  สร้าง Legend ของ Filled Region ทั้งหมดในโปรเจกต์แบบอัตโนมัติ:
-    • สแกน Filled Region Types ทั้งหมดในโปรเจกต์
-    • ให้ผู้ใช้เลือก Text Style สำหรับป้ายกำกับ
-    • ผู้ใช้กำหนดขนาดกล่อง (Width, Height) และระยะห่างระหว่างแถว (Spacing)
-    • เลือกตำแหน่งจุดเริ่มต้นบน View
-    • สคริปต์จะสร้างรายการดังนี้:
-        - Filled Region (รูปสี่เหลี่ยม)
-        - Text Note แสดงชื่อของ Pattern
-        - จัดเรียงรายการลงล่างทีละแถวอย่างเป็นระเบียบ
+  เครื่องมือสร้างตารางรายการ Filled Region อัตโนมัติ (Filled Region Legend Generator) 
+  ช่วยสรุปตัวอย่าง Pattern พร้อมชื่อกำกับลงในมุมมองปัจจุบันอย่างรวดเร็ว
+
+  [ENG]
+  - Auto-Scan: Automatically identifies and sorts all Filled Region Types available in the project.
+  - Customizable Dimensions: Manually define box width, height, and vertical spacing (in mm) via a user-friendly form.
+  - Smart Scaling: Automatically calculates graphics and text offsets based on the active view's scale to ensure visual consistency.
+  - Dynamic Labeling: Generates Text Notes for each pattern name using your selected Text Style.
+  - Interactive Placement: Simply pick a starting point in any 2D view to generate the entire legend.
+
+  [TH]
+  - สแกนอัตโนมัติ (Auto-Scan): ค้นหาและจัดเรียงรายชื่อ Filled Region ทุกประเภทที่มีอยู่ในโปรเจกต์โดยอัตโนมัติ
+  - ปรับแต่งขนาดได้ (Customizable): กำหนดความกว้าง ความสูงของกล่องตัวอย่าง และระยะห่างแนวตั้งได้เอง (หน่วย มม.) ผ่านหน้าต่าง UI
+  - ปรับสเกลอัจฉริยะ (Smart Scaling): คำนวณขนาดกล่องและตำแหน่งตัวอักษรให้สัมพันธ์กับสเกลของมุมมองที่ใช้งานอยู่โดยอัตโนมัติ
+  - ป้ายกำกับอัตโนมัติ (Dynamic Labeling): สร้าง Text Note ระบุชื่อแพทเทิร์นข้างกล่องตัวอย่างตาม Text Style ที่คุณเลือก
+  - ใช้งานง่าย: เพียงคลิกเลือกจุดเริ่มต้นในหน้า View (Plan/Detail/Drafting) เพื่อสร้างตารางรายการทั้งหมดทันที
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Auto-generate a complete Filled Region legend with name labels and spacing control."
 
+description: "Automatic Filled Region legend generator with custom sizing, dynamic labels, and scale-aware graphics. / เครื่องมือสร้างตารางรายการ Filled Region อัตโนมัติพร้อมป้ายกำกับ"

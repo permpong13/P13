@@ -1,17 +1,21 @@
-title: "Rotete\nFitting"
+title: "Rotate\nFitting"
 
 tooltip: |
-    - รองรับ Pipe, Duct, Fittings, Accessories และ Equipment
-    - เลือกทิศทางได้ทั้ง 90° และ 45° (Up, Down, Left, Right)
-    - Multi-Port: เลือกต่อท่อออกจากหลายรูพร้อมกันได้ (เช่น ถังน้ำ)
-    - Auto System: ค้นหา System Type ให้อัตโนมัติกรณีเริ่มเดินท่อใหม่
-    - Remember: จดจำค่าความยาวล่าสุดที่ใช้งาน
-    How to use:
-    1. เลือกวัตถุที่ต้องการต่อท่อ (เลือกชิ้นเดียว)
-    2. กดปุ่มคำสั่ง
-    3. หากมีหลายรู ให้เลือกรูที่ต้องการ (เลือกได้มากกว่า 1)
-    4. เลือกทิศทางและความยาว
+  🇬🇧 [EN] Rotate fittings, accessories, or equipment with a professional Naviate-style UI.
+  Key Features:
+  • Automatically detects the rotation axis from the element's connectors.
+  • Compatible with Revit 2024-2026+ (Supports 64-bit Element IDs).
+  • Supports batch rotation for multiple selected elements.
+  • Choose from preset angles or input a custom value.
+  • Works with Pipes, Ducts, Fittings, Accessories, and Mechanical Equipment.
+
+  🇹🇭 [TH] หมุนข้อต่อ (Fitting), อุปกรณ์ (Accessory) หรือครุภัณฑ์ (Equipment) ด้วยหน้าต่าง UI แบบมืออาชีพ
+  ฟังก์ชันหลัก:
+  • ค้นหาแกนหมุน (Rotation Axis) ให้โดยอัตโนมัติจากจุดเชื่อมต่อของชิ้นงาน
+  • รองรับ Revit 2024-2026+ (แก้ไขปัญหาการอ่านค่า ID สำหรับเวอร์ชันใหม่)
+  • สามารถหมุนชิ้นงานพร้อมกันได้ทีละหลายชิ้น
+  • เลือกหมุนตามองศาที่กำหนดไว้ หรือระบุตัวเลของศาเองได้อิสระ
+  • ครอบคลุมหมวดหมู่ Pipe/Duct Fittings, Accessories, Plumbing และ Mechanical Equipment
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "เครื่องมือสำหรับ Rotete Fitting"
-
+description: "Rotate fittings and equipment with professional UI and automatic axis detection. / หมุนข้อต่อและอุปกรณ์ต่างๆ ผ่าน UI พร้อมระบบหาแกนหมุนอัตโนมัติ"

@@ -1,9 +1,0 @@
-title: "Untags"
-
-tooltip: |
-  ตรวจสอบ Categories ที่ยังไม่ได้ถูกทำ Tag ใน View ปัจจุบัน
-
-
-author: "เพิ่มพงษ์ ทวีกุล | P13"
-description: "Find Categories without tags in the current view."
-

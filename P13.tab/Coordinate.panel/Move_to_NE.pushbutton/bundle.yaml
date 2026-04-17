@@ -1,12 +1,19 @@
 title: "Move\nto N/E"
 
 tooltip: |
-  คำสั่งนี้ใช้เพื่อ:
-    • ย้าย (Move) องค์ประกอบที่เลือก (Family / Element)
-      ไปยังพิกัด Northing (N) และ Easting (E)
-    • หน่วยที่ใช้: เมตร (m)
+  🇬🇧 [EN] Move selected elements to specific real-world Northing (N) and Easting (E) coordinates in meters.
+  Key Features:
+  • Accurately calculates the exact movement vector based on Project Base Point (PBP) and True North rotation.
+  • Supports pre-selection or prompts you to pick an element if none are selected.
+  • Capable of moving multiple elements simultaneously while maintaining their relative positions.
+  • Custom iOS-style UI with automatic coordinate format validation.
 
+  🇹🇭 [TH] ย้ายองค์ประกอบที่เลือกไปยังพิกัดจริง Northing (N) และ Easting (E) ที่ต้องการในหน่วยเมตร
+  ฟังก์ชันหลัก:
+  • คำนวณระยะและทิศทางการเคลื่อนที่อย่างแม่นยำ โดยอ้างอิงจาก Project Base Point (PBP) และมุม True North
+  • รองรับการเลือกชิ้นงานไว้ก่อน หรือคลิกเลือกชิ้นงานบนโมเดลหลังเรียกคำสั่งได้
+  • สามารถย้ายหลายองค์ประกอบพร้อมกันได้ โดยอ้างอิงระยะจากชิ้นแรก
+  • หน้าต่างกรอกค่าพิกัด (iOS Style) พร้อมระบบตรวจสอบความถูกต้องของตัวเลขอัตโนมัติ
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Move selected elements to specific Northing/Easting coordinates in meters."
-
+description: "Move selected elements to specific real-world N/E coordinates in meters. / ย้ายชิ้นงานที่เลือกไปยังพิกัด N/E จริงในหน่วยเมตร"

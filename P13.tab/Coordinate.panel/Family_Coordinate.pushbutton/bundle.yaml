@@ -1,16 +1,19 @@
-title: "Family\ncoordinates"
+title: "Family\nCoordinates"
 
 tooltip: |
-  คำสั่งนี้ใช้เพื่อ:
-    • คำนวณพิกัดของ Family Instances เป็นค่าพิกัดจริง N / E (หน่วยเมตร)
-    • อ้างอิงตำแหน่งจาก Project Base Point
-    • รองรับมุมการหมุนของโครงการ (Project Angle)
-    • ใช้สูตรคำนวณพิกัดแบบหมุน + ชดเชย (Rotation + Base Point Offset)
-    • บันทึกค่าพิกัดลงในพารามิเตอร์:
-        - N_Coordinate
-        - E_Coordinate
+  🇬🇧 [EN] Calculate and update real-world coordinates (North/East) for family instances in meters.
+  Key Features:
+  • Reference coordinates from Project Base Point (PBP) and Project Angle.
+  • Auto-generate 'N_Coordinate' and 'E_Coordinate' Shared Parameters if missing.
+  • Support elements inside Model Groups (auto-enables 'Varies Across Groups').
+  • Save category selection history and export a CSV update report.
 
+  🇹🇭 [TH] คำนวณและอัปเดตพิกัดจริง (North/East) สำหรับ Family Instances หน่วยเป็นเมตร
+  ฟังก์ชันหลัก:
+  • อ้างอิงตำแหน่งจาก Project Base Point (PBP) พร้อมคำนวณมุมการหมุนของโครงการ
+  • ตรวจสอบและสร้าง Shared Parameter 'N_Coordinate', 'E_Coordinate' ให้อัตโนมัติหากไม่มี
+  • รองรับชิ้นงานที่อยู่ใน Model Group (เปิดการตั้งค่า Varies Across Groups ให้อัตโนมัติ)
+  • จดจำประวัติการเลือก Category และส่งออกรายงานผลการทำงานเป็นไฟล์ CSV
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Calculate real-world N/E coordinates for family instances based on PBP and project rotation."
-
+description: "Calculate real-world N/E coordinates based on PBP and project rotation. / คำนวณพิกัด N/E อ้างอิงจาก Project Base Point และมุมของโครงการ"

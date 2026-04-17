@@ -1,19 +1,21 @@
-title: "Family Co\nfrom Excel"
+title: "Import\nfrom Excel"
 
 tooltip: |
-  คำสั่งนี้ใช้เพื่อ:
-    • อ่านพิกัด Easting/Northing (เมตร) จากไฟล์ Excel
-    • แปลงพิกัด Survey → Revit Internal Coordinates
-      โดยอ้างอิง:
-        - Project Base Point
-        - Project Rotation (True North Angle)
-    • ให้ผู้ใช้เลือก Base Level (ใช้เป็นระดับ 0.00 สำหรับ Offset)
-    • ให้ผู้ใช้เลือก Structural Family (Column / Foundation) และ Type
-    • สร้างโครงสร้าง (Structural Columns หรือ Structural Foundations)
-      ตามตำแหน่งพิกัดจาก Excel
-    • ตั้งค่า Height Offset จากค่า Pile Cut Off (ถ้ามีข้อมูลใน Excel)
+  🇬🇧 [EN] Import Easting/Northing coordinates from Excel to automatically place Family Instances (Piles, Foundations, Columns).
+  Key Features:
+  • Transforms Survey Coordinates (E/N in meters) to Revit Internal Coordinates based on Project Base Point and True North Angle.
+  • Auto-detects and defaults to the "Foundation" category with improved UI stability.
+  • Dynamically maps the "Type" column in Excel to match and place the correct Revit Family Types.
+  • Calculates and applies Height Offsets based on the Excel "CutOff" elevation.
+  • Allows dynamic selection of which parameter to write the element "No." to (Click to load all parameters, defaults to 'Mark').
 
+  🇹🇭 [TH] นำเข้าพิกัด Easting/Northing จากไฟล์ Excel เพื่อสร้าง Family Instances (เสาเข็ม, ฐานราก, เสา) อัตโนมัติ
+  ฟังก์ชันหลัก:
+  • แปลงพิกัด Survey (E/N หน่วยเมตร) เป็นพิกัดของ Revit อย่างแม่นยำ โดยอ้างอิงจาก Project Base Point และมุม True North
+  • ระบบ UI เวอร์ชันใหม่ เลือก Category "Foundation" หรือ "ฐานราก" ให้เป็นค่าเริ่มต้นเพื่อความรวดเร็ว
+  • จับคู่ข้อมูลคอลัมน์ "Type" จาก Excel เข้ากับ Type ของ Family ใน Revit ให้อัตโนมัติ
+  • คำนวณและตั้งค่าระยะ Offset จาก Level ด้วยค่า "CutOff" ที่ระบุใน Excel
+  • สามารถเลือก Parameter ปลายทางสำหรับเขียนค่า "No." ได้ตามต้องการ (คลิกเพื่อโหลด Parameter ทั้งหมด ค่าเริ่มต้นคือ Mark)
 
-author: "เพิ่มพงษ์ ทวีกุล | P13"
-description: "Import structural coordinates from Excel and place families with level and offset settings."
-
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Import coordinates from Excel to place families with auto-calculated levels and offsets. / นำเข้าพิกัดจาก Excel เพื่อสร้างชิ้นงานพร้อมคำนวณระดับและ Offset อัตโนมัติ"
