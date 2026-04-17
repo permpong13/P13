@@ -1,24 +1,14 @@
 # -*- coding: utf-8 -*-
 __title__ = "Numbering\nCategory"
-__author__ = "Permpong Taweekul"
+__author__ = "เพิ่มพงษ์ ทวีกุล"
 __doc__ = "DiRoots 3-Pane UI + Live Pick + Smart Parameter Write + Mark Family Types from Highlighted Preview Rows (Auto-load Preview)"
 
 import clr
 import csv
 import os
-import sys
 import json
 import tempfile
 import traceback
-
-# ---------- Python 2 & 3 Compatibility ----------
-is_py3 = sys.version_info[0] >= 3
-try:
-    unicode = unicode
-    long = long
-except NameError:
-    unicode = str
-    long = int
 
 clr.AddReference('RevitAPI')
 clr.AddReference('RevitAPIUI')
@@ -34,7 +24,7 @@ from System.Windows.Forms import *
 from System.Drawing import *
 from System.Collections.Generic import List
 
-# ---------- Safe ElementId Helper ----------
+# ---------- Helper สำหรับสร้าง ElementId อย่างปลอดภัย ----------
 def safe_element_id(value):
     try:
         if isinstance(value, ElementId):
@@ -45,7 +35,7 @@ def safe_element_id(value):
             return ElementId(Int64(value))
         else:
             return ElementId(Int64(long(value)))
-    except Exception as e:
+    except:
         return ElementId.InvalidElementId
 
 # ---------- Document access ----------
@@ -56,13 +46,13 @@ try:
         from pyrevit import revit
         doc = revit.doc
         uidoc = revit.uidoc
-    except ImportError:
+    except:
         pass
     if not doc:
         try:
             doc = __revit__.ActiveUIDocument.Document
             uidoc = __revit__.ActiveUIDocument
-        except Exception: pass
+        except: pass
     if not doc: raise Exception("Cannot access Revit document")
 except Exception as ex:
     MessageBox.Show("Run this inside Revit (pyRevit / RPS).\n" + str(ex), "Error")
@@ -75,13 +65,13 @@ def load_user_config():
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, 'r') as f: return json.load(f)
-        except Exception as e: pass
+        except: pass
     return {}
 
 def save_user_config(data):
     try:
         with open(CONFIG_FILE, 'w') as f: json.dump(data, f)
-    except Exception as e: pass
+    except: pass
 
 def get_element_id_value(element_id):
     try:
@@ -89,7 +79,7 @@ def get_element_id_value(element_id):
         elif hasattr(element_id, 'Value'): return element_id.Value
         elif isinstance(element_id, int): return element_id
         else: return int(element_id)
-    except Exception as e: return 0
+    except: return 0
 
 def get_element_location(element):
     try:
@@ -98,12 +88,12 @@ def get_element_location(element):
             if hasattr(loc, "Point"): return loc.Point
             elif hasattr(loc, "Curve"):
                 try: return loc.Curve.GetEndPoint(0)
-                except Exception: pass
-    except Exception: pass
+                except: pass
+    except: pass
     try:
         bbox = element.get_BoundingBox(None)
         if bbox: return XYZ((bbox.Min.X + bbox.Max.X)/2.0, (bbox.Min.Y + bbox.Max.Y)/2.0, (bbox.Min.Z + bbox.Max.Z)/2.0)
-    except Exception: pass
+    except: pass
     return XYZ(0,0,0)
 
 def has_pile_in_family(element):
@@ -111,12 +101,12 @@ def has_pile_in_family(element):
         if hasattr(element, "Symbol") and element.Symbol:
             fam = element.Symbol.Family
             if fam and hasattr(fam, "Name"): return "PILE" in fam.Name.upper()
-    except Exception: pass
+    except: pass
     return False
 
 def get_ui_category_name(el):
     if has_pile_in_family(el):
-        return "Piles"
+        return "เสาเข็ม"
     if el and el.Category:
         el_cat_id = el.Category.Id.IntegerValue
         for key, bic in BUILTIN_MAP.items():
@@ -124,20 +114,19 @@ def get_ui_category_name(el):
                 return key
     return "Unknown"
 
-def get_basic_parameters(deep_scan=False):
+def get_basic_parameters():
     params = set()
     try:
         coll = FilteredElementCollector(doc).WhereElementIsNotElementType().ToElements()
-        limit = 500 if deep_scan else 50
-        sample = list(coll)[:limit]
+        sample = list(coll)[:40]
         for el in sample:
             try:
                 for p in el.Parameters:
                     if p and hasattr(p, "Definition") and not p.IsReadOnly:
                         if p.StorageType in (StorageType.String, StorageType.Integer, StorageType.Double):
                             params.add(p.Definition.Name)
-            except Exception: continue
-    except Exception: pass
+            except: continue
+    except: pass
     preferred = ["Mark", "Type Mark", "Comments", "Type Comments", "Description"]
     out = [pr for pr in preferred if pr in params]
     for p in sorted(params):
@@ -155,18 +144,17 @@ def read_parameter(element, param_name):
             el_type = doc.GetElement(tid)
             p_type = el_type.LookupParameter(param_name)
             if p_type: return p_type.AsString() or ""
-    except Exception: pass
+    except: pass
     return ""
 
 def write_parameter(element, param_name, value):
     if not element or not param_name: return False
-    
     p = element.LookupParameter(param_name)
     if p and not p.IsReadOnly:
         try:
             p.Set(value)
             return True
-        except Exception: pass
+        except: pass
     try:
         tid = element.GetTypeId()
         if tid and tid != ElementId.InvalidElementId:
@@ -177,11 +165,11 @@ def write_parameter(element, param_name, value):
                     try:
                         p_type.Set(value)
                         return True
-                    except Exception: pass
-    except Exception: pass
+                    except: pass
+    except: pass
     return False
 
-# ---------------- Dynamic BUILTIN_MAP ----------------
+# ---------------- สร้าง BUILTIN_MAP แบบ Dynamic ----------------
 CATEGORY_CANDIDATES = {
     "Structural Columns": "OST_StructuralColumns",
     "Structural Framing": "OST_StructuralFraming",
@@ -195,7 +183,7 @@ CATEGORY_CANDIDATES = {
     "Pipes": "OST_PipeCurves",
     "Mechanical Equipment": "OST_MechanicalEquipment",
     "Electrical Equipment": "OST_ElectricalEquipment",
-    "Piles": "OST_StructuralFoundation",
+    "เสาเข็ม": "OST_StructuralFoundation",
     "Roofs": "OST_Roofs",
     "Ceilings": "OST_Ceilings",
     "Railings": "OST_Railings",
@@ -236,7 +224,7 @@ if not BUILTIN_MAP:
 def collect_elements_for_category(display_name, active_view=None):
     elems = []
     try:
-        if display_name == "Piles":
+        if display_name == "เสาเข็ม":
             bic = BuiltInCategory.OST_StructuralFoundation
             col = FilteredElementCollector(doc, active_view.Id) if active_view else FilteredElementCollector(doc)
             col.OfCategory(bic).WhereElementIsNotElementType()
@@ -247,7 +235,7 @@ def collect_elements_for_category(display_name, active_view=None):
                 col = FilteredElementCollector(doc, active_view.Id) if active_view else FilteredElementCollector(doc)
                 col.OfCategory(bic).WhereElementIsNotElementType()
                 elems = list(col)
-    except Exception: elems = []
+    except: elems = []
     return elems
 
 def filter_elements_by_view_visibility(elements, active_view):
@@ -310,6 +298,7 @@ class NumberingForm(Form):
         grid.AllowUserToAddRows = False
         grid.RowHeadersVisible = False
         grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+        grid.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         grid.BackgroundColor = Color.White
         grid.BorderStyle = BorderStyle.None 
         grid.EnableHeadersVisualStyles = False
@@ -326,33 +315,26 @@ class NumberingForm(Form):
     def _build_ui(self):
         # LEFT PANE
         pnl_left = Panel(Location=Point(10, 10), Size=Size(380, 700), BackColor=Color.White, BorderStyle=BorderStyle.FixedSingle)
-        self._create_label("CATEGORIES", Point(15, 10), Size(300, 20), self.Font, pnl_left, True)
+        self._create_label("CATEGORIES (หมวดหมู่หลัก)", Point(15, 10), Size(300, 20), self.Font, pnl_left, True)
         self.grid_cat = DataGridView(Location=Point(0, 35), Size=Size(380, 280))
         self._style_datagrid(self.grid_cat)
         
-        c_use = DataGridViewCheckBoxColumn(HeaderText="✓", Name="Use")
-        c_use.Width = 25
-        c_use.MinimumWidth = 25
-        c_use.AutoSizeMode = DataGridViewAutoSizeColumnMode.None
-        
-        c_name = DataGridViewTextBoxColumn(HeaderText="Category", Name="Category", ReadOnly=True)
-        c_name.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
-        
-        c_pref = DataGridViewTextBoxColumn(HeaderText="Prefix", Name="Prefix", Width=60)
-        c_suf = DataGridViewTextBoxColumn(HeaderText="Suffix", Name="Suffix", Width=60)
-        
-        c_cnt = DataGridViewTextBoxColumn(HeaderText="Total", Name="Count", ReadOnly=True)
-        c_cnt.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
-
+        c_use = DataGridViewCheckBoxColumn(HeaderText="✓", Name="Use", Width=35)
+        c_name = DataGridViewTextBoxColumn(HeaderText="Category", Name="Category", ReadOnly=True, Width=120)
+        c_pref = DataGridViewTextBoxColumn(HeaderText="Prefix", Name="Prefix", Width=70)
+        c_suf = DataGridViewTextBoxColumn(HeaderText="Suffix", Name="Suffix", Width=70)
+        c_cnt = DataGridViewTextBoxColumn(HeaderText="รวม", Name="Count", ReadOnly=True, Width=50)
         self.grid_cat.Columns.AddRange(Array[DataGridViewColumn]([c_use, c_name, c_pref, c_suf, c_cnt]))
         self.grid_cat.SelectionChanged += self._on_category_selected
         pnl_left.Controls.Add(self.grid_cat)
 
-        self._create_label("FAMILY TYPES", Point(15, 325), Size(300, 20), self.Font, pnl_left, True)
+        self._create_label("FAMILY TYPES (หมวดย่อย)", Point(15, 325), Size(300, 20), self.Font, pnl_left, True)
 
-        btn_all = self._create_btn("☑ Select All", Point(10, 350), Size(80, 25), self._select_all_subcats, Color.FromArgb(41, 128, 185))
-        btn_none = self._create_btn("☐ Deselect", Point(95, 350), Size(80, 25), self._deselect_all_subcats, Color.FromArgb(149, 165, 166))
-        btn_mark = self._create_btn("✓ Mark from Highlighted Rows", Point(180, 350), Size(195, 25), self._mark_family_types_from_highlighted_rows, Color.FromArgb(142, 68, 173))
+        # ปุ่มเลือก Family Types แบบกลุ่ม
+        btn_all = self._create_btn("☑ ทั้งหมด", Point(10, 350), Size(80, 25), self._select_all_subcats, Color.FromArgb(41, 128, 185))
+        btn_none = self._create_btn("☐ ยกเลิก", Point(95, 350), Size(80, 25), self._deselect_all_subcats, Color.FromArgb(149, 165, 166))
+        # ปุ่มใหม่: ทำเครื่องหมาย Family Type จากแถวที่ไฮไลต์ใน Preview (จะโหลด Preview อัตโนมัติถ้ายังไม่มี)
+        btn_mark = self._create_btn("✓ ทำเครื่องหมายจากแถวที่ไฮไลต์", Point(180, 350), Size(195, 25), self._mark_family_types_from_highlighted_rows, Color.FromArgb(142, 68, 173))
 
         pnl_left.Controls.Add(btn_all)
         pnl_left.Controls.Add(btn_none)
@@ -361,17 +343,9 @@ class NumberingForm(Form):
         self.grid_subcat = DataGridView(Location=Point(0, 380), Size=Size(380, 315))
         self._style_datagrid(self.grid_subcat)
         
-        s_use = DataGridViewCheckBoxColumn(HeaderText="✓", Name="Use")
-        s_use.Width = 25
-        s_use.MinimumWidth = 25
-        s_use.AutoSizeMode = DataGridViewAutoSizeColumnMode.None
-        
-        s_name = DataGridViewTextBoxColumn(HeaderText="Name (Family/Type)", Name="Name", ReadOnly=True)
-        s_name.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
-        
-        s_cnt = DataGridViewTextBoxColumn(HeaderText="Count", Name="Count", ReadOnly=True)
-        s_cnt.AutoSizeMode = DataGridViewAutoSizeColumnMode.AllCells
-
+        s_use = DataGridViewCheckBoxColumn(HeaderText="✓", Name="Use", Width=35)
+        s_name = DataGridViewTextBoxColumn(HeaderText="ชื่อ (Family/Type)", Name="Name", ReadOnly=True)
+        s_cnt = DataGridViewTextBoxColumn(HeaderText="จำนวน", Name="Count", ReadOnly=True, Width=50)
         self.grid_subcat.Columns.AddRange(Array[DataGridViewColumn]([s_use, s_name, s_cnt]))
         self.grid_subcat.CellValueChanged += self._on_subcat_checked
         self.grid_subcat.CurrentCellDirtyStateChanged += self._commit_subcat_edit
@@ -380,23 +354,22 @@ class NumberingForm(Form):
 
         # CENTER PANE
         pnl_center = Panel(Location=Point(400, 10), Size=Size(560, 700), BackColor=Color.White, BorderStyle=BorderStyle.FixedSingle)
-        self._create_label("ELEMENTS PREVIEW", Point(15, 10), Size(350, 20), self.Font, pnl_center, True)
+        self._create_label("ELEMENTS PREVIEW (รายการที่จะรันเลข)", Point(15, 10), Size(350, 20), self.Font, pnl_center, True)
         self.grid_preview = DataGridView(Location=Point(0, 35), Size=Size(560, 660))
         self._style_datagrid(self.grid_preview)
-        self.grid_preview.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
         self.grid_preview.MultiSelect = True
         
         c_id = DataGridViewTextBoxColumn(HeaderText="ID", Name="Id", Width=70, ReadOnly=True)
-        c_pname = DataGridViewTextBoxColumn(HeaderText="Element Name", Name="Name", ReadOnly=True)
-        c_pval = DataGridViewTextBoxColumn(HeaderText="Number Value", Name="Value")
-        c_pnum = DataGridViewTextBoxColumn(HeaderText="Status", Name="Numbered", Width=90, ReadOnly=True)
-        self.grid_preview.Columns.AddRange(Array[DataGridViewColumn]([c_id, c_pname, c_pval, c_pnum]))
+        c_name = DataGridViewTextBoxColumn(HeaderText="ชื่อองค์ประกอบ", Name="Name", ReadOnly=True)
+        c_val = DataGridViewTextBoxColumn(HeaderText="ค่าหมายเลข", Name="Value")
+        c_num = DataGridViewTextBoxColumn(HeaderText="สถานะ", Name="Numbered", Width=90, ReadOnly=True)
+        self.grid_preview.Columns.AddRange(Array[DataGridViewColumn]([c_id, c_name, c_val, c_num]))
         pnl_center.Controls.Add(self.grid_preview)
         self.Controls.Add(pnl_center)
 
         # RIGHT PANE
         pnl_right = Panel(Location=Point(970, 10), Size=Size(250, 700), BackColor=Color.White, BorderStyle=BorderStyle.FixedSingle)
-        self._create_label("SCOPE:", Point(15, 15), Size(150, 20), self.Font, pnl_right, True)
+        self._create_label("SCOPE (ขอบเขต):", Point(15, 15), Size(150, 20), self.Font, pnl_right, True)
         self.toggle_switch = ToggleSwitch()
         self.toggle_switch.Location = Point(15, 40)
         self.toggle_switch.Checked = self.use_view_filter
@@ -405,16 +378,13 @@ class NumberingForm(Form):
         self.lbl_view_mode = self._create_label("Active View", Point(70, 42), Size(170, 20), self.Font, pnl_right)
         self._update_toggle_labels()
 
-        self._create_label("TARGET PARAMETER:", Point(15, 90), Size(130, 20), self.Font, pnl_right, True)
-        self.btn_ref_param = self._create_btn("↻ Refresh List", Point(150, 87), Size(85, 24), self._refresh_parameters_event, Color.FromArgb(41, 128, 185))
-        pnl_right.Controls.Add(self.btn_ref_param)
-
+        self._create_label("TARGET PARAMETER:", Point(15, 90), Size(200, 20), self.Font, pnl_right, True)
         self.cmb_param = ComboBox(Location=Point(15, 115), Size=Size(220, 26), DropDownStyle=ComboBoxStyle.DropDownList, Font=self.Font)
         pnl_right.Controls.Add(self.cmb_param)
-        self.chk_custom = CheckBox(Text="Custom:", Location=Point(15, 150), Size=Size(100, 20), Font=self.Font)
+        self.chk_custom = CheckBox(Text="กำหนดเอง:", Location=Point(15, 150), Size=Size(100, 20), Font=self.Font)
         self.chk_custom.CheckedChanged += self._toggle_custom
         pnl_right.Controls.Add(self.chk_custom)
-        self.txt_custom = TextBox(Text="Parameter Name...", Location=Point(115, 148), Size=Size(120, 24), ForeColor=Color.Gray, Enabled=False, Font=self.Font)
+        self.txt_custom = TextBox(Text="ชื่อ Parameter...", Location=Point(115, 148), Size=Size(120, 24), ForeColor=Color.Gray, Enabled=False, Font=self.Font)
         self.txt_custom.Enter += lambda s,e: self._clear_placeholder()
         pnl_right.Controls.Add(self.txt_custom)
 
@@ -432,40 +402,34 @@ class NumberingForm(Form):
         self.txt_suffix = TextBox(Text=self.config.get("GlobalSuffix", ""), Location=Point(70, 272), Size=Size(165, 24), Font=self.Font)
         pnl_right.Controls.Add(self.txt_suffix)
         self._create_label("Digits:", Point(15, 305), Size(50, 20), self.Font, pnl_right)
-        
-        self.pnl_digits_group = Panel(Location=Point(70, 303), Size=Size(170, 25))
-        pnl_right.Controls.Add(self.pnl_digits_group)
         self.digit_radios = []
         for i, digits in enumerate(["1", "2", "3", "4"]):
-            rb = RadioButton(Text=digits, Location=Point(i*40, 0), Size=Size(35, 20), Tag=int(digits), Font=self.Font)
+            rb = RadioButton(Text=digits, Location=Point(70 + (i*40), 303), Size=Size(35, 20), Tag=int(digits), Font=self.Font)
             if str(digits) == str(self.config.get("Digits", "2")): rb.Checked = True
             self.digit_radios.append(rb)
-            self.pnl_digits_group.Controls.Add(rb)
+            pnl_right.Controls.Add(rb)
 
-        self._create_label("SORTING:", Point(15, 340), Size(220, 20), self.Font, pnl_right, True)
-        self.pnl_sorting_group = Panel(Location=Point(15, 365), Size=Size(220, 180))
-        pnl_right.Controls.Add(self.pnl_sorting_group)
+        self._create_label("SORTING (จัดเรียงในกลุ่ม):", Point(15, 340), Size(220, 20), self.Font, pnl_right, True)
         opts = ["Left to Right (X)", "Right to Left (-X)", "Bottom to Top (Y)", "Top to Bottom (-Y)", "Z Up", "Z Down"]
         self.dir_radios = []
-        y_pos = 0
+        y = 365
         for i, txt in enumerate(opts):
-            r = RadioButton(Text=txt, Location=Point(0, y_pos), Size=Size(200, 20), Font=self.Font)
+            r = RadioButton(Text=txt, Location=Point(15, y), Size=Size(200, 20), Font=self.Font)
             if i == int(self.config.get("Direction", 0)): r.Checked = True
             self.dir_radios.append(r)
-            self.pnl_sorting_group.Controls.Add(r)
-            y_pos += 28
-
+            pnl_right.Controls.Add(r)
+            y += 28
         self.Controls.Add(pnl_right)
 
         # BOTTOM PANE
         pnl_bot = Panel(Location=Point(10, 720), Size=Size(1210, 40), BackColor=Color.Transparent)
-        self.btn_load = self._create_btn("↻ Load Preview", Point(0, 0), Size(160, 35), self._load_preview, Color.FromArgb(41, 128, 185))
-        self.btn_hl = self._create_btn("👁 Highlight", Point(170, 0), Size(80, 35), self._highlight_zoom, Color.FromArgb(149, 165, 166))
+        self.btn_load = self._create_btn("↻ โหลดข้อมูล (Preview)", Point(0, 0), Size(160, 35), self._load_preview, Color.FromArgb(41, 128, 185))
+        self.btn_hl = self._create_btn("👁 ไฮไลต์", Point(170, 0), Size(80, 35), self._highlight_zoom, Color.FromArgb(149, 165, 166))
         self.btn_exp = self._create_btn("⬇ Export", Point(260, 0), Size(80, 35), self._export_csv, Color.FromArgb(22, 160, 133))
         self.btn_imp = self._create_btn("⬆ Import", Point(350, 0), Size(80, 35), self._import_csv, Color.FromArgb(39, 174, 96))
-        self.btn_live = self._create_btn("⚡ Live Pick", Point(440, 0), Size(220, 35), self._live_pick_init, Color.FromArgb(142, 68, 173))
+        self.btn_live = self._create_btn("⚡ Live Pick (คลิกใน 3D/แปลน)", Point(440, 0), Size(220, 35), self._live_pick_init, Color.FromArgb(142, 68, 173))
         self.lbl_status = self._create_label("Status: Ready", Point(670, 8), Size(300, 20), self.Font, pnl_bot, False, Color.Teal)
-        self.btn_run = self._create_btn("▶ Run Numbering (Apply)", Point(980, 0), Size(230, 35), self._run_all, Color.FromArgb(39, 174, 96)) 
+        self.btn_run = self._create_btn("▶ รันหมายเลขตามตาราง (Apply)", Point(980, 0), Size(230, 35), self._run_all, Color.FromArgb(39, 174, 96)) 
         pnl_bot.Controls.Add(self.btn_load)
         pnl_bot.Controls.Add(self.btn_hl)
         pnl_bot.Controls.Add(self.btn_exp)
@@ -483,7 +447,7 @@ class NumberingForm(Form):
         return b
 
     def _clear_placeholder(self):
-        if self.txt_custom.Text == "Parameter Name...":
+        if self.txt_custom.Text == "ชื่อ Parameter...":
             self.txt_custom.Text = ""
             self.txt_custom.ForeColor = Color.Black
 
@@ -494,13 +458,11 @@ class NumberingForm(Form):
             return self.cmb_param.Text.strip()
 
     def _toggle_search_mode(self, s, e):
-        Cursor.Current = Cursors.WaitCursor
         self.use_view_filter = not self.use_view_filter
         self.toggle_switch.Checked = self.use_view_filter
         self._update_toggle_labels()
         self.elements_cache.clear()
         self._load_categories()
-        Cursor.Current = Cursors.Default
 
     def _update_toggle_labels(self):
         self.lbl_view_mode.Text = "Active View" if self.use_view_filter else "Entire Project"
@@ -523,22 +485,11 @@ class NumberingForm(Form):
                 self.grid_cat.Rows.Add(saved_use, cat_name, saved_pref, saved_suf, str(len(elems)))
                 self.elements_cache[cat_name] = elems
 
-    def _load_parameters(self, deep_scan=False):
-        current_sel = self.cmb_param.Text
+    def _load_parameters(self):
         self.cmb_param.Items.Clear()
-        params = get_basic_parameters(deep_scan=deep_scan)
+        params = get_basic_parameters()
         for p in params: self.cmb_param.Items.Add(p)
-        
-        if current_sel in params:
-            self.cmb_param.Text = current_sel
-        elif params: 
-            self.cmb_param.SelectedIndex = 0
-
-    def _refresh_parameters_event(self, s, e):
-        Cursor.Current = Cursors.WaitCursor
-        self._load_parameters(deep_scan=True)
-        self.lbl_status.Text = "Status: Parameters list refreshed and updated"
-        Cursor.Current = Cursors.Default
+        if params: self.cmb_param.SelectedIndex = 0
 
     def _commit_subcat_edit(self, s, e):
         if self.grid_subcat.IsCurrentCellDirty:
@@ -551,9 +502,6 @@ class NumberingForm(Form):
             is_checked = self.grid_subcat.Rows[e.RowIndex].Cells["Use"].Value
             if cat_name not in self.subcat_selections: self.subcat_selections[cat_name] = {}
             self.subcat_selections[cat_name][sub_name] = is_checked
-            
-            if is_checked:
-                self.grid_cat.CurrentRow.Cells["Use"].Value = True
 
     def _on_category_selected(self, s, e):
         self.grid_subcat.Rows.Clear()
@@ -566,7 +514,7 @@ class NumberingForm(Form):
         for el in elements:
             try:
                 sub_name = (el.Symbol.Family.Name if el.Symbol.Family else "") + " - " + el.Name if hasattr(el, "Symbol") and el.Symbol else (el.Name if hasattr(el, "Name") else "Unknown")
-            except Exception: sub_name = "Unknown"
+            except: sub_name = "Unknown"
             subcats[sub_name] = subcats.get(sub_name, 0) + 1
         for sub_name, count in sorted(subcats.items()):
             is_checked = self.subcat_selections.get(cat_name, {}).get(sub_name, False)
@@ -574,13 +522,10 @@ class NumberingForm(Form):
             self.subcat_selections[cat_name][sub_name] = is_checked
             self.grid_subcat.Rows.Add(is_checked, sub_name, str(count))
 
-    # ---------------- Selection Buttons ----------------
+    # ---------------- ปุ่มเลือก Family Types แบบกลุ่ม ----------------
     def _select_all_subcats(self, s, e):
         if not self.grid_cat.CurrentRow: return
         cat_name = self.grid_cat.CurrentRow.Cells["Category"].Value
-        
-        self.grid_cat.CurrentRow.Cells["Use"].Value = True
-        
         self.grid_subcat.CellValueChanged -= self._on_subcat_checked
         for row in self.grid_subcat.Rows:
             row.Cells["Use"].Value = True
@@ -588,7 +533,7 @@ class NumberingForm(Form):
             if cat_name not in self.subcat_selections: self.subcat_selections[cat_name] = {}
             self.subcat_selections[cat_name][sub_name] = True
         self.grid_subcat.CellValueChanged += self._on_subcat_checked
-        self.lbl_status.Text = "Status: Selected all Family Types in '{}'".format(cat_name)
+        self.lbl_status.Text = "Status: เลือก Family Types ทั้งหมดในหมวด '{}'".format(cat_name)
 
     def _deselect_all_subcats(self, s, e):
         if not self.grid_cat.CurrentRow: return
@@ -600,64 +545,81 @@ class NumberingForm(Form):
             if cat_name not in self.subcat_selections: self.subcat_selections[cat_name] = {}
             self.subcat_selections[cat_name][sub_name] = False
         self.grid_subcat.CellValueChanged += self._on_subcat_checked
-        self.lbl_status.Text = "Status: Deselected all Family Types in '{}'".format(cat_name)
+        self.lbl_status.Text = "Status: ยกเลิกการเลือก Family Types ทั้งหมดในหมวด '{}'".format(cat_name)
 
+    # ---------------- ฟังก์ชันใหม่: ทำเครื่องหมาย Family Type จากแถวที่ไฮไลต์ (โหลด Preview อัตโนมัติถ้ายังไม่มี) ----------------
     def _mark_family_types_from_highlighted_rows(self, s, e):
-        if not self.grid_cat.CurrentRow:
-            MessageBox.Show("Please select a main category first.", "Warning")
+        # ถ้ายังไม่มีข้อมูลใน Preview ให้โหลด Preview โดยอัตโนมัติ
+        if self.grid_preview.Rows.Count == 0:
+            self._load_preview(None, None)
+            # ถ้าหลังจากโหลดแล้วยังไม่มีข้อมูลอีก แสดงว่าไม่มี element ใดถูกเลือกในหมวดหมู่ปัจจุบัน
+            if self.grid_preview.Rows.Count == 0:
+                MessageBox.Show("ไม่พบข้อมูลใน Preview กรุณาตรวจสอบการเลือกหมวดหมู่หลักและ Family Type ให้ถูกต้องก่อน", "แจ้งเตือน")
+                return
+        
+        if self.grid_preview.SelectedRows.Count == 0:
+            MessageBox.Show("โปรดเลือกแถวที่ต้องการในตาราง Preview ก่อน (ใช้ Ctrl หรือ Shift เพื่อเลือกหลายแถว)", "ไม่มีรายการที่เลือก")
             return
-
-        if self.grid_subcat.SelectedRows.Count == 0:
-            MessageBox.Show("Please select rows (highlighted in blue) in the Family Types table first.", "No Selection")
+        if not self.grid_cat.CurrentRow:
+            MessageBox.Show("กรุณาเลือกหมวดหมู่ก่อน", "แจ้งเตือน")
             return
 
         cat_name = self.grid_cat.CurrentRow.Cells["Category"].Value
-        
-        self.grid_cat.CurrentRow.Cells["Use"].Value = True
-        
-        self.grid_subcat.CellValueChanged -= self._on_subcat_checked
-        checked_count = 0
-        for row in self.grid_subcat.SelectedRows:
-            row.Cells["Use"].Value = True
-            sub_name = row.Cells["Name"].Value
-            if cat_name not in self.subcat_selections:
-                self.subcat_selections[cat_name] = {}
+        sub_names_in_selected = set()
+
+        for row in self.grid_preview.SelectedRows:
+            val = row.Cells["Id"].Value
+            eid = safe_element_id(val)
+            if eid == ElementId.InvalidElementId: continue
+            el = doc.GetElement(eid)
+            if el and get_ui_category_name(el) == cat_name:
+                try:
+                    sub_name = (el.Symbol.Family.Name if el.Symbol.Family else "") + " - " + el.Name if hasattr(el, "Symbol") and el.Symbol else (el.Name if hasattr(el, "Name") else "Unknown")
+                except:
+                    sub_name = "Unknown"
+                sub_names_in_selected.add(sub_name)
+
+        if not sub_names_in_selected:
+            MessageBox.Show("ไม่มี Family Type ของหมวดหมู่นี้ในแถวที่เลือก", "แจ้งเตือน")
+            return
+
+        if cat_name not in self.subcat_selections:
+            self.subcat_selections[cat_name] = {}
+        for sub_name in sub_names_in_selected:
             self.subcat_selections[cat_name][sub_name] = True
-            checked_count += 1
-            
+
+        self._refresh_subcat_checks()
+        self.lbl_status.Text = "Status: ทำเครื่องหมาย Family Type ตามแถวที่ไฮไลต์ ({0} รายการ)".format(len(sub_names_in_selected))
+
+    def _refresh_subcat_checks(self):
+        if not self.grid_cat.CurrentRow:
+            return
+        cat_name = self.grid_cat.CurrentRow.Cells["Category"].Value
+        self.grid_subcat.CellValueChanged -= self._on_subcat_checked
+        for row in self.grid_subcat.Rows:
+            sub_name = row.Cells["Name"].Value
+            row.Cells["Use"].Value = self.subcat_selections.get(cat_name, {}).get(sub_name, False)
         self.grid_subcat.CellValueChanged += self._on_subcat_checked
-        self.lbl_status.Text = "Status: Successfully marked Family Types ({0} items)".format(checked_count)
 
     # ---------------- Core Numbering ----------------
     def _load_preview(self, s, e):
-        try:
-            Cursor.Current = Cursors.WaitCursor
-            
-            self.grid_cat.EndEdit()
-            self.grid_subcat.EndEdit() 
-            
-            self.preview_elements = []
-            for r in self.grid_cat.Rows:
-                if r.Cells["Use"].Value:
-                    cat_name = r.Cells["Category"].Value
-                    pref = r.Cells["Prefix"].Value or ""
-                    suf = r.Cells["Suffix"].Value or ""
-                    elems = self.elements_cache.get(cat_name, collect_elements_for_category(cat_name, self.active_view if self.use_view_filter else None))
-                    if self.use_view_filter: elems = filter_elements_by_view_visibility(elems, self.active_view)
-                    for el in elems:
-                        try:
-                            sub_name = (el.Symbol.Family.Name if el.Symbol.Family else "") + " - " + el.Name if hasattr(el, "Symbol") and el.Symbol else (el.Name if hasattr(el, "Name") else "Unknown")
-                        except Exception: sub_name = "Unknown"
-                        if self.subcat_selections.get(cat_name, {}).get(sub_name, False):
-                            self.preview_elements.append((el, cat_name, pref, suf))
-                            
-            self._sort_elements()
-            self._populate_preview_grid()
-            
-        except Exception as ex:
-            MessageBox.Show("Error loading Preview:\n" + traceback.format_exc(), "Error")
-        finally:
-            Cursor.Current = Cursors.Default
+        self.grid_cat.EndEdit()
+        self.preview_elements = []
+        for r in self.grid_cat.Rows:
+            if r.Cells["Use"].Value:
+                cat_name = r.Cells["Category"].Value
+                pref = r.Cells["Prefix"].Value or ""
+                suf = r.Cells["Suffix"].Value or ""
+                elems = self.elements_cache.get(cat_name, collect_elements_for_category(cat_name, self.active_view if self.use_view_filter else None))
+                if self.use_view_filter: elems = filter_elements_by_view_visibility(elems, self.active_view)
+                for el in elems:
+                    try:
+                        sub_name = (el.Symbol.Family.Name if el.Symbol.Family else "") + " - " + el.Name if hasattr(el, "Symbol") and el.Symbol else (el.Name if hasattr(el, "Name") else "Unknown")
+                    except: sub_name = "Unknown"
+                    if self.subcat_selections.get(cat_name, {}).get(sub_name, False):
+                        self.preview_elements.append((el, cat_name, pref, suf))
+        self._sort_elements()
+        self._populate_preview_grid()
 
     def _sort_elements(self):
         def get_sort_key(item):
@@ -674,7 +636,7 @@ class NumberingForm(Form):
     def _populate_preview_grid(self):
         self.grid_preview.Rows.Clear()
         if not self.preview_elements:
-            self.lbl_status.Text = "Status: No data found (Check if ✓ is marked in the left tables)"
+            self.lbl_status.Text = "Status: ไม่พบข้อมูลที่เลือก"
             return
         start_num = int(self.txt_start.Text) if self.txt_start.Text.isdigit() else 1
         step_val = int(self.txt_step.Text) if self.txt_step.Text.isdigit() else 1
@@ -686,13 +648,12 @@ class NumberingForm(Form):
         for el, cat, pref, suf in self.preview_elements:
             final_val = "{}{}{}{}{}".format(g_pref, pref, str(current_num).zfill(digit_count), suf, g_suf)
             current_val = read_parameter(el, param_name)
-            self.grid_preview.Rows.Add(get_element_id_value(el.Id), el.Name, final_val, "Updated" if current_val == final_val else "-")
+            self.grid_preview.Rows.Add(get_element_id_value(el.Id), el.Name, final_val, "อัปเดตแล้ว" if current_val == final_val else "-")
             current_num += step_val
-        self.lbl_status.Text = "Status: Ready to run {} elements".format(len(self.preview_elements))
+        self.lbl_status.Text = "Status: พร้อมรันข้อมูล {} รายการ".format(len(self.preview_elements))
 
     def _run_all(self, s, e):
         if self.grid_preview.Rows.Count == 0: return
-        Cursor.Current = Cursors.WaitCursor
         param_name = self._get_param_name()
         t = Transaction(doc, "Numbering Elements")
         t.Start()
@@ -705,21 +666,19 @@ class NumberingForm(Form):
                 if el:
                     success = write_parameter(el, param_name, r.Cells["Value"].Value)
                     if success:
-                        r.Cells["Numbered"].Value = "Updated"
+                        r.Cells["Numbered"].Value = "อัปเดตแล้ว"
                     else:
-                        r.Cells["Numbered"].Value = "Not Found/Locked"
+                        r.Cells["Numbered"].Value = "ไม่พบ/เขียนไม่ได้"
             t.Commit()
-            self.lbl_status.Text = "Status: Completed successfully!"
+            self.lbl_status.Text = "Status: สำเร็จเรียบร้อย!"
         except Exception as ex:
             t.RollBack()
             MessageBox.Show(str(ex), "Error")
-        finally:
-            Cursor.Current = Cursors.Default
 
     def _live_pick_init(self, s, e):
         param_name = self._get_param_name()
         if not param_name:
-            self.lbl_status.Text = "Status: Please select a target parameter"
+            self.lbl_status.Text = "Status: กรุณาเลือก Parameter ปลายทาง"
             return
         self.grid_cat.EndEdit()
         self.grid_subcat.EndEdit()
@@ -744,7 +703,7 @@ class NumberingForm(Form):
                 if eid != ElementId.InvalidElementId:
                     uidoc.Selection.SetElementIds(List[ElementId]([eid]))
                     uidoc.ShowElements(eid)
-            except Exception: pass
+            except: pass
 
     def _export_csv(self, s, e):
         if self.grid_preview.Rows.Count == 0: return
@@ -752,7 +711,7 @@ class NumberingForm(Form):
         export_file = ""
         if not last_path or not os.path.exists(last_path):
             dialog = FolderBrowserDialog()
-            dialog.Description = "Select folder to save CSV file"
+            dialog.Description = "เลือกโฟลเดอร์สำหรับจัดเก็บไฟล์ CSV"
             if dialog.ShowDialog() == DialogResult.OK:
                 self.config["ExportPath"] = dialog.SelectedPath
                 export_file = os.path.join(dialog.SelectedPath, "Revit_Numbering_Export.csv")
@@ -760,20 +719,12 @@ class NumberingForm(Form):
         else:
             export_file = os.path.join(last_path, "Revit_Numbering_Export.csv")
         try:
-            if is_py3:
-                with open(export_file, 'w', encoding='utf-8-sig', newline='') as f:
-                    writer = csv.writer(f)
-                    writer.writerow(["Id", "Name", "Value"])
-                    for r in self.grid_preview.Rows:
-                        writer.writerow([str(r.Cells["Id"].Value), unicode(r.Cells["Name"].Value), unicode(r.Cells["Value"].Value)])
-            else:
-                with open(export_file, 'wb') as f:
-                    f.write(b'\xef\xbb\xbf')
-                    writer = csv.writer(f)
-                    writer.writerow(["Id", "Name", "Value"])
-                    for r in self.grid_preview.Rows:
-                        writer.writerow([str(r.Cells["Id"].Value), unicode(r.Cells["Name"].Value).encode('utf-8'), unicode(r.Cells["Value"].Value).encode('utf-8')])
-            self.lbl_status.Text = "Status: Exported to " + export_file
+            with open(export_file, 'w') as f:
+                writer = csv.writer(f)
+                writer.writerow(["Id", "Name", "Value"])
+                for r in self.grid_preview.Rows:
+                    writer.writerow([str(r.Cells["Id"].Value), unicode(r.Cells["Name"].Value).encode('utf-8'), unicode(r.Cells["Value"].Value).encode('utf-8')])
+            self.lbl_status.Text = "Status: ส่งออกที่ " + export_file
         except Exception as ex: MessageBox.Show(str(ex), "Error")
 
     def _import_csv(self, s, e):
@@ -792,9 +743,9 @@ class NumberingForm(Form):
                     eid_str = str(r.Cells["Id"].Value)
                     if eid_str in imported_data:
                         r.Cells["Value"].Value = imported_data[eid_str]
-                        r.Cells["Numbered"].Value = "Pending"
+                        r.Cells["Numbered"].Value = "รอการเขียน"
                         match_count += 1
-                self.lbl_status.Text = "Status: Updated {} items from CSV".format(match_count)
+                self.lbl_status.Text = "Status: อัปเดตจาก CSV {} รายการ".format(match_count)
             except Exception as ex: MessageBox.Show(str(ex), "Error")
 
     def _save_settings_on_close(self, sender=None, e=None):
@@ -848,9 +799,9 @@ def perform_live_pick(data, config):
     while True:
         try:
             if strict_cat:
-                prompt = "Pick {} (Clicking Foundation will number all piles) *Press ESC to finish".format(strict_cat)
+                prompt = "คลิกเลือก {} (หากคลิกโดนฐานราก จะรันเลขเข็มทั้งหมดให้) *กด ESC เพื่อจบ".format(strict_cat)
             else:
-                prompt = "Free Mode: Pick any Family (Press ESC to finish)"
+                prompt = "โหมดอิสระ: คลิกเลือก Family ใดก็ได้ (กด ESC เพื่อสิ้นสุด)"
             ref = uidoc.Selection.PickObject(ObjectType.Element, prompt)
             if not ref: break
             el = doc.GetElement(ref)
