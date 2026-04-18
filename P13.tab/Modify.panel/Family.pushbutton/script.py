@@ -1,25 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-pyRevit - Reload families from a selected folder (including subfolders)
-with these rules:
-
-- DO NOT open .RFA to read internal family name (no safe_read_family_name_from_rfa)
-- Match by file name:  <FamilyName>.rfa  => FamilyName must already exist in the project
-- Include subfolders (recursive)
-- Show UI list (multi-select) to choose which families to reload
-- Show progress as: current/total and percent
-- Check existing families in the current Revit model for "corrupt/suspect" (best-effort):
-    Try doc.EditFamily(family). If it fails => mark as SUSPECT/CORRUPT.
-  If a family is SUSPECT/CORRUPT, the script will reload it even if not selected.
-- Report what the script is doing during the process (live output + progress bar)
-
-Important note:
-Revit API does not provide a true "corrupt" flag. This script uses a practical best-effort check:
-if EditFamily throws an exception, we treat it as SUSPECT/CORRUPT and force reload.
+pyRevit - Ultimate Family Rescue Mode
 """
+__title__ = "Family Rescue\nMode"
+__author__ = "เพิ่มพงษ์"
 
 import os
 import clr
+import codecs
+import System
+from datetime import datetime # นำเข้าเวลาสำหรับ Live Log
 
 from pyrevit import forms, script
 
@@ -30,277 +20,193 @@ from Autodesk.Revit.DB import (
     Family,
     IFamilyLoadOptions,
     FamilySource,
+    IFailuresPreprocessor,
+    FailureProcessingResult,
+    FailureSeverity
 )
 
-# ------------------------------------------------------------
-# Family load options: overwrite parameter values, choose file
-# ------------------------------------------------------------
+doc = __revit__.ActiveUIDocument.Document
+output = script.get_output()
+config = script.get_config()
+
+# =====================================================
+# 1. จัดการ Export Path (สำหรับ Live Log)
+# =====================================================
+export_path = getattr(config, "export_path", "")
+if not export_path or not os.path.exists(export_path):
+    selected_export = forms.pick_folder(title="📁 [Setup] เลือกโฟลเดอร์เพื่อบันทึกไฟล์ Report (สำคัญมากสำหรับการกู้ไฟล์)")
+    if selected_export:
+        config.export_path = selected_export
+        export_path = selected_export
+        script.save_config()
+
+# =====================================================
+# 2. เลือกโฟลเดอร์ต้นฉบับ .rfa (Smart Memory)
+# =====================================================
+last_folder = getattr(config, "last_family_folder", "")
+target_folder = ""
+
+if last_folder and os.path.exists(last_folder):
+    opt_use_last = "🔄 ใช้โฟลเดอร์เดิม: {}".format(last_folder)
+    opt_new = "📁 เลือกโฟลเดอร์ใหม่"
+    res = forms.CommandSwitchWindow.show([opt_use_last, opt_new], message="แหล่งที่มาของไฟล์ .rfa ที่สมบูรณ์")
+    if res == opt_use_last: target_folder = last_folder
+    elif res == opt_new: target_folder = forms.pick_folder(title="เลือกโฟลเดอร์ต้นฉบับ")
+else:
+    target_folder = forms.pick_folder(title="เลือกโฟลเดอร์ต้นฉบับ")
+
+if not target_folder: script.exit()
+config.last_family_folder = target_folder
+script.save_config()
+
+# =====================================================
+# 3. เตรียมไฟล์ Live Log Report ทันที
+# =====================================================
+csv_file = ""
+if export_path and os.path.exists(export_path):
+    time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+    csv_file = os.path.join(export_path, "Rescue_LiveLog_{}.csv".format(time_str))
+    # สร้างไฟล์และเขียนหัวตารางเตรียมไว้
+    with codecs.open(csv_file, 'w', encoding='utf-8-sig') as f:
+        f.write("Time,Family Name,Status,Details\n")
+    output.print_md("🔴 **[LIVE LOG ACTIVE]** ระบบจะบันทึกสถานะเรียลไทม์ไว้ที่: `{}`".format(csv_file))
+
+# =====================================================
+# 4. คลาสตัวช่วยโหลดแฟมิลีแบบข้าม Error
+# =====================================================
+class WarningSwallower(IFailuresPreprocessor):
+    def PreprocessFailures(self, failuresAccessor):
+        fails = failuresAccessor.GetFailureMessages()
+        for f in fails:
+            severity = f.GetSeverity()
+            if severity == FailureSeverity.Warning:
+                failuresAccessor.DeleteWarning(f)
+        return FailureProcessingResult.Continue
+
 class FamLoadOpts(IFamilyLoadOptions):
     def OnFamilyFound(self, familyInUse, overwriteParameterValues):
         overwriteParameterValues.Value = True
         return True
-
     def OnSharedFamilyFound(self, sharedFamily, familyInUse, source, overwriteParameterValues):
         source.Value = FamilySource.Family
         overwriteParameterValues.Value = True
         return True
 
+# =====================================================
+# 5. ค้นหาไฟล์ .rfa (เลือกล่าสุดเสมอกรณีชื่อซ้ำ)
+# =====================================================
+rfa_files = {}
+for root, dirs, files in os.walk(target_folder):
+    for f in files:
+        if f.lower().endswith(".rfa"):
+            fam_name = os.path.splitext(f)[0]
+            full_path = os.path.join(root, f)
+            mod_time = os.path.getmtime(full_path)
+            if fam_name not in rfa_files or mod_time > rfa_files[fam_name]['time']:
+                rfa_files[fam_name] = {'path': full_path, 'time': mod_time}
 
-# ------------------------------------------------------------
-# UI item
-# ------------------------------------------------------------
-class ChoiceItem(object):
-    def __init__(self, fam_name, fam_obj, path, status, status_note):
-        self.fam_name = fam_name
-        self.fam_obj = fam_obj
-        self.path = path
-        self.status = status
-        self.status_note = status_note
+if not rfa_files: forms.alert("❌ ไม่พบไฟล์ .rfa", exitscript=True)
 
+# =====================================================
+# 6. จับคู่กับในโมเดล (Blind Match - ไม่แตะไฟล์พัง)
+# =====================================================
+existing_fams = FilteredElementCollector(doc).OfClass(Family).ToElements()
+
+class FamilyItem(forms.TemplateListItem):
     @property
-    def name(self):
-        # what shows in SelectFromList
-        note = (" - " + self.status_note) if self.status_note else ""
-        return u"[{status}] {fam}  |  {path}{note}".format(
-            status=self.status, fam=self.fam_name, path=self.path, note=note
-        )
+    def name(self): return "📦 " + self.fam_name
 
-    def __str__(self):
-        return self.name
+matched_items = []
+for fam in existing_fams:
+    f_name = fam.Name
+    if f_name in rfa_files:
+        item = FamilyItem(f_name)
+        item.fam_name = f_name
+        item.path = rfa_files[f_name]['path']
+        item.state = True  # ติ๊กถูกรอกู้ชีพให้อัตโนมัติ
+        matched_items.append(item)
 
+if not matched_items: forms.alert("ไม่พบชื่อแฟมิลีในโปรเจกต์ที่ตรงกับโฟลเดอร์ต้นฉบับเลย", exitscript=True)
 
-# ------------------------------------------------------------
-# Helpers
-# ------------------------------------------------------------
-def iter_rfa_files_recursive(root_folder):
-    for dirpath, dirnames, filenames in os.walk(root_folder):
-        for fn in filenames:
-            if fn.lower().endswith(".rfa"):
-                yield os.path.join(dirpath, fn)
-
-def file_to_familyname(rfa_path):
-    # NO opening rfa, just filename => family name
-    return os.path.splitext(os.path.basename(rfa_path))[0]
-
-def build_existing_family_map(project_doc):
-    # case-insensitive lookup: lower-name -> (actual_name, family_obj)
-    fams = FilteredElementCollector(project_doc).OfClass(Family).ToElements()
-    m = {}
-    for f in fams:
-        if f and f.Name:
-            m[f.Name.lower()] = (f.Name, f)
-    return m
-
-def check_family_suspect_corrupt(project_doc, fam_obj):
-    """
-    Best-effort check:
-    Try EditFamily. If it throws, mark as SUSPECT/CORRUPT.
-    If it opens, close it (no save) and mark OK.
-    """
-    try:
-        fam_doc = project_doc.EditFamily(fam_obj)
-        try:
-            # If we can open it, that's a good sign.
-            return ("OK", "")
-        finally:
-            # Close family doc without saving
-            fam_doc.Close(False)
-    except Exception as ex:
-        msg = str(ex)
-        # keep note short
-        if len(msg) > 160:
-            msg = msg[:160] + "..."
-        return ("SUSPECT/CORRUPT", msg)
-
-
-# ------------------------------------------------------------
-# Main
-# ------------------------------------------------------------
-doc = __revit__.ActiveUIDocument.Document
-output = script.get_output()
-
-output.print_md("# Reload Families From Folder (Existing Only)")
-output.print_md("- Match by filename: `<FamilyName>.rfa` must exist in the current model\n"
-                "- Recursive subfolder scan\n"
-                "- Best-effort corrupt check on *existing model families* (EditFamily)\n"
-                "- SUSPECT/CORRUPT families will be reloaded automatically\n")
-
-# Pick folder
-root = forms.pick_folder(title="Select root folder containing .RFA files (includes subfolders)")
-if not root:
-    forms.alert("No folder selected.", exitscript=True)
-
-output.print_md("**Selected folder:** `{}`".format(root))
-
-# Existing families in model
-output.print_md("\n## Step 1: Read existing families in current model")
-existing_map = build_existing_family_map(doc)
-output.print_md("- Found **{}** families in the model.".format(len(existing_map)))
-
-# Scan folder
-output.print_md("\n## Step 2: Scan folder (recursive) for .RFA")
-rfa_paths = list(iter_rfa_files_recursive(root))
-output.print_md("- Found **{}** `.rfa` files.".format(len(rfa_paths)))
-
-if not rfa_paths:
-    forms.alert("No .RFA files found (including subfolders).", exitscript=True)
-
-# Build candidates (existing only) based on filename matching
-output.print_md("\n## Step 3: Match files to existing families (by filename)")
-candidates = []
-skipped_new = []      # file not found in model
-duplicates = {}       # fam_lower -> list(paths)
-
-# First collect matches & duplicates
-for fp in rfa_paths:
-    fam_guess = file_to_familyname(fp)
-    key = fam_guess.lower()
-    if key in existing_map:
-        duplicates.setdefault(key, []).append(fp)
-    else:
-        skipped_new.append((fp, fam_guess))
-
-# Choose which file to use if duplicates: take the newest (by modified time)
-chosen_paths = {}
-for fam_lower, paths in duplicates.items():
-    if len(paths) == 1:
-        chosen_paths[fam_lower] = paths[0]
-    else:
-        newest = max(paths, key=lambda p: os.path.getmtime(p))
-        chosen_paths[fam_lower] = newest
-
-# Progress: corrupt/suspect check of matched families (best-effort)
-output.print_md("\n## Step 4: Check matched families in the model (OK vs SUSPECT/CORRUPT)")
-matched_keys = list(chosen_paths.keys())
-total_check = len(matched_keys)
-
-if total_check == 0:
-    output.print_md("- No matched files. (All are new names not in the model)")
-    forms.alert("No reloadable families found.\nAll .RFA filenames do not match existing family names.", exitscript=True)
-
-with forms.ProgressBar(
-    title="Checking families in model: {value}/{max_value} ({percent}%)",
-    cancellable=True,
-    step=1,
-    max_value=total_check
-) as pb:
-    for i, fam_lower in enumerate(matched_keys, start=1):
-        if pb.cancelled:
-            forms.alert("Cancelled during model family checking.", exitscript=True)
-
-        percent = int(round((float(i) / float(total_check)) * 100.0))
-        pb.title = "Checking families in model: {}/{} ({}%)".format(i, total_check, percent)
-        pb.update_progress(i, total_check)
-
-        actual_name, fam_obj = existing_map[fam_lower]
-        fp = chosen_paths[fam_lower]
-
-        status, note = check_family_suspect_corrupt(doc, fam_obj)
-        candidates.append(ChoiceItem(actual_name, fam_obj, fp, status, note))
-
-        # Live reporting
-        if status == "OK":
-            output.print_md("- ✅ **{}** OK | `{}`".format(actual_name, fp))
-        else:
-            output.print_md("- ⚠️ **{}** SUSPECT/CORRUPT | `{}`".format(actual_name, fp))
-            output.print_md("  - Note: `{}`".format(note))
-
-# Summary
-output.print_md("\n## Summary")
-output.print_md("- Reload candidates (existing in model): **{}**".format(len(candidates)))
-output.print_md("- Skipped (filename not found in model): **{}**".format(len(skipped_new)))
-
-# UI list select
-output.print_md("\n## Step 5: Select which families to reload")
-output.print_md("Tip: SUSPECT/CORRUPT families will be reloaded automatically even if not selected.")
-
-selected = forms.SelectFromList.show(
-    sorted(candidates, key=lambda x: (0 if x.status != "OK" else 1, x.fam_name.lower())),
+# =====================================================
+# 7. UI ให้ผู้ใช้ยืนยัน
+# =====================================================
+selected_fams = forms.SelectFromList.show(
+    matched_items,
     multiselect=True,
-    title="Select families to reload (Existing only; SUSPECT/CORRUPT will auto-reload)",
-    button_name="Reload"
+    title="เลือกแฟมิลีที่ต้องการเขียนทับเพื่อกู้ชีพ (Blind Overwrite)",
+    button_name="🚑 เริ่มกู้ไฟล์ (โหลดทับ)"
 )
 
-# Determine forced reload set (suspect/corrupt)
-forced = [c for c in candidates if c.status != "OK"]
+if not selected_fams: script.exit()
 
-# Build final queue: union(selected, forced)
-final_queue = []
-seen = set()
-
-def add_item(it):
-    k = it.fam_name.lower()
-    if k not in seen:
-        seen.add(k)
-        final_queue.append(it)
-
-if selected:
-    for it in selected:
-        add_item(it)
-for it in forced:
-    add_item(it)
-
-if not final_queue:
-    forms.alert("Nothing to reload (no selection and no SUSPECT/CORRUPT families).", exitscript=True)
-
-output.print_md("\n## Step 6: Reload families (transaction)")
-output.print_md("- Selected: **{}**".format(len(selected) if selected else 0))
-output.print_md("- Forced (SUSPECT/CORRUPT): **{}**".format(len(forced)))
-output.print_md("- Total to reload: **{}**".format(len(final_queue)))
-
+# =====================================================
+# 8. กระบวนการกู้ภัย (ทีละ Transaction + Live Log)
+# =====================================================
 opts = FamLoadOpts()
-loaded = []
-failed = []
+loaded_count = 0
+failed_count = 0
+total_reload = len(selected_fams)
 
-total_reload = len(final_queue)
+output.print_md("# 🚑 เริ่มต้นกระบวนการกู้ภัย (Rescue Mode)")
 
-with forms.ProgressBar(
-    title="Reloading: {value}/{max_value} ({percent}%)",
-    cancellable=True,
-    step=1,
-    max_value=total_reload
-) as pb:
-
-    t = Transaction(doc, "Reload families from folder (existing only)")
-    t.Start()
-
-    for i, item in enumerate(final_queue, start=1):
-        if pb.cancelled:
-            t.RollBack()
-            forms.alert("Cancelled during reload. Transaction rolled back.", exitscript=True)
-
-        percent = int(round((float(i) / float(total_reload)) * 100.0))
-        pb.title = "Reloading: {}/{} ({}%)".format(i, total_reload, percent)
+with forms.ProgressBar(title="Recovery in progress...", cancellable=True) as pb:
+    for i, fam_name in enumerate(selected_fams, 1):
+        if pb.cancelled: break
+            
+        pb.title = "Reloading: {}/{} ({}%)".format(i, total_reload, int(i/total_reload*100))
         pb.update_progress(i, total_reload)
-
-        forced_tag = " (FORCED)" if item.status != "OK" else ""
-        output.print_md("\n### Reloading: **{}**{}".format(item.fam_name, forced_tag))
-        output.print_md("- Source: `{}`".format(item.path))
-        output.print_md("- Status before reload: **{}**".format(item.status))
-
+        output.print_md("\n### กำลังกู้คืน: **{}**".format(fam_name))
+        
+        # เริ่ม Transaction ย่อย (ถ้าพังก็พังแค่ตัวนี้)
+        t = Transaction(doc, "Rescue: " + fam_name)
+        t.Start()
+        t.SetFailureHandlingOptions(t.GetFailureHandlingOptions().SetFailuresPreprocessor(WarningSwallower()))
+        
+        status = ""
+        msg = ""
         try:
             fam_ref = clr.Reference[Family]()
-            ok = doc.LoadFamily(item.path, opts, fam_ref)
+            # ดึง Path จาก rfa_files ที่เก็บไว้ในขั้นตอนที่ 5
+            fam_path = rfa_files[fam_name]['path']
+            ok = doc.LoadFamily(fam_path, opts, fam_ref)
             if ok:
-                loaded.append(item)
-                output.print_md("- ✅ Reload OK (overwrite enabled)")
+                loaded_count += 1
+                status = "Success"
+                msg = "โหลดทับสำเร็จ"
+                output.print_md("- ✅ โหลดทับสำเร็จ")
+                t.Commit()
             else:
-                failed.append((item, "LoadFamily returned False"))
-                output.print_md("- ❌ Reload failed (LoadFamily returned False)")
+                failed_count += 1
+                status = "Failed"
+                msg = "Revit ปฏิเสธการโหลดไฟล์"
+                output.print_md("- ❌ ล้มเหลว (Revit ไม่ยอมรับไฟล์)")
+                t.RollBack()
         except Exception as ex:
-            failed.append((item, str(ex)))
-            output.print_md("- ❌ Exception: `{}`".format(ex))
+            failed_count += 1
+            status = "Error"
+            msg = str(ex).replace('\n', ' ').replace(',', ';') # กันทำ CSV พัง
+            output.print_md("- ❌ ติด Error: `{}`".format(msg))
+            t.RollBack()
+            
+        # ⭐️ LIVE LOG UPDATE (เขียนลงไฟล์ทันที) ⭐️
+        if csv_file:
+            try:
+                with codecs.open(csv_file, 'a', encoding='utf-8-sig') as f:
+                    now = datetime.now().strftime("%H:%M:%S")
+                    f.write("{},{},{},\"{}\"\n".format(now, fam_name, status, msg))
+            except: pass
+            
+        # ⭐️ บังคับเคลียร์ RAM ทันที ⭐️
+        System.GC.Collect()
+        System.GC.WaitForPendingFinalizers()
 
-    t.Commit()
-
-# Final report
-output.print_md("\n# Result")
-output.print_md("- ✅ Reloaded: **{}**".format(len(loaded)))
-output.print_md("- ❌ Failed: **{}**".format(len(failed)))
-
-if failed:
-    output.print_md("\n## Failed details")
-    for item, msg in failed:
-        output.print_md("- **{}** | `{}` | `{}`".format(item.fam_name, item.path, msg))
-
-forms.alert("Done.\nReloaded: {}\nFailed: {}".format(len(loaded), len(failed)))
+# =====================================================
+# 9. สรุปผล
+# =====================================================
+output.print_md("\n---")
+output.print_md("# 📊 สรุปผลการกู้ชีพ")
+output.print_md("- 🟢 กู้คืนสำเร็จ: **{}**".format(loaded_count))
+output.print_md("- 🔴 ล้มเหลว: **{}**".format(failed_count))
+if csv_file:
+    output.print_md("- 📁 ตรวจสอบประวัติการโหลดแบบละเอียดได้ที่: `{}`".format(csv_file))
