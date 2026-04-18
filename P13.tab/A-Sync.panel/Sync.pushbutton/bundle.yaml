@@ -1,0 +1,19 @@
+title: "Sync to\nUpdate"
+
+tooltip: |
+  🇬🇧 [EN] Update the P13.extension toolset to the latest version via GitHub Cloud.
+  Key Features:
+  • Direct Cloud Sync: Downloads the latest tools directly from the public GitHub repository.
+  • Admin Protection: Safety check prevents the developer (Permpong13) from overwriting source files.
+  • Robust Copy: Smartly handles permissions and skips locked files during update.
+  • Auto-Reload: Automatically refreshes the pyRevit toolbar once the update is complete.
+
+  🇹🇭 [TH] อัปเดตชุดเครื่องมือ BIM (P13.extension) ให้เป็นเวอร์ชันล่าสุดผ่าน GitHub Cloud
+  ฟังก์ชันหลัก:
+  • ระบบ Cloud Sync: ดาวน์โหลดเครื่องมือล่าสุดจาก GitHub Public Repo โดยตรง
+  • ระบบป้องกัน Admin: ตรวจสอบเพื่อป้องกันการรันคำสั่งทับไฟล์ต้นฉบับสำหรับเครื่องนักพัฒนา
+  • การก๊อปปี้แบบปลอดภัย: จัดการเรื่องสิทธิ์และข้ามไฟล์ที่ถูกใช้งานอยู่ (Locked files) ให้อัตโนมัติ
+  • รีโหลดแถบเครื่องมือ: สั่งรีโหลด pyRevit ทันทีหลังอัปเดตเสร็จ
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Sync and update BIM tools from GitHub Cloud with auto-reload functionality. / อัปเดตชุดเครื่องมือ BIM จาก GitHub Cloud พร้อมระบบรีโหลดแถบเครื่องมืออัตโนมัติ"
