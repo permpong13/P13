@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 __title__ = "Update\nCoordinates"
-__doc__ = """คำนวณพิกัด (เมตร) ลงในพารามิเตอร์ N/E_Coordinate
-- รองรับ Revit 2024/2025/2026+
-- พารามิเตอร์ Number → ตัวเลขเมตร
-- พารามิเตอร์ Text → "736.241 m (2415489.433149 ft)"
-- Project Base Point แสดงทั้งเมตรและฟุต
-- ป้องกันการ Set ค่าฟุตผิดในพารามิเตอร์ Number"""
+__doc__ = """Calculate and update coordinates (meters) into N/E_Coordinate parameters.
+- Supports Revit 2024/2025/2026+
+- Number parameter → Value in meters
+- Text parameter → "736.241"
+- Project Base Point reports both meters and feet.
+- Prevents accidental feet value assignment in Number parameters."""
 __author__ = "เพิ่มพงษ์"
 
 from pyrevit import forms, script, DB, HOST_APP
@@ -169,7 +169,7 @@ export_path = getattr(config, "export_path", "")
 
 # ตรวจสอบและตั้งค่า Export Path หากยังไม่มี
 if not export_path or not os.path.exists(export_path):
-    selected_folder = forms.pick_folder(title="📁 กรุณาเลือกโฟลเดอร์สำหรับตั้งค่า Export Path")
+    selected_folder = forms.pick_folder(title="📁 Please select a folder for the Export Path")
     if selected_folder:
         config.export_path = selected_folder
         export_path = selected_folder
@@ -226,8 +226,8 @@ for k in sorted(options_category.keys()):
 selected = forms.SelectFromList.show(
     options,
     multiselect=True,
-    title="เลือกหมวดหมู่เพื่อตั้งค่าพิกัด N/E",
-    button_name="🚀 เริ่มคำนวณ"
+    title="Select Categories to Update N/E Coordinates",
+    button_name="🚀 Start Calculation"
 )
 
 if not selected:
@@ -246,11 +246,11 @@ for key in selected_keys:
         elements.extend(list(col))
 
 if not elements:
-    forms.alert("❌ ไม่พบ Element ในหมวดหมู่ที่เลือก")
+    forms.alert("❌ No elements found in the selected categories.")
     sys.exit()
 
 # --- STEP 2: ตรวจสอบและสร้าง Parameters (Smart Automation) ---
-output.print_md("### **ตรวจสอบและเตรียม Parameters**")
+output.print_md("### **Checking and Preparing Parameters**")
 
 cat_names_for_setup = [options_category[key].ToString() for key in selected_keys if key in options_category]
 
@@ -258,11 +258,11 @@ cat_names_for_setup = [options_category[key].ToString() for key in selected_keys
 status_n = setup_parameter(doc, app, "N_Coordinate", "Text", cat_names_for_setup)
 status_e = setup_parameter(doc, app, "E_Coordinate", "Text", cat_names_for_setup)
 
-if status_n == "created": output.print_md("✅ **N_Coordinate** (Text) ถูกสร้างอัตโนมัติ")
-elif status_n in ["exists", "updated"]: output.print_md("✅ พบพารามิเตอร์ **N_Coordinate** พร้อมใช้งาน")
+if status_n == "created": output.print_md("✅ **N_Coordinate** (Text) auto-created.")
+elif status_n in ["exists", "updated"]: output.print_md("✅ **N_Coordinate** parameter is ready.")
 
-if status_e == "created": output.print_md("✅ **E_Coordinate** (Text) ถูกสร้างอัตโนมัติ")
-elif status_e in ["exists", "updated"]: output.print_md("✅ พบพารามิเตอร์ **E_Coordinate** พร้อมใช้งาน")
+if status_e == "created": output.print_md("✅ **E_Coordinate** (Text) auto-created.")
+elif status_e in ["exists", "updated"]: output.print_md("✅ **E_Coordinate** parameter is ready.")
 
 output.print_md("---")
 
@@ -469,10 +469,10 @@ if export_path and os.path.exists(export_path):
                 f.write('{},{},"{}"\n'.format(row[0], row[1], row[2]))
                 
         output.print_md("### 📁 Report Exported")
-        output.print_md("บันทึกไฟล์รายงานไว้ที่: `{}`".format(csv_file))
+        output.print_md("Report saved to: `{}`".format(csv_file))
     except Exception as e:
         output.print_md("### ❌ Export Error")
-        output.print_md("ไม่สามารถบันทึกไฟล์ได้: {}".format(e))
+        output.print_md("Failed to save report: {}".format(e))
 
 if stats["success"] > 0:
     success_rate = (float(stats["success"]) / float(stats["total"])) * 100.0

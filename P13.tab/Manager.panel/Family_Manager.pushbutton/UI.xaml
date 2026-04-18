@@ -1,0 +1,222 @@
+<Window 
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="P13 Family Manager - Ultimate Pro" Height="850" Width="1400"
+    Background="#F2F2F7" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip">
+    
+    <Window.Resources>
+        <SolidColorBrush x:Key="iOSBackground" Color="#F2F2F7"/>
+        <SolidColorBrush x:Key="iOSCardBackground" Color="#FFFFFF"/>
+        <Style x:Key="IOSCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource iOSCardBackground}"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="BorderBrush" Value="#E5E5EA"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,10"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="#007AFF"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.5"/>
+                    <Setter Property="Background" Value="#AAB8C2"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+        <Style x:Key="IOSComboBox" TargetType="ComboBox">
+            <Setter Property="Height" Value="30"/>
+            <Setter Property="Padding" Value="5"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+    </Window.Resources>
+    
+    <Grid Margin="12">
+        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        
+        <Border Grid.Row="0" Style="{StaticResource IOSCard}">
+            <WrapPanel>
+                <TextBlock Text="Total Families: " FontWeight="Bold"/><TextBlock x:Name="StatTotalFamilies" Text="0" Margin="0,0,20,0"/>
+                <TextBlock Text="Total Types: " FontWeight="Bold"/><TextBlock x:Name="StatTotalTypes" Text="0" Margin="0,0,20,0"/>
+                <TextBlock Text="Instances: " FontWeight="Bold"/><TextBlock x:Name="StatTotalInstances" Text="0" Margin="0,0,20,0"/>
+                <TextBlock Text="Unused: " FontWeight="Bold"/><TextBlock x:Name="StatUnusedTypes" Text="0" Foreground="Red" Margin="0,0,20,0"/>
+                <TextBlock Text="In-Place: " FontWeight="Bold"/><TextBlock x:Name="StatInPlaceFamilies" Text="0" Foreground="Orange"/>
+            </WrapPanel>
+        </Border>
+        
+        <Grid Grid.Row="1" Margin="0,10">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="280"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            
+            <Border Grid.Column="0" Style="{StaticResource IOSCard}" Margin="0,0,10,0">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Filters &amp; Controls" FontSize="16" FontWeight="Bold" Margin="0,0,0,10"/>
+                    
+                    <TextBlock Text="Scope" FontWeight="Bold" Margin="0,5"/>
+                    <StackPanel Orientation="Horizontal">
+                        <RadioButton x:Name="RadioAll" Content="All" IsChecked="True" Margin="0,0,5,0"/>
+                        <RadioButton x:Name="RadioView" Content="Active View" Margin="0,0,5,0"/>
+                        <RadioButton x:Name="RadioSelected" Content="Selected"/>
+                    </StackPanel>
+                    
+                    <TextBlock Text="Category" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <ComboBox x:Name="ComboCategory" Margin="0,5" Style="{StaticResource IOSComboBox}" DisplayMemberPath="Name"/>
+                    
+                    <TextBlock Text="Usage Filters" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <CheckBox x:Name="CheckFavoritesOnly" Content="Show Favorites Only (★)" Margin="0,2" Foreground="#FF9500" FontWeight="Bold"/>
+                    <CheckBox x:Name="CheckUsedOnly" Content="Used Only" Margin="0,2"/>
+                    <CheckBox x:Name="CheckUnusedOnly" Content="Unused Only" Margin="0,2"/>
+                    <CheckBox x:Name="CheckInPlaceOnly" Content="In-Place Only" Margin="0,2"/>
+                    <CheckBox x:Name="CheckSharedOnly" Content="Shared Only" Margin="0,2"/>
+                    <CheckBox x:Name="CheckNestedOnly" Content="Nested Only" Margin="0,2"/>
+                    <CheckBox x:Name="CheckHasParameters" Content="Has Parameters" Margin="0,2"/>
+                    
+                    <TextBlock Text="Sort By" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <ComboBox x:Name="ComboSortBy" Margin="0,5" Style="{StaticResource IOSComboBox}">
+                        <ComboBoxItem Content="Family Name" IsSelected="True"/>
+                        <ComboBoxItem Content="Type Name"/>
+                        <ComboBoxItem Content="Category"/>
+                        <ComboBoxItem Content="Instance Count"/>
+                    </ComboBox>
+                    
+                    <TextBlock Text="Quick Actions" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <WrapPanel>
+                        <Button x:Name="BtnSelectAll" Content="All" Width="50" Background="#E5E5EA" Foreground="Black"/>
+                        <Button x:Name="BtnSelectNone" Content="None" Width="50" Background="#E5E5EA" Foreground="Black"/>
+                        <Button x:Name="BtnSelectUsed" Content="Used" Width="50" Background="#E5E5EA" Foreground="Black"/>
+                        <Button x:Name="BtnSelectUnused" Content="Unused" Width="60" Background="#E5E5EA" Foreground="Black"/>
+                        <Button x:Name="BtnSelectInPlace" Content="InPlace" Width="60" Background="#E5E5EA" Foreground="Black"/>
+                        <Button x:Name="BtnSelectShared" Content="Shared" Width="60" Background="#E5E5EA" Foreground="Black"/>
+                    </WrapPanel>
+                    
+                    <TextBlock Text="Display" FontWeight="Bold" Margin="0,10,0,0"/>
+                    <CheckBox x:Name="CheckGroupByCategory" Content="Group by Category" IsChecked="True" Margin="0,2"/>
+                    <CheckBox x:Name="CheckShowParameters" Content="Show Parameters" Margin="0,2"/>
+                    <CheckBox x:Name="CheckAutoRefresh" Content="Auto Refresh" IsChecked="True" Margin="0,2"/>
+                    <CheckBox x:Name="CheckShowOnlyVisible" Content="Show Only Visible" IsChecked="True" Margin="0,2"/>
+                    
+                    <Button x:Name="BtnRefresh" Content="Refresh Data" Height="30" Margin="0,15,0,0"/>
+                </StackPanel>
+                </ScrollViewer>
+            </Border>
+            
+            <Border Grid.Column="1" Style="{StaticResource IOSCard}">
+                <Grid>
+                    <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                    
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
+                        <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                        <TextBox x:Name="TextSearch" Width="300" Height="30" VerticalContentAlignment="Center" Padding="5"/>
+                        <Button x:Name="BtnClearSearch" Content="Clear" Margin="5,0" Background="#E5E5EA" Foreground="Black"/>
+                        <Button x:Name="BtnAdvancedSearch" Content="Adv. Search" Margin="5,0" Background="#5856D6" IsEnabled="False"/>
+                    </StackPanel>
+                    
+                    <DataGrid x:Name="DataGridFamilies" Grid.Row="1" AutoGenerateColumns="False" 
+                              CanUserAddRows="False" SelectionMode="Extended" RowHeight="50"
+                              Background="White" BorderBrush="#E5E5EA" BorderThickness="1"
+                              CellEditEnding="datagrid_cell_edit_ending" VirtualizingStackPanel.IsVirtualizing="True"
+                              PreviewKeyDown="datagrid_preview_keydown">
+                        <DataGrid.Columns>
+                            <DataGridTemplateColumn Width="35" CanUserSort="True" SortMemberPath="IsFavorite">
+                                <DataGridTemplateColumn.Header>
+                                    <TextBlock Text="★" Foreground="#FF9500" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsFavorite, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Click="favorite_click"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <DataGridTemplateColumn Width="40">
+                                <DataGridTemplateColumn.Header>
+                                    <CheckBox x:Name="HeaderCheckBox"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsSelected, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                  Click="row_checkbox_click"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            
+                            <DataGridTemplateColumn Header="Preview" Width="60">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Image Source="{Binding Thumbnail}" Width="48" Height="48" Stretch="Uniform">
+                                            <Image.ToolTip>
+                                                <ToolTip Background="White" BorderBrush="#E5E5EA" BorderThickness="1">
+                                                    <StackPanel Margin="5">
+                                                        <TextBlock Text="{Binding FamilyName}" FontWeight="Bold" Margin="0,0,0,5"/>
+                                                        <TextBlock Text="{Binding TypeName}" Margin="0,0,0,10"/>
+                                                        <Image Source="{Binding Thumbnail}" Width="250" Height="250" Stretch="Uniform"/>
+                                                    </StackPanel>
+                                                </ToolTip>
+                                            </Image.ToolTip>
+                                        </Image>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            
+                            <DataGridTextColumn Header="Type Name (Edit)" Binding="{Binding TypeName, Mode=TwoWay}" Width="180" IsReadOnly="False" Foreground="#007AFF" FontWeight="SemiBold"/>
+                            <DataGridTextColumn Header="Family Name" Binding="{Binding FamilyName}" Width="150" IsReadOnly="True" Foreground="Gray"/>
+                            <DataGridTextColumn Header="Category" Binding="{Binding Category}" Width="120" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Count" Binding="{Binding InstanceCount}" Width="50" IsReadOnly="True"/>
+                            <DataGridCheckBoxColumn Header="In-Place" Binding="{Binding IsInPlace}" Width="60" IsReadOnly="True"/>
+                            <DataGridCheckBoxColumn Header="Shared" Binding="{Binding IsShared}" Width="60" IsReadOnly="True"/>
+                            <DataGridTextColumn Header="Type ID" Binding="{Binding TypeId}" Width="80" IsReadOnly="True"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    
+                    <Grid Grid.Row="2" Margin="0,10,0,0">
+                        <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                        
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,5">
+                            <Button x:Name="BtnRename" Content="Rename" Background="#FF9500"/>
+                            <Button x:Name="BtnAddPrefix" Content="Prefix" Background="#5AC8FA"/>
+                            <Button x:Name="BtnAddSuffix" Content="Suffix" Background="#5AC8FA"/>
+                            <Button x:Name="BtnDuplicate" Content="Duplicate" Background="#5856D6"/>
+                            <Button x:Name="BtnCopyTypes" Content="Copy Types" Background="#5856D6" IsEnabled="False"/>
+                            <Button x:Name="BtnDeleteTypes" Content="Delete" Background="#FF3B30"/>
+                            <Button x:Name="BtnPurgeUnused" Content="Purge" Background="#FF3B30"/>
+                        </StackPanel>
+                        
+                        <StackPanel Grid.Row="1" Orientation="Horizontal">
+                            <TextBlock x:Name="LabelStatus" VerticalAlignment="Center" Margin="0,0,10,0" Width="200" TextTrimming="CharacterEllipsis"/>
+                            <Button x:Name="BtnExport" Content="Export to CSV" Background="#34C759"/>
+                            <Button x:Name="BtnTypeCatalog" Content="Type Catalog" Background="#34C759"/>
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+        
+        <Border Grid.Row="2" Style="{StaticResource IOSCard}">
+            <StackPanel Orientation="Horizontal">
+                <Button x:Name="BtnShowParameters" Content="Show Params" Background="#5856D6"/>
+                <Button x:Name="BtnFindReplace" Content="Find &amp; Replace" Background="#E5E5EA" Foreground="Black" IsEnabled="False"/>
+                <Button x:Name="BtnBatchRename" Content="Batch Rename" Background="#FF9500"/>
+                <Button x:Name="BtnBatchParam" Content="Batch Edit Param" Background="#FF9500" IsEnabled="False"/>
+                <Button x:Name="BtnReloadFamily" Content="Reload Family" Background="#5856D6"/>
+                <Button x:Name="BtnSettings" Content="Settings" Background="#E5E5EA" Foreground="Black"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</Window>
