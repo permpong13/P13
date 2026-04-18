@@ -1,19 +1,25 @@
-title: "G-Element\nStatus"
+title: "Parameter\nManager"
 
 tooltip: |
-  🇬🇧 [EN] Manage and update the "g_Element Status" parameter for elements in the active view (Revit 2026 Compatible).
-  Key Features:
-  • Smart Auto-Setup: Automatically detects, creates, and binds the Shared Parameter to over 60 categories if missing.
-  • Workset Grouping: Organizes elements by Workset and their current status for precise tracking and updating.
-  • Model Group Support: Auto-enables 'Varies Across Groups' to allow updating elements locked inside Model Groups.
-  • UI Dashboard: Batch update statuses with Highlight selection, Apply to List, and a clear status legend (0 to 2).
+  เครื่องมือจัดการ Project Parameters แบบครบวงจร (Revit 2026 Ready)
+  ช่วยในการโยกย้ายข้อมูล ลบพารามิเตอร์ที่ไม่ได้ใช้งาน และสร้างรายงานสรุปผล
 
-  🇹🇭 [TH] จัดการและอัปเดตสถานะองค์ประกอบ (g_Element Status) ใน View ปัจจุบัน (รองรับ Revit 2026)
-  ฟังก์ชันหลัก:
-  • ระบบ Auto-Setup: ตรวจสอบ สร้าง และผูก Shared Parameter เข้ากับ Category กว่า 60 หมวดหมู่ให้อัตโนมัติหากยังไม่มีในโปรเจกต์
-  • จัดกลุ่มข้อมูล (Workset Grouping): แสดงรายการแยกตาม Workset และสถานะปัจจุบัน เพื่อความแม่นยำในการเลือกอัปเดต
-  • รองรับ Model Group: เปิดใช้งาน 'Varies Across Groups' ให้อัตโนมัติ เพื่อให้สามารถแก้ไขชิ้นงานที่อยู่ในกรุ๊ปได้
-  • หน้าต่าง UI Dashboard: จัดการแบบกลุ่มอย่างรวดเร็วด้วยระบบ Select Highlight และมีคำอธิบายสถานะ (0-2) ไว้อย่างชัดเจน
+  [ENG]
+  - Import/Export JSON: Easily migrate Project Parameters between models using JSON files. Remembers last used directory.
+  - Usage Detection: Scans elements to accurately identify "Unused" parameters that have no data.
+  - Batch Management: Force-delete multiple parameters at once, including those that are difficult to remove via standard UI.
+  - Comprehensive Reporting: Generates detailed TXT reports of all parameters, including status, categories, and bindings.
+  - Revit 2026 Compatible: Fully supports new ForgeTypeId and SpecTypeId for modern Revit versions.
+  - No-Console UI: Clean interface using standard alerts and forms without cluttering the output window.
+
+  [TH]
+  - นำเข้าและส่งออก JSON: ย้าย Project Parameters ข้ามโปรเจกต์ได้ง่ายๆ ผ่านไฟล์ JSON พร้อมระบบจดจำโฟลเดอร์ล่าสุด
+  - ตรวจหาพารามิเตอร์ไม่ได้ใช้งาน: สแกนชิ้นงานจริงในโมเดลเพื่อระบุว่า Parameter ตัวไหนไม่มีการกรอกข้อมูล (Unused)
+  - จัดการแบบกลุ่ม (Batch Management): บังคับลบหลายรายการพร้อมกันในคลิกเดียว รวมถึงตัวที่ลบยากผ่านหน้าต่างปกติของ Revit
+  - ระบบรายงานสรุปผล: สร้างรายงานไฟล์ .txt แสดงรายละเอียดสถานะการใช้งาน, หมวดหมู่ และการเชื่อมโยง (Binding) ทั้งหมด
+  - รองรับ Revit 2026: ปรับแต่งโค้ดให้รองรับ ForgeTypeId และ SpecTypeId สำหรับ Revit เวอร์ชันใหม่ล่าสุด
+  - หน้าต่าง UI สะอาดตา: แสดงผลผ่าน forms.alert และหน้าต่างเลือกรายการโดยไม่เปิดหน้า Output Console ให้เกะกะ
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Manage 'g_Element Status' by Workset with auto-parameter setup. / จัดการและอัปเดตสถานะ g_Element Status แยกตาม Workset พร้อมระบบสร้าง Parameter อัตโนมัติ"
+
+description: "Export/Import, detect unused, and batch manage project parameters via JSON. / เครื่องมือจัดการ นำเข้า ส่งออก และลบ Project Parameters ที่ไม่ได้ใช้งาน"
