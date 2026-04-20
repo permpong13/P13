@@ -137,8 +137,8 @@ class SuperSheetsUltimate(Window):
         sp_f = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,0,0,10))
         self.chkPDF = CheckBox(Content="PDF", IsChecked=True, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
         self.chkDWG = CheckBox(Content="DWG", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
-        self.chkIFC = CheckBox(Content="IFC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
-        self.chkNWC = CheckBox(Content="NWC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
+        self.chkIFC = CheckBox(Content="IFC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
+        self.chkNWC = CheckBox(Content="NWC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         sp_f.Children.Add(self.chkPDF); sp_f.Children.Add(self.chkDWG); sp_f.Children.Add(self.chkIFC); sp_f.Children.Add(self.chkNWC)
         
         sp_f.Children.Add(TextBlock(Text="| Color: ", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(10,0,5,0)))
