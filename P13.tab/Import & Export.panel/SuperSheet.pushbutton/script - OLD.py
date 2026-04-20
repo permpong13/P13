@@ -137,8 +137,7 @@ class SuperSheetsUltimate(Window):
         sp_f = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,0,0,10))
         self.chkPDF = CheckBox(Content="PDF", IsChecked=True, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
         self.chkDWG = CheckBox(Content="DWG", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
-        
-        # ซ่อน IFC และ NWC ตามการตั้งค่าเดิม
+        # ซ่อน IFC และ NWC
         self.chkIFC = CheckBox(Content="IFC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         self.chkNWC = CheckBox(Content="NWC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         sp_f.Children.Add(self.chkPDF); sp_f.Children.Add(self.chkDWG); sp_f.Children.Add(self.chkIFC); sp_f.Children.Add(self.chkNWC)
@@ -152,7 +151,7 @@ class SuperSheetsUltimate(Window):
         sp_f.Children.Add(self.chkCombine)
         main_format_panel.Children.Add(sp_f)
         
-        # PDF Advanced Options
+        # PDF Advanced Options (ตามรูป)
         pdf_expander = Expander(Header="PDF Advanced Options", Margin=Thickness(0,5,0,0), 
                                 Foreground=Brushes.SlateGray, FontWeight=FontWeights.SemiBold)
         pdf_options_panel = WrapPanel(Margin=Thickness(10,10,0,10))
@@ -537,30 +536,6 @@ class SuperSheetsUltimate(Window):
     def _sanitize(self, name):
         return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
-    def _get_safe_filename(self, folder, base_name, ext):
-        """เช็คความยาว Path และป้องกันการเซฟทับไฟล์เดิม (จะเติม _01, _02 อัตโนมัติ)"""
-        max_len = 250 - len(folder) - len(ext)
-        if max_len <= 0: return base_name # Folder path ยาวเกินไป ปล่อยผ่าน
-        
-        # ตัดคำถ้าชื่อไฟล์บวก Path ยาวเกินลิมิต 250 (เผื่อ 10 ตัวอักษรสำหรับระบบ)
-        if len(base_name) > max_len:
-            base_name = base_name[:max_len].strip()
-            
-        final_name = base_name
-        counter = 1
-        
-        # เช็คไฟล์ซ้ำ ถ้าซ้ำให้เติม _01, _02
-        while os.path.exists(os.path.join(folder, final_name + ext)):
-            suffix = "_{:02d}".format(counter)
-            # เช็คความยาวอีกรอบหลังจากเติม Suffix
-            if len(base_name) + len(suffix) > max_len:
-                final_name = base_name[:max_len-len(suffix)].strip() + suffix
-            else:
-                final_name = base_name + suffix
-            counter += 1
-            
-        return final_name
-
     def _create_excel(self, items, folder):
         try:
             csv_p = os.path.join(folder, "Transmittal_{}.csv".format(datetime.datetime.now().strftime("%Y%m%d")))
@@ -571,26 +546,46 @@ class SuperSheetsUltimate(Window):
 
     def _apply_pdf_options(self, opt):
         """Apply PDF advanced options to PDFExportOptions"""
+        # View links in blue (Color prints only)
         try:
-            if self.chkViewLinks.IsChecked: opt.ViewLinksInBlue = True
+            if self.chkViewLinks.IsChecked:
+                opt.ViewLinksInBlue = True
         except: pass
+        
+        # Hide reference/workspaces
         try:
-            if self.chkHideRefWorksets.IsChecked: opt.HideReferenceWorksets = True
+            if self.chkHideRefWorksets.IsChecked:
+                opt.HideReferenceWorksets = True
         except: pass
+        
+        # Hide unreferenced view tags
         try:
-            if self.chkHideUnrefViewTags.IsChecked: opt.HideUnreferencedViewTags = True
+            if self.chkHideUnrefViewTags.IsChecked:
+                opt.HideUnreferencedViewTags = True
         except: pass
+        
+        # Hide scope boxes
         try:
-            if self.chkHideScopeBoxes.IsChecked: opt.HideScopeBoxes = True
+            if self.chkHideScopeBoxes.IsChecked:
+                opt.HideScopeBoxes = True
         except: pass
+        
+        # Hide crop boundaries
         try:
-            if self.chkHideCropBoundaries.IsChecked: opt.HideCropBoundaries = True
+            if self.chkHideCropBoundaries.IsChecked:
+                opt.HideCropBoundaries = True
         except: pass
+        
+        # Replace halftone with thin lines
         try:
-            if self.chkReplaceHalftone.IsChecked: opt.ReplaceHalftoneWithThinLines = True
+            if self.chkReplaceHalftone.IsChecked:
+                opt.ReplaceHalftoneWithThinLines = True
         except: pass
+        
+        # Region edges mask coincident lines
         try:
-            if self.chkRegionEdgesMask.IsChecked: opt.RegionEdgesMaskCoincidentLines = True
+            if self.chkRegionEdgesMask.IsChecked:
+                opt.RegionEdgesMaskCoincidentLines = True
         except: pass
 
     def _on_run(self, s, e):
@@ -646,15 +641,15 @@ class SuperSheetsUltimate(Window):
                                 raw_c_name = raw_c_name.replace("{" + p_name + "}", val)
                         
                         final_c_name = self._sanitize(raw_c_name)
-                        # ใช้ระบบป้องกัน Path ยาวเกินและชื่อซ้ำ
-                        final_c_name = self._get_safe_filename(pdf_path, final_c_name, ".pdf")
                         
                         opt = DB.PDFExportOptions()
                         opt.Combine = True
                         opt.FileName = final_c_name
                         opt.ColorDepth = DB.ColorDepthType.BlackLine if self.cboColor.SelectedIndex == 1 else DB.ColorDepthType.Color
                         
+                        # Apply PDF advanced options
                         self._apply_pdf_options(opt)
+                        
                         doc.Export(pdf_path, List[DB.ElementId]([i.Id for i in selected]), opt)
                     except Exception as ex: 
                         print("Combine Error: " + str(ex))
@@ -666,14 +661,13 @@ class SuperSheetsUltimate(Window):
                     
                     if self.chkPDF.IsChecked and not self.chkCombine.IsChecked:
                         try:
-                            # ใช้ระบบป้องกัน Path ยาวเกินและชื่อซ้ำ
-                            safe_pdf_fn = self._get_safe_filename(pdf_path, fn, ".pdf")
-                            
                             opt = DB.PDFExportOptions()
-                            opt.FileName = safe_pdf_fn
+                            opt.FileName = fn
                             opt.ColorDepth = DB.ColorDepthType.BlackLine if self.cboColor.SelectedIndex == 1 else DB.ColorDepthType.Color
                             
+                            # Apply PDF advanced options
                             self._apply_pdf_options(opt)
+                            
                             doc.Export(pdf_path, List[DB.ElementId]([item.Id]), opt)
                         except Exception as ex:
                             print("PDF Error {}: {}".format(fn, ex))
@@ -683,42 +677,27 @@ class SuperSheetsUltimate(Window):
                     if self.chkDWG.IsChecked:
                         try:
                             clean_fn = fn.replace(".dwg", "")
-                            # ใช้ระบบป้องกัน Path ยาวเกินและชื่อซ้ำ
-                            safe_dwg_fn = self._get_safe_filename(dwg_path, clean_fn, ".dwg")
-                            
                             opt_dwg = DB.DWGExportOptions()
                             opt_dwg.MergedViews = True 
-                            doc.Export(dwg_path, safe_dwg_fn, List[DB.ElementId]([item.Id]), opt_dwg)
+                            doc.Export(dwg_path, clean_fn, List[DB.ElementId]([item.Id]), opt_dwg)
                         except Exception as ex: 
                             print("DWG Error {}: {}".format(fn, ex))
                         c += 1
                         pb.update_progress(c, total)
 
                     if self.chkIFC.IsChecked:
-                        # สร้าง Transaction ป้องกัน Error กรณีที่เปิดใช้ฟีเจอร์นี้ในอนาคต
-                        t = DB.Transaction(doc, "Export IFC Temp")
-                        t.Start()
                         try: 
-                            safe_ifc_fn = self._get_safe_filename(folder, fn, ".ifc")
-                            doc.Export(folder, safe_ifc_fn, DB.IFCExportOptions())
+                            doc.Export(folder, fn, DB.IFCExportOptions())
                         except Exception as ex:
                             print("IFC Error {}: {}".format(fn, ex))
-                        finally:
-                            t.RollBack() # ยกเลิกการแก้ไขโมเดล
                         c += 1
                         pb.update_progress(c, total)
                         
                     if self.chkNWC.IsChecked:
-                        # สร้าง Transaction ป้องกัน Error กรณีที่เปิดใช้ฟีเจอร์นี้ในอนาคต
-                        t = DB.Transaction(doc, "Export NWC Temp")
-                        t.Start()
                         try: 
-                            safe_nwc_fn = self._get_safe_filename(folder, fn, ".nwc")
-                            doc.Export(folder, safe_nwc_fn, DB.NavisworksExportOptions())
+                            doc.Export(folder, fn, DB.NavisworksExportOptions())
                         except Exception as ex:
                             print("NWC Error {}: {}".format(fn, ex))
-                        finally:
-                            t.RollBack() # ยกเลิกการแก้ไขโมเดล
                         c += 1
                         pb.update_progress(c, total)
             
