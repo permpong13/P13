@@ -137,6 +137,7 @@ class SuperSheetsUltimate(Window):
         sp_f = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,0,0,10))
         self.chkPDF = CheckBox(Content="PDF", IsChecked=True, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
         self.chkDWG = CheckBox(Content="DWG", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
+        # ซ่อน IFC และ NWC
         self.chkIFC = CheckBox(Content="IFC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         self.chkNWC = CheckBox(Content="NWC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         sp_f.Children.Add(self.chkPDF); sp_f.Children.Add(self.chkDWG); sp_f.Children.Add(self.chkIFC); sp_f.Children.Add(self.chkNWC)
@@ -588,6 +589,10 @@ class SuperSheetsUltimate(Window):
         except: pass
 
     def _on_run(self, s, e):
+        # บังคับปิด IFC และ NWC เสมอ ป้องกันการจำค่าเดิมจากไฟล์ Profile หรือ Settings
+        self.chkIFC.IsChecked = False
+        self.chkNWC.IsChecked = False
+        
         selected = [i for i in self.dg.ItemsSource if i.Include]
         if not selected: 
             self._toast("Please select at least one sheet.")
