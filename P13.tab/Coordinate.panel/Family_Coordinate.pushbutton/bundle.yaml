@@ -1,4 +1,4 @@
-title: "Family\nCoordinates"
+title: "Families\nCoordinates"
 
 tooltip: |
   🇬🇧 [EN] Calculate and update real-world coordinates (North/East) for family instances in meters.
@@ -8,7 +8,7 @@ tooltip: |
   • Support elements inside Model Groups (auto-enables 'Varies Across Groups').
   • Save category selection history and export a CSV update report.
 
-  🇹🇭 [TH] คำนวณและอัปเดตพิกัดจริง (North/East) สำหรับ Family Instances หน่วยเป็นเมตร
+  🇹🇭 [TH] คำนวณและอัปเดตพิกัดจริง (North/East) สำหรับ Families Instances หน่วยเป็นเมตร
   ฟังก์ชันหลัก:
   • อ้างอิงตำแหน่งจาก Project Base Point (PBP) พร้อมคำนวณมุมการหมุนของโครงการ
   • ตรวจสอบและสร้าง Shared Parameter 'N_Coordinate', 'E_Coordinate' ให้อัตโนมัติหากไม่มี

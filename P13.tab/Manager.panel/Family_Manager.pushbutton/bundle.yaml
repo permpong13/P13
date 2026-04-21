@@ -1,7 +1,7 @@
-title: "Family\nManager"
+title: "Families\nManager"
 
 tooltip: |
-  🇬🇧 [EN] Advanced Revit Family and Type management utility (Ultimate Pro Edition).
+  🇬🇧 [EN] Advanced Revit Families and Type management utility (Ultimate Pro Edition).
   Key Features:
   • Direct Grid Editing: Rename types directly within the DataGrid, similar to Excel.
   • Favorites System (★): Bookmark frequently used families with persistent settings for quick access.
@@ -10,14 +10,14 @@ tooltip: |
   • Usage Analytics & Filters: Track instance counts and filter by Used/Unused, In-Place, Shared, or Nested.
   • Export Tools: Auto-remembers export paths to export data to Excel and generate Type Catalogs.
 
-  🇹🇭 [TH] เครื่องมือจัดการ Family และ Type ระดับสูง (Ultimate Pro Edition)
+  🇹🇭 [TH] เครื่องมือจัดการ Families และ Type ระดับสูง (Ultimate Pro Edition)
   ฟังก์ชันหลัก:
   • แก้ไขชื่อได้โดยตรงในตารางเหมือนใช้งาน Excel (Direct Grid Editing)
-  • ระบบ Favorites (★): ปักหมุด Family ที่ใช้งานบ่อย พร้อมระบบจดจำการตั้งค่า
+  • ระบบ Favorites (★): ปักหมุด Families ที่ใช้งานบ่อย พร้อมระบบจดจำการตั้งค่า
   • แสดงรูปตัวอย่าง (Live Preview): ภาพ Tooltip ขนาดใหญ่เมื่อวางเมาส์เหนือรายการ
   • จัดการแบบกลุ่ม (Batch Actions): เปลี่ยนชื่อ, เติม Prefix/Suffix, คัดลอก, ลบ และ Purge
   • ระบบกรองและวิเคราะห์: ดูจำนวนการใช้งาน, กรองรายการที่ไม่ได้ใช้, In-Place, Shared หรือ Nested
   • เครื่องมือส่งออก: ระบบจดจำโฟลเดอร์เพื่อส่งออกข้อมูลเป็นไฟล์ Excel และสร้าง Type Catalog อย่างรวดเร็ว
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Ultimate family management with grid editing, favorites, batch actions, and Excel export. / จัดการ Family ระดับสูงด้วยระบบ Favorites, แก้ไขชื่อในตาราง และ Export Excel"
+description: "Ultimate family management with grid editing, favorites, batch actions, and Excel export. / จัดการ Families ระดับสูงด้วยระบบ Favorites, แก้ไขชื่อในตาราง และ Export Excel"
