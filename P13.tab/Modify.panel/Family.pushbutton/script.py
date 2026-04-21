@@ -9,7 +9,7 @@ import os
 import clr
 import codecs
 import System
-from datetime import datetime # นำเข้าเวลาสำหรับ Live Log
+from datetime import datetime
 
 from pyrevit import forms, script
 
@@ -34,7 +34,7 @@ config = script.get_config()
 # =====================================================
 export_path = getattr(config, "export_path", "")
 if not export_path or not os.path.exists(export_path):
-    selected_export = forms.pick_folder(title="📁 [Setup] เลือกโฟลเดอร์เพื่อบันทึกไฟล์ Report (สำคัญมากสำหรับการกู้ไฟล์)")
+    selected_export = forms.pick_folder(title="📁 [Setup] เลือกโฟลเดอร์เพื่อบันทึกไฟล์ Report")
     if selected_export:
         config.export_path = selected_export
         export_path = selected_export
@@ -66,21 +66,46 @@ csv_file = ""
 if export_path and os.path.exists(export_path):
     time_str = datetime.now().strftime("%Y%m%d_%H%M%S")
     csv_file = os.path.join(export_path, "Rescue_LiveLog_{}.csv".format(time_str))
-    # สร้างไฟล์และเขียนหัวตารางเตรียมไว้
     with codecs.open(csv_file, 'w', encoding='utf-8-sig') as f:
         f.write("Time,Family Name,Status,Details\n")
     output.print_md("🔴 **[LIVE LOG ACTIVE]** ระบบจะบันทึกสถานะเรียลไทม์ไว้ที่: `{}`".format(csv_file))
 
 # =====================================================
-# 4. คลาสตัวช่วยโหลดแฟมิลีแบบข้าม Error
+# 4. คลาสตัวช่วยโหลดแฟมิลีแบบข้าม Error แบบเงียบสนิท (Silent Mode)
 # =====================================================
 class WarningSwallower(IFailuresPreprocessor):
     def PreprocessFailures(self, failuresAccessor):
+        # 4.1 ตรวจสอบว่ามี Elements สำคัญกำลังจะถูกลบหรือไม่
+        deleted_ids = failuresAccessor.GetDeletedElementIds()
+        doc_internal = failuresAccessor.GetDocument()
+        
+        if deleted_ids and deleted_ids.Count > 0:
+            for d_id in deleted_ids:
+                elem = doc_internal.GetElement(d_id)
+                if elem:
+                    cls_name = elem.GetType().Name
+                    # ถ้าระบบแอบจะลบ Family หรือ FamilyInstance ให้สั่งยกเลิก(Rollback)ทันที
+                    if cls_name == "Family" or cls_name == "FamilyInstance":
+                        return FailureProcessingResult.ProceedWithRollBack
+
+        # 4.2 จัดการกับหน้าต่างแจ้งเตือนและ Error แบบครอบจักรวาล
         fails = failuresAccessor.GetFailureMessages()
+        has_fatal_error = False
+        
         for f in fails:
             severity = f.GetSeverity()
             if severity == FailureSeverity.Warning:
+                # ถ้าเป็นแค่คำเตือน ให้ลบทิ้งและโหลดต่อ
                 failuresAccessor.DeleteWarning(f)
+            else:
+                # ถ้าเป็น Error ระดับร้ายแรง (รวมถึง Document Corruption / Unusable)
+                # ให้ตั้งสถานะว่าเจอ Error เพื่อสั่ง Rollback ทีเดียว
+                has_fatal_error = True
+                
+        if has_fatal_error:
+            # สั่งให้ Revit ยกเลิกคำสั่งแบบอัตโนมัติ โดยไม่เด้งหน้าต่างใดๆ
+            return FailureProcessingResult.ProceedWithRollBack
+            
         return FailureProcessingResult.Continue
 
 class FamLoadOpts(IFamilyLoadOptions):
@@ -108,7 +133,7 @@ for root, dirs, files in os.walk(target_folder):
 if not rfa_files: forms.alert("❌ ไม่พบไฟล์ .rfa", exitscript=True)
 
 # =====================================================
-# 6. จับคู่กับในโมเดล (Blind Match - ไม่แตะไฟล์พัง)
+# 6. จับคู่กับในโมเดล (Blind Match)
 # =====================================================
 existing_fams = FilteredElementCollector(doc).OfClass(Family).ToElements()
 
@@ -123,7 +148,7 @@ for fam in existing_fams:
         item = FamilyItem(f_name)
         item.fam_name = f_name
         item.path = rfa_files[f_name]['path']
-        item.state = True  # ติ๊กถูกรอกู้ชีพให้อัตโนมัติ
+        item.state = True 
         matched_items.append(item)
 
 if not matched_items: forms.alert("ไม่พบชื่อแฟมิลีในโปรเจกต์ที่ตรงกับโฟลเดอร์ต้นฉบับเลย", exitscript=True)
@@ -134,7 +159,7 @@ if not matched_items: forms.alert("ไม่พบชื่อแฟมิลี
 selected_fams = forms.SelectFromList.show(
     matched_items,
     multiselect=True,
-    title="เลือกแฟมิลีที่ต้องการเขียนทับเพื่อกู้ชีพ (Blind Overwrite)",
+    title="เลือกแฟมิลีที่ต้องการเขียนทับเพื่อกู้ชีพ",
     button_name="🚑 เริ่มกู้ไฟล์ (โหลดทับ)"
 )
 
@@ -158,18 +183,23 @@ with forms.ProgressBar(title="Recovery in progress...", cancellable=True) as pb:
         pb.update_progress(i, total_reload)
         output.print_md("\n### กำลังกู้คืน: **{}**".format(fam_name))
         
-        # เริ่ม Transaction ย่อย (ถ้าพังก็พังแค่ตัวนี้)
+        # เริ่ม Transaction ย่อย
         t = Transaction(doc, "Rescue: " + fam_name)
         t.Start()
-        t.SetFailureHandlingOptions(t.GetFailureHandlingOptions().SetFailuresPreprocessor(WarningSwallower()))
+        
+        # ⭐️ ยกระดับการป้องกัน UI เด้ง ⭐️
+        fho = t.GetFailureHandlingOptions()
+        fho.SetFailuresPreprocessor(WarningSwallower())
+        fho.SetClearAfterRollback(True) # ล้างแจ้งเตือนหลังจาก Rollback ทันที เพื่อความชัวร์
+        t.SetFailureHandlingOptions(fho)
         
         status = ""
         msg = ""
         try:
             fam_ref = clr.Reference[Family]()
-            # ดึง Path จาก rfa_files ที่เก็บไว้ในขั้นตอนที่ 5
             fam_path = rfa_files[fam_name]['path']
             ok = doc.LoadFamily(fam_path, opts, fam_ref)
+            
             if ok:
                 loaded_count += 1
                 status = "Success"
@@ -179,17 +209,18 @@ with forms.ProgressBar(title="Recovery in progress...", cancellable=True) as pb:
             else:
                 failed_count += 1
                 status = "Failed"
-                msg = "Revit ปฏิเสธการโหลดไฟล์"
-                output.print_md("- ❌ ล้มเหลว (Revit ไม่ยอมรับไฟล์)")
+                msg = "Revit ยกเลิกการโหลด (ปกป้องไฟล์ไม่ให้ถูกลบ/เสียหาย)"
+                output.print_md("- ❌ ล้มเหลว (ข้ามไฟล์นี้เพื่อป้องกันความเสียหายแบบเงียบๆ)")
                 t.RollBack()
+                
         except Exception as ex:
             failed_count += 1
             status = "Error"
-            msg = str(ex).replace('\n', ' ').replace(',', ';') # กันทำ CSV พัง
-            output.print_md("- ❌ ติด Error: `{}`".format(msg))
+            msg = str(ex).replace('\n', ' ').replace(',', ';') 
+            output.print_md("- ❌ ติด Error ร้ายแรง: `{}`".format(msg))
             t.RollBack()
             
-        # ⭐️ LIVE LOG UPDATE (เขียนลงไฟล์ทันที) ⭐️
+        # LIVE LOG UPDATE 
         if csv_file:
             try:
                 with codecs.open(csv_file, 'a', encoding='utf-8-sig') as f:
@@ -197,7 +228,7 @@ with forms.ProgressBar(title="Recovery in progress...", cancellable=True) as pb:
                     f.write("{},{},{},\"{}\"\n".format(now, fam_name, status, msg))
             except: pass
             
-        # ⭐️ บังคับเคลียร์ RAM ทันที ⭐️
+        # บังคับเคลียร์ RAM
         System.GC.Collect()
         System.GC.WaitForPendingFinalizers()
 
@@ -207,6 +238,6 @@ with forms.ProgressBar(title="Recovery in progress...", cancellable=True) as pb:
 output.print_md("\n---")
 output.print_md("# 📊 สรุปผลการกู้ชีพ")
 output.print_md("- 🟢 กู้คืนสำเร็จ: **{}**".format(loaded_count))
-output.print_md("- 🔴 ล้มเหลว: **{}**".format(failed_count))
+output.print_md("- 🔴 ข้ามไฟล์ที่มีปัญหา (ป้องกันไว้ได้): **{}**".format(failed_count))
 if csv_file:
-    output.print_md("- 📁 ตรวจสอบประวัติการโหลดแบบละเอียดได้ที่: `{}`".format(csv_file))
+    output.print_md("- 📁 ตรวจสอบประวัติแบบละเอียดได้ที่: `{}`".format(csv_file))
