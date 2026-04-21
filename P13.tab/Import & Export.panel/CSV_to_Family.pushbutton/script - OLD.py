@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
-__title__ = "Import Piles\n(3D from CSV)"
-__author__ = "Tee_Fixed_V8"
-__doc__ = "นำเข้า 3D Model Family (เสาเข็ม/ฐานราก) จาก CSV, ป้องกัน Detail Item 100%"
+__title__ = "Import Piles (Full Params)"
+__author__ = "Tee_Fixed_V7"
+__doc__ = "หน้าต่างรวม, แก้ไขชื่อ Type, ปลดล็อครายการ Parameter และเพิ่มปุ่มเปิดไฟล์ตัวอย่าง"
 
 import clr
 import csv
 import math
 import os
 import sys
+import json
+import tempfile
 
 # เพิ่ม Reference ให้ถูกต้องสำหรับใช้งาน Process และ ProcessStartInfo
 clr.AddReference('System')
@@ -63,14 +65,17 @@ def get_revit_name(element, is_type=False):
     if element is None: return "Unknown"
     
     try:
+        # ลำดับที่ 1: ดึงจาก Property .Name โดยตรง (ได้ผลแม่นยำที่สุดใน Revit 2024+)
         if hasattr(element, "Name") and element.Name:
             return str(element.Name)
             
+        # ลำดับที่ 2: ดึงจาก Parameter
         param_id = BuiltInParameter.SYMBOL_NAME_PARAM if is_type else BuiltInParameter.ALL_MODEL_FAMILY_NAME
         p = element.get_Parameter(param_id)
         if p and p.HasValue: 
             return str(p.AsString())
             
+        # ลำดับที่ 3: เฉพาะกรณี Type ให้ลองหาจาก ALL_MODEL_TYPE_NAME
         if is_type:
              p = element.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME)
              if p and p.HasValue: 
@@ -84,12 +89,14 @@ def set_parameter_value(element, param_name, value):
     """เขียนค่า Parameter แบบพยายามเขียนให้ได้มากที่สุด"""
     if value is None: return False
     
+    # หา Parameter ทั้งหมดที่มีชื่อนี้
     params = element.GetParameters(param_name)
     if not params:
         p = element.LookupParameter(param_name)
         if p: params = [p]
     
     for p in params:
+        # ยอมให้ลองเขียนแม้ IsReadOnly เป็น True ในบางกรณี (บางครั้ง API หลอก)
         try:
             if p.StorageType == StorageType.String:
                 p.Set(str(value))
@@ -119,65 +126,40 @@ def get_base_point_data(doc):
     return be, bn, rot
 
 def read_csv_data(filepath):
-    """แก้ไขระบบอ่าน CSV ให้รองรับภาษาไทย และกันปัญหา Error เรื่อง Encoding"""
     data = []
     try:
-        with open(filepath, 'rb') as f:
-            raw_content = f.read()
-            
-        encodings = ['utf-8-sig', 'utf-8', 'tis-620', 'cp874', 'latin-1']
-        decoded_content = None
-        for enc in encodings:
-            try:
-                decoded_content = raw_content.decode(enc)
-                break
-            except: pass
-            
-        if decoded_content is None:
-            decoded_content = raw_content.decode('latin-1')
-            
-        try:
-            from StringIO import StringIO
-        except ImportError:
-            from io import StringIO
-            
-        f_io = StringIO(decoded_content)
-        reader = csv.DictReader(f_io)
-        
-        for row in reader:
-            el_no = None
-            for k,v in row.items():
-                if k is None: continue
-                if any(x in str(k).lower() for x in ['mark', 'no', 'number', 'pile']):
-                    el_no = str(v).strip()
-                    break
-            if not el_no: continue
-            
-            e_val, n_val, cutoff, t_val = None, None, None, None
-            for k,v in row.items():
-                if k is None or v is None: continue
-                val = str(v).strip()
-                if not val: continue
-                kl = str(k).lower()
-                try:
-                    f_val = float(val.replace(',', ''))
-                    if 'east' in kl or kl=='e': e_val = f_val
-                    elif 'north' in kl or kl=='n': n_val = f_val
-                    elif any(x in kl for x in ['cut', 'elev', 'top']): cutoff = f_val
-                except: pass
-                if any(x in kl for x in ['type', 'size', 'symbol']): t_val = val
-            
-            vals = list(row.values())
-            if (e_val is None or n_val is None) and len(vals) >= 3:
-                try: 
-                    e_val = float(str(vals[1]).replace(',', ''))
-                    n_val = float(str(vals[2]).replace(',', ''))
-                except: pass
-            
-            if e_val is not None and n_val is not None:
-                data.append({"No": el_no, "E": e_val, "N": n_val, "CutOff": cutoff, "Type": t_val})
+        with open(filepath, 'r') as f:
+            lines = f.read().splitlines()
+            reader = csv.DictReader(lines)
+            for row in reader:
+                el_no = None
+                for k,v in row.items():
+                    if any(x in k.lower() for x in ['mark', 'no', 'number']):
+                        el_no = v.strip(); break
+                if not el_no: continue
+                
+                e_val, n_val, cutoff, t_val = None, None, None, None
+                for k,v in row.items():
+                    val = v.strip()
+                    if not val: continue
+                    kl = k.lower()
+                    try:
+                        f_val = float(val)
+                        if 'east' in kl or kl=='e': e_val = f_val
+                        elif 'north' in kl or kl=='n': n_val = f_val
+                        elif any(x in kl for x in ['cut', 'elev', 'top']): cutoff = f_val
+                    except: pass
+                    if any(x in kl for x in ['type', 'size', 'symbol']): t_val = val
+                
+                vals = list(row.values())
+                if (e_val is None or n_val is None) and len(vals) >= 3:
+                    try: e_val = float(vals[1]); n_val = float(vals[2])
+                    except: pass
+                
+                if e_val is not None and n_val is not None:
+                    data.append({"No": el_no, "E": e_val, "N": n_val, "CutOff": cutoff, "Type": t_val})
     except Exception as e:
-        MessageBox.Show("Error reading CSV: " + str(e), "Error")
+        MessageBox.Show("Error reading CSV: " + str(e))
         return []
     return data
 
@@ -188,22 +170,28 @@ def read_csv_data(filepath):
 class FamilyData:
     def __init__(self, family_name):
         self.name = family_name
-        self.symbols = {} 
-        self.parameters = [] 
+        self.symbols = {} # { "TypeName": SymbolObject }
+        self.parameters = [] # List of param names
 
 def get_all_possible_parameters(doc, family_symbol):
-    """ดึงรายชื่อ Parameter ทั้งหมด รวมถึง Instance Parameter"""
+    """
+    ดึงรายชื่อ Parameter ให้เยอะที่สุดเท่าที่จะทำได้
+    รวมทั้ง Type Param, Instance Param และ Standard Param
+    """
     param_set = set()
     
+    # 1. Standard Parameters (ใส่ไปเลย ไม่ต้องสืบ)
     common_params = [
         "Mark", "Comments", "Type Mark", "Pile Number", "Pile No", 
         "Element Number", "No", "Reference", "Tag", "Description"
     ]
     for p in common_params: param_set.add(p)
     
+    # 2. Type Parameters (จาก Symbol)
     for p in family_symbol.Parameters:
         param_set.add(p.Definition.Name)
         
+    # 3. Instance Parameters (จากการสร้าง Dummy)
     t = Transaction(doc, "Probe Params")
     t.Start()
     try:
@@ -211,6 +199,7 @@ def get_all_possible_parameters(doc, family_symbol):
         inst = doc.Create.NewFamilyInstance(XYZ(0,0,0), family_symbol, StructuralType.NonStructural)
         
         for p in inst.Parameters:
+            # ไม่กรอง IsReadOnly เพื่อให้ User เห็นครบๆ
             if p.StorageType != StorageType.ElementId:
                 param_set.add(p.Definition.Name)
     except: pass
@@ -225,10 +214,6 @@ def get_all_family_data(doc):
     for fam in all_fams:
         try:
             if not fam.FamilyCategory: continue
-            
-            # บังคับดึงเฉพาะ 3D Model เท่านั้น ป้องกัน Detail Items เข้ามาปะปน
-            if fam.FamilyCategory.CategoryType != CategoryType.Model: continue
-            
             cat_name = fam.FamilyCategory.Name
             
             if not any(t in cat_name for t in ["Structural", "Column", "Foundation", "Generic", "Framing"]):
@@ -267,7 +252,8 @@ class MainConfigForm(Form):
         self.InitializeComponent()
     
     def InitializeComponent(self):
-        self.Text = "Import 3D Piles from CSV"
+        self.Text = "Import Piles (All Params Unlocked)"
+        # เพิ่มขนาดหน้าต่างให้รองรับปุ่ม Sample File
         self.Size = Size(500, 460) 
         self.StartPosition = FormStartPosition.CenterScreen
         self.Font = Font("Segoe UI", 9)
@@ -277,13 +263,12 @@ class MainConfigForm(Form):
         self.gb_csv = GroupBox()
         self.gb_csv.Text = "1. CSV File"
         self.gb_csv.Location = Point(10, 10)
-        self.gb_csv.Size = Size(460, 100) 
+        self.gb_csv.Size = Size(460, 100) # ขยาย GroupBox ลงมา
         self.Controls.Add(self.gb_csv)
         
         self.txt_csv = TextBox()
         self.txt_csv.Location = Point(10, 25)
         self.txt_csv.Size = Size(350, 25)
-        self.txt_csv.ReadOnly = True
         self.txt_csv.BorderStyle = BorderStyle.FixedSingle
         self.gb_csv.Controls.Add(self.txt_csv)
         
@@ -295,7 +280,7 @@ class MainConfigForm(Form):
         self.btn_browse.Click += self.on_browse
         self.gb_csv.Controls.Add(self.btn_browse)
 
-        # ปุ่มเปิดไฟล์ตัวอย่าง
+        # เพิ่มปุ่มสำหรับเปิดไฟล์ตัวอย่าง
         self.btn_sample = Button()
         self.btn_sample.Text = "📄 Open Sample File (Family_Coordinate.csv)"
         self.btn_sample.Location = Point(10, 60)
@@ -307,7 +292,7 @@ class MainConfigForm(Form):
         # 2. Config
         self.gb_set = GroupBox()
         self.gb_set.Text = "2. Configuration"
-        self.gb_set.Location = Point(10, 120) 
+        self.gb_set.Location = Point(10, 120) # เลื่อนลงมาให้หลบปุ่ม Sample
         self.gb_set.Size = Size(460, 230)
         self.Controls.Add(self.gb_set)
         
@@ -372,15 +357,15 @@ class MainConfigForm(Form):
         self.cb_param.Location = Point(130, 167)
         self.cb_param.Size = Size(300, 25)
         self.cb_param.DropDownStyle = ComboBoxStyle.DropDownList
-        self.cb_param.Click += self.on_param_click 
-        self.cb_param.Items.Add("Mark") 
+        self.cb_param.Click += self.on_param_click # Load params on click
+        self.cb_param.Items.Add("Mark") # Default
         self.cb_param.SelectedIndex = 0
         self.gb_set.Controls.Add(self.cb_param)
         
         # Buttons
         self.btn_ok = Button()
         self.btn_ok.Text = "RUN"
-        self.btn_ok.Location = Point(230, 365) 
+        self.btn_ok.Location = Point(230, 365) # เลื่อนลง
         self.btn_ok.Size = Size(110, 35)
         apply_macos_primary_button(self.btn_ok)
         self.btn_ok.Click += self.on_ok
@@ -388,7 +373,7 @@ class MainConfigForm(Form):
         
         self.btn_cancel = Button()
         self.btn_cancel.Text = "Close"
-        self.btn_cancel.Location = Point(350, 365) 
+        self.btn_cancel.Location = Point(350, 365) # เลื่อนลง
         self.btn_cancel.Size = Size(110, 35)
         apply_macos_secondary_button(self.btn_cancel)
         self.btn_cancel.Click += self.on_cancel
@@ -398,12 +383,12 @@ class MainConfigForm(Form):
 
     def on_browse(self, sender, args):
         d = OpenFileDialog()
-        d.Filter = "CSV Files (*.csv)|*.csv"
+        d.Filter = "CSV (*.csv)|*.csv"
         if d.ShowDialog() == DialogResult.OK:
             self.txt_csv.Text = d.FileName
             
     def on_sample_click(self, sender, event):
-        """ใช้ UseShellExecute เปิดไฟล์ตัวอย่างเพื่อแก้ปัญหาบน Windows 11/Revit 2026"""
+        """ระบบเปิดไฟล์ Family_Coordinate.csv แบบอัตโนมัติ"""
         try:
             try:
                 script_dir = os.path.dirname(__file__)
@@ -431,13 +416,14 @@ class MainConfigForm(Form):
             self.cb_type.Items.Add(t_name)
         if self.cb_type.Items.Count > 0: self.cb_type.SelectedIndex = 0
         
+        # Reset params list to force reload for new family
         self.cb_param.Items.Clear()
         self.cb_param.Items.Add("Mark")
         self.cb_param.SelectedIndex = 0
         
     def on_param_click(self, sender, args):
-        """โหลด Parameter เมื่อคลิก"""
-        if self.cb_param.Items.Count > 1: return 
+        """โหลด Parameter เมื่อคลิก (จะได้ไม่หน่วงตอนเปลี่ยน Family)"""
+        if self.cb_param.Items.Count > 1: return # Loaded already
         
         fam_idx = self.cb_fam.SelectedIndex
         type_idx = self.cb_type.SelectedIndex
@@ -447,6 +433,7 @@ class MainConfigForm(Form):
         type_name = self.cb_type.SelectedItem
         sym = fam_data.symbols[type_name]
         
+        # Load full params
         all_params = get_all_possible_parameters(doc, sym)
         
         self.cb_param.Items.Clear()
@@ -493,13 +480,13 @@ class MainConfigForm(Form):
 
 def main():
     if not isinstance(doc.ActiveView, ViewPlan):
-        MessageBox.Show("Please open a Plan View before running the script.", "Error"); return
+        MessageBox.Show("Open Plan View first.", "Error"); return
 
     levels = [l for l in FilteredElementCollector(doc).OfClass(Level).ToElements()]
     families = get_all_family_data(doc)
     
     if not families:
-        MessageBox.Show("No suitable 3D Model families found.", "Error"); return
+        MessageBox.Show("No suitable families found.", "Error"); return
 
     form = MainConfigForm(levels, families)
     if form.ShowDialog() != DialogResult.OK: return
@@ -516,7 +503,7 @@ def main():
     be, bn, rad = get_base_point_data(doc)
     cos_a, sin_a = math.cos(rad), math.sin(rad)
     
-    t = Transaction(doc, "Import 3D Piles from CSV")
+    t = Transaction(doc, "Import Piles")
     t.Start()
     
     count = 0
@@ -535,10 +522,7 @@ def main():
             dn = (item["N"] - bn) * 3.28084
             rx = de * cos_a - dn * sin_a
             ry = de * sin_a + dn * cos_a
-            
-            # การแก้ไขแกน Z ให้วางที่ระดับความสูงของ Level ที่เลือกไว้เสมอ
-            z_val = base_level.Elevation
-            loc = XYZ(rx, ry, z_val)
+            loc = XYZ(rx, ry, 0)
             
             st_type = StructuralType.Column
             if use_sym.Category and "Foundation" in use_sym.Category.Name:
@@ -548,9 +532,8 @@ def main():
             
             set_parameter_value(inst, target_param, item["No"])
             if item["Type"]: 
-                set_parameter_value(inst, "Comments", "CSV Type: " + str(item["Type"]))
+                set_parameter_value(inst, "Comments", "CSV: " + str(item["Type"]))
             
-            # เมื่อมีการเซ็ต Cut-off จะทำการลบความสูงของ Level ออก เพื่อให้ได้ค่า Offset แท้จริง
             if item["CutOff"] is not None:
                 offset_ft = (item["CutOff"] * 3.28084) - base_level.Elevation
                 done_off = False
@@ -569,7 +552,7 @@ def main():
             print("Err {}: {}".format(item["No"], e))
             
     t.Commit()
-    MessageBox.Show("Successfully created {} 3D elements.".format(count), "Done")
+    MessageBox.Show("Success: {} elements created.".format(count), "Done")
 
 if __name__ == "__main__":
     main()

@@ -1,16 +1,12 @@
 # -*- coding: utf-8 -*-
-__title__ = "Import Excel\n(macOS Style)"
+__title__ = "Import Excel (Fix Attribute Error)"
 __author__ = "Tee_V14_Stable"
-__doc__ = "แก้ไขลำดับการทำงาน UI, แก้ไขชื่อ Type, ปรับหน้าตาแบบ macOS และเพิ่มปุ่มเปิดไฟล์ Excel ตัวอย่าง"
+__doc__ = "แก้ไขลำดับการทำงาน UI เพื่อป้องกัน Error cb_fam และตั้ง Default Foundation"
 
 import sys
 import os
 import math
 import clr
-
-# เพิ่ม Reference สำหรับใช้งาน Process เปิดไฟล์
-clr.AddReference('System')
-from System.Diagnostics import Process, ProcessStartInfo
 
 # Import Revit API
 clr.AddReference('RevitAPI')
@@ -30,32 +26,6 @@ uidoc = __revit__.ActiveUIDocument
 doc = uidoc.Document
 
 # ============================================================
-# 0. UI STYLING HELPERS (macOS Style)
-# ============================================================
-def apply_macos_window_style(form):
-    """ปรับแต่ง Form ให้ดูคลีนคล้าย macOS"""
-    form.BackColor = Color.FromArgb(246, 246, 246)
-    form.ShowIcon = False
-
-def apply_macos_primary_button(btn):
-    """ปุ่มหลัก ใช้สีฟ้า macOS Blue"""
-    btn.FlatStyle = FlatStyle.Flat
-    btn.FlatAppearance.BorderSize = 0
-    btn.BackColor = Color.FromArgb(0, 122, 255)
-    btn.ForeColor = Color.White
-    btn.Font = Font("Segoe UI", 9, FontStyle.Bold)
-    btn.Cursor = Cursors.Hand
-
-def apply_macos_secondary_button(btn):
-    """ปุ่มรอง ใช้สไตล์มินิมอล"""
-    btn.FlatStyle = FlatStyle.Flat
-    btn.FlatAppearance.BorderColor = Color.FromArgb(200, 200, 200)
-    btn.BackColor = Color.White
-    btn.ForeColor = Color.Black
-    btn.Font = Font("Segoe UI", 9, FontStyle.Regular)
-    btn.Cursor = Cursors.Hand
-
-# ============================================================
 # 1. SETUP EXCEL READER
 # ============================================================
 def setup_excel_reader():
@@ -70,7 +40,7 @@ def setup_excel_reader():
             clr.AddReferenceToFileAndPath(dll1)
             clr.AddReferenceToFileAndPath(dll2)
         except Exception as e:
-            MessageBox.Show("Please place 'ExcelDataReader.dll' in the same folder as the script.", "Error")
+            MessageBox.Show("กรุณาวางไฟล์ ExcelDataReader.dll ไว้ที่เดียวกับสคริปต์", "Error")
             return None
     import ExcelDataReader
     return ExcelDataReader
@@ -79,29 +49,18 @@ def setup_excel_reader():
 # 2. HELPER FUNCTIONS
 # ============================================================
 def get_revit_name(element, is_type=False):
-    """อ่านชื่อให้ตรงกับ Revit Properties (แก้ไขเพื่อป้องกันปัญหา Unknown หรือ Object String)"""
     if element is None: return "Unknown"
-    
+    name = ""
     try:
-        # ลำดับที่ 1: ดึงจาก Property .Name โดยตรง (ได้ผลแม่นยำที่สุด)
-        if hasattr(element, "Name") and element.Name:
-            return str(element.Name)
-            
-        # ลำดับที่ 2: ดึงจาก Parameter
         param_id = BuiltInParameter.SYMBOL_NAME_PARAM if is_type else BuiltInParameter.ALL_MODEL_FAMILY_NAME
         p = element.get_Parameter(param_id)
-        if p and p.HasValue: 
-            return str(p.AsString())
-            
-        # ลำดับที่ 3: เฉพาะกรณี Type ให้ลองหาจาก ALL_MODEL_TYPE_NAME
-        if is_type:
+        if p and p.HasValue: name = p.AsString()
+        if not name and hasattr(element, "Name"): name = element.Name
+        if not name and is_type:
              p = element.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME)
-             if p and p.HasValue: 
-                 return str(p.AsString())
-    except: 
-        pass
-        
-    return str(element)
+             if p and p.HasValue: name = p.AsString()
+    except: pass
+    return name if name else str(element)
 
 def clean_excel_value(val):
     if val is None: return None
@@ -173,14 +132,12 @@ def get_grouped_family_data(doc):
                 if cat_name not in cat_dict: cat_dict[cat_name] = []
                 cat_dict[cat_name].append(fam_obj)
             else: fam_obj = fam_cache[fam_name]
-            
             for sym_id in fam.GetFamilySymbolIds():
                 sym = doc.GetElement(sym_id)
                 if sym:
                     sym_name = get_revit_name(sym, is_type=True)
                     fam_obj.symbols[sym_name] = sym
         except: continue
-        
     final_dict = {}
     for cat, fam_list in cat_dict.items():
         valid_fams = [f for f in fam_list if len(f.symbols) > 0]
@@ -192,7 +149,6 @@ def get_all_possible_parameters(doc, family_symbol):
     std_params = ["Mark", "Comments", "Pile Number", "No", "Reference", "Description", "Type Mark"]
     for p in std_params: param_set.add(p)
     for p in family_symbol.Parameters: param_set.add(p.Definition.Name)
-    
     t = Transaction(doc, "Probe Params")
     t.Start()
     try:
@@ -263,47 +219,35 @@ class MainConfigForm(Form):
         self.InitializeComponent()
     
     def InitializeComponent(self):
-        self.Text = "Import Excel"
-        self.Size = Size(500, 560) # เพิ่มความสูงหน้าต่าง
+        self.Text = "Import Excel (Fixed V14)"
+        self.Size = Size(500, 520)
         self.StartPosition = FormStartPosition.CenterScreen
         self.Font = Font("Segoe UI", 9)
-        apply_macos_window_style(self)
         
-        # --- UI CREATION ---
+        # --- UI CREATION (Create ALL controls first) ---
         
         self.gb_src = GroupBox()
         self.gb_src.Text = "1. Excel Source"
         self.gb_src.Location = Point(10, 10)
-        self.gb_src.Size = Size(460, 100) # เพิ่มความสูงเพื่อใส่ปุ่ม Sample
+        self.gb_src.Size = Size(460, 60)
         self.Controls.Add(self.gb_src)
         
         self.txt_path = TextBox()
         self.txt_path.Location = Point(10, 25)
         self.txt_path.Size = Size(350, 25)
         self.txt_path.ReadOnly = True
-        self.txt_path.BorderStyle = BorderStyle.FixedSingle
         self.gb_src.Controls.Add(self.txt_path)
         
         self.btn_browse = Button()
         self.btn_browse.Text = "Browse"
         self.btn_browse.Location = Point(370, 23)
         self.btn_browse.Size = Size(80, 27)
-        apply_macos_secondary_button(self.btn_browse)
         self.btn_browse.Click += self.on_browse
         self.gb_src.Controls.Add(self.btn_browse)
-
-        # ปุ่มเปิดไฟล์ตัวอย่าง
-        self.btn_sample = Button()
-        self.btn_sample.Text = "📄 Open Sample File (Family_Coordinate.xlsx)"
-        self.btn_sample.Location = Point(10, 60)
-        self.btn_sample.Size = Size(350, 28)
-        apply_macos_secondary_button(self.btn_sample)
-        self.btn_sample.Click += self.on_sample_click
-        self.gb_src.Controls.Add(self.btn_sample)
         
         self.gb_set = GroupBox()
         self.gb_set.Text = "2. Model Settings"
-        self.gb_set.Location = Point(10, 120) # เลื่อนลง
+        self.gb_set.Location = Point(10, 80)
         self.gb_set.Size = Size(460, 320)
         self.Controls.Add(self.gb_set)
         
@@ -326,6 +270,7 @@ class MainConfigForm(Form):
         self.lbl_cat.Font = Font("Segoe UI", 9, FontStyle.Bold)
         self.gb_set.Controls.Add(self.lbl_cat)
         
+        # สร้าง cb_cat แต่ยังไม่เลือก Index (เพื่อป้องกัน Event Fire ก่อนกำหนด)
         self.cb_cat = ComboBox()
         self.cb_cat.Location = Point(130, 67)
         self.cb_cat.Size = Size(300, 25)
@@ -333,6 +278,7 @@ class MainConfigForm(Form):
         self.cb_cat.SelectedIndexChanged += self.on_cat_changed
         self.gb_set.Controls.Add(self.cb_cat)
         
+        # สร้าง cb_fam รอไว้เลย
         self.lbl_fam = Label()
         self.lbl_fam.Text = "Family:"
         self.lbl_fam.Location = Point(20, 110)
@@ -345,6 +291,7 @@ class MainConfigForm(Form):
         self.cb_fam.SelectedIndexChanged += self.on_fam_changed
         self.gb_set.Controls.Add(self.cb_fam)
         
+        # สร้าง cb_type รอไว้เลย
         self.lbl_type = Label()
         self.lbl_type.Text = "Default Type:"
         self.lbl_type.Location = Point(20, 150)
@@ -363,6 +310,7 @@ class MainConfigForm(Form):
         self.lbl_note.ForeColor = SystemColors.GrayText
         self.gb_set.Controls.Add(self.lbl_note)
         
+        # สร้าง cb_param รอไว้เลย
         self.lbl_param = Label()
         self.lbl_param.Text = "Write No. to:"
         self.lbl_param.Location = Point(20, 210)
@@ -378,33 +326,33 @@ class MainConfigForm(Form):
         self.gb_set.Controls.Add(self.cb_param)
         
         self.lbl_info = Label()
-        self.lbl_info.Text = "* Click on 'Write No. to' to load all Parameters"
+        self.lbl_info.Text = "* คลิกที่ช่อง Write No. เพื่อโหลด Parameter ทั้งหมด"
         self.lbl_info.Location = Point(130, 250)
         self.lbl_info.Size = Size(300, 20)
-        self.lbl_info.ForeColor = Color.FromArgb(0, 122, 255) # สีฟ้าอ่อน
+        self.lbl_info.ForeColor = SystemColors.HotTrack
         self.gb_set.Controls.Add(self.lbl_info)
         
         self.btn_ok = Button()
         self.btn_ok.Text = "RUN IMPORT"
-        self.btn_ok.Location = Point(230, 460) # เลื่อนลง
+        self.btn_ok.Location = Point(230, 430)
         self.btn_ok.Size = Size(110, 35)
-        apply_macos_primary_button(self.btn_ok)
         self.btn_ok.Click += self.on_ok
         self.Controls.Add(self.btn_ok)
         
         self.btn_cancel = Button()
         self.btn_cancel.Text = "Cancel"
-        self.btn_cancel.Location = Point(350, 460) # เลื่อนลง
+        self.btn_cancel.Location = Point(350, 430)
         self.btn_cancel.Size = Size(110, 35)
-        apply_macos_secondary_button(self.btn_cancel)
         self.btn_cancel.Click += self.on_cancel
         self.Controls.Add(self.btn_cancel)
         
-        # --- LOGIC INITIALIZATION ---
+        # --- LOGIC INITIALIZATION (Run this AFTER creating all controls) ---
         
+        # 1. Fill Category List
         cat_list = sorted(self.category_dict.keys())
         self.cb_cat.Items.AddRange(tuple(cat_list))
         
+        # 2. Select Default "Foundation" (Now safe because cb_fam exists)
         found_idx = -1
         for i, cat in enumerate(cat_list):
             if "Foundation" in cat or "ฐานราก" in cat:
@@ -421,27 +369,8 @@ class MainConfigForm(Form):
         if d.ShowDialog() == DialogResult.OK:
             self.txt_path.Text = d.FileName
 
-    def on_sample_click(self, sender, event):
-        """ระบบเปิดไฟล์ Family_Coordinate.xlsx แบบอัตโนมัติ (แก้ไข Error เปิดไฟล์)"""
-        try:
-            try:
-                script_dir = os.path.dirname(__file__)
-            except NameError:
-                script_dir = os.getcwd()
-                
-            sample_file = os.path.join(script_dir, "Family_Coordinate.xlsx")
-            
-            if os.path.exists(sample_file):
-                # ใช้ UseShellExecute เพื่อสั่งระบบปฏิบัติการให้เปิดโปรแกรม Excel ขึ้นมาอัตโนมัติ
-                start_info = ProcessStartInfo(sample_file)
-                start_info.UseShellExecute = True
-                Process.Start(start_info)
-            else:
-                MessageBox.Show("Sample file not found at:\n" + sample_file, "File Not Found", MessageBoxButtons.OK, MessageBoxIcon.Warning)
-        except Exception as e:
-            MessageBox.Show("Cannot open sample file:\n" + str(e), "Error")
-
     def on_cat_changed(self, sender, args):
+        # ป้องกันกรณีเรียกก่อน cb_fam สร้างเสร็จ (กันเหนียวอีกชั้น)
         if not hasattr(self, 'cb_fam') or not hasattr(self, 'cb_type'): return
 
         self.cb_fam.Items.Clear()
@@ -492,9 +421,9 @@ class MainConfigForm(Form):
         except: pass
 
     def on_ok(self, sender, args):
-        if not self.txt_path.Text: MessageBox.Show("Please select an Excel file.", "Warning"); return
-        if self.cb_cat.SelectedIndex < 0: MessageBox.Show("Please select Category.", "Warning"); return
-        if self.cb_fam.SelectedIndex < 0 or self.cb_type.SelectedIndex < 0: MessageBox.Show("Please select Family and Type.", "Warning"); return
+        if not self.txt_path.Text: MessageBox.Show("Select Excel.", "Warning"); return
+        if self.cb_cat.SelectedIndex < 0: MessageBox.Show("Select Category.", "Warning"); return
+        if self.cb_fam.SelectedIndex < 0 or self.cb_type.SelectedIndex < 0: MessageBox.Show("Select Family.", "Warning"); return
             
         self.excel_path = self.txt_path.Text
         lvl_name = self.cb_lvl.SelectedItem
@@ -543,16 +472,13 @@ def transform_coords(survey_e, survey_n, base_e, base_n, angle_rad, bp_x, bp_y):
 
 def main():
     if not isinstance(doc.ActiveView, ViewPlan):
-        MessageBox.Show("Please open a Plan View before running the script.", "Error"); return
-    
+        MessageBox.Show("Please open Plan View.", "Error"); return
     ExcelDataReader = setup_excel_reader()
     if not ExcelDataReader: return
-    
     levels = [l for l in FilteredElementCollector(doc).OfClass(Level).ToElements()]
     category_dict = get_grouped_family_data(doc)
-    
     if not category_dict:
-        MessageBox.Show("No Loadable Model Family found in the project.", "Error"); return
+        MessageBox.Show("No Loadable Model Family found.", "Error"); return
 
     form = MainConfigForm(levels, category_dict)
     if form.ShowDialog() != DialogResult.OK: return
@@ -564,11 +490,10 @@ def main():
     target_param = form.target_param
 
     excel_data = read_excel_data(excel_path, ExcelDataReader)
-    if not excel_data: MessageBox.Show("No coordinate data found in Excel file.", "Info"); return
-    
+    if not excel_data: MessageBox.Show("No data in Excel", "Info"); return
     be, bn, ang, bpx, bpy = get_project_base_point_data(doc)
     
-    t = Transaction(doc, "Import Piles from Excel")
+    t = Transaction(doc, "Import Piles")
     t.Start()
     count = 0
     if not default_sym.IsActive: default_sym.Activate()
@@ -610,9 +535,8 @@ def main():
                     except: pass
             count += 1
         except Exception: pass
-        
     t.Commit()
-    MessageBox.Show("Successfully created {} elements.".format(count), "Done")
+    MessageBox.Show("Success: {} elements".format(count), "Done")
 
 if __name__ == "__main__":
     main()
