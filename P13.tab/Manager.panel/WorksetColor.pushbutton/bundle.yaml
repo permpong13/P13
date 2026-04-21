@@ -1,25 +1,48 @@
-title: "Color-by\nWorkset"
+title:
+  en_us: |-
+    Spec
+    trum
+  fr_fr: |-
+    Spec
+    trum
+  ru: |-
+    Spec
+    trum
+  chinese_s: Spectrum
+  es_es: |-
+    Spec
+    trum
+  de_de: |-
+    Spec
+    trum
+  pt_br: >-
+    Spec
+    
+    trum
 
 tooltip: |
-  เครื่องมือช่วยแสดงผล Workset ขั้นสูง (โหมดสายรุ้ง และ โหมดเน้นเฉพาะจุด)
-  - Rainbow Mode: เปลี่ยนสีทุก Workset ให้แตกต่างกันอัตโนมัติเพื่อให้แยกแยะง่าย
-  - Focus Mode: เน้นสีเฉพาะ Workset ที่เลือก และปรับรายการอื่นให้เป็นสีจาง (Halftone)
-  - Reset View: ล้างค่าการตั้งค่าสีทั้งหมดเพื่อกลับสู่สถานะปกติของมุมมอง
-  
-  [ENG]
-  - Rainbow Mode: Automatically assigns unique solid colors to all worksets for clear visualization.
-  - Exclude Grids: Option to exclude 'Shared Levels and Grids' during Rainbow Mode.
-  - Focus Mode: Highlights a selected workset in blue while applying halftone and transparency (70%) to all other elements.
-  - Reset View: Clears all graphic overrides and restores the view to its original state.
-  
-  [TH]
-  - โหมดสายรุ้ง (Rainbow Mode): สุ่มและเปลี่ยนสีพื้นผิวให้แต่ละ Workset อัตโนมัติเพื่อให้แยกแยะชิ้นงานได้ง่าย
-  - ยกเว้นเส้นกริด (Exclude Grids): ตัวเลือกสำหรับข้ามการทำสีในส่วนของ 'Shared Levels and Grids'
-  - โหมดโฟกัส (Focus Mode): เน้นสีน้ำเงินเฉพาะ Workset ที่ต้องการ และปรับชิ้นงานอื่นให้โปร่งใส (70%) และสีจางลง (Halftone)
-  - รีเซ็ตมุมมอง (Reset View): ล้างค่าการตั้งค่ากราฟิกและสีทับซ้อนทั้งหมดเพื่อกลับสู่สถานะเดิม
-  
-  
-author: "เพิ่มพงษ์ ทวีกุล | P13"
+  Spectrum: เครื่องมือระบายสีและวิเคราะห์โมเดลขั้นสูง (Advanced Themes & Transparency Edition) 
+  ช่วยให้การพรีเซนต์งานและตรวจสอบค่าพารามิเตอร์ใน Revit เป็นเรื่องง่ายและสวยงาม (รองรับ Revit 2026)
 
-description: |
-  Advanced Workset visualization tool featuring / เครื่องมือจัดการการแสดงผล Workset ขั้นสูง:
+  [ENG]
+  - macOS-Inspired Interface: Modern, clean, and intuitive UI with rounded corners and professional aesthetics.
+  - Advanced Color Themes: Apply predefined palettes like Pastel, Vibrant, Dark, or Earthy with a single click.
+  - Transparency Control: Real-time surface transparency adjustment (0-100%) for better visualization of MEP and Architectural systems.
+  - Smart Export & Memory: Supports both .cschn and .csv formats. The tool automatically remembers your last used folder path.
+  - Element Interaction: Shift+Click to instantly select elements in Revit. Create Legends or View Filters directly from your color schemes.
+
+  [TH]
+  - หน้าจอแบบ macOS (macOS-Inspired): ดีไซน์ทันสมัย สะอาดตา ด้วยขอบโค้งมนและ UI ที่ใช้งานง่าย
+  - ชุดสีสำเร็จรูป (Advanced Themes): เลือกใช้โทนสีระดับมืออาชีพ เช่น Pastel, Vibrant, Dark หรือ Earthy ได้ทันที
+  - ควบคุมความโปร่งใส (Transparency Control): ปรับค่าความโปร่งใสของวัตถุ (0-100%) แบบเรียลไทม์ เพื่อช่วยในการตรวจสอบงานระบบหรือพรีเซนต์งาน
+  - ระบบบันทึกอัจฉริยะ (Smart Export & Memory): รองรับทั้งไฟล์ .cschn และ .csv พร้อมระบบจดจำ Folder Path ล่าสุดอัตโนมัติ (ไม่ต้องเลือกใหม่ทุกครั้ง)
+  - การจัดการข้อมูล: ใช้ Shift+Click เพื่อเลือกวัตถุในโมเดลทันที และรองรับการสร้าง Legend หรือ View Filters จากชุดสีที่ตั้งไว้
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Spectrum: BIM Element Colorizer with macOS UI, Themes, and Transparency control / เครื่องมือระบายสีพารามิเตอร์และวิเคราะห์โมเดล"
+
+engine:
+  clean: true
+  persistent: true
+  full_frame: true

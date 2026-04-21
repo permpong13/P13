@@ -1,0 +1,70 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:system="clr-namespace:System;assembly=mscorlib">
+
+    <system:String x:Key="Spectrum.Title">Spectrum: Advanced Themes &amp; Transparency</system:String>
+
+    <system:String x:Key="Spectrum.Labels.CategorySelection">Category Selection</system:String>
+    <system:String x:Key="Spectrum.Labels.ParameterSelection">Parameter Selection</system:String>
+    <system:String x:Key="Spectrum.Labels.ValuesColorAssignment">Values Color Assignment</system:String>
+    <system:String x:Key="Spectrum.Labels.ManageSchemes">Manage Schemes</system:String>
+    <system:String x:Key="Spectrum.Labels.GenerateColors">Generate Colors</system:String>
+    <system:String x:Key="Spectrum.Labels.ApplySettings">Apply Settings</system:String>
+
+    <system:String x:Key="Spectrum.Buttons.SaveLoadScheme">Save / Load Color Scheme</system:String>
+    <system:String x:Key="Spectrum.Buttons.GradientColors">Gradient Colors</system:String>
+    <system:String x:Key="Spectrum.Buttons.RandomColors">Random Colors</system:String>
+    <system:String x:Key="Spectrum.Buttons.SetColors">Set Colors</system:String>
+    <system:String x:Key="Spectrum.Buttons.Reset">Reset</system:String>
+    <system:String x:Key="Spectrum.Buttons.CreateLegend">Create Legend</system:String>
+    <system:String x:Key="Spectrum.Buttons.CreateViewFilters">Create View Filters</system:String>
+    <system:String x:Key="Spectrum.Buttons.SelectAll">Select All</system:String>
+    <system:String x:Key="Spectrum.Buttons.SelectNone">Select None</system:String>
+
+    <system:String x:Key="Spectrum.Checkboxes.ApplyLineColor">Apply Line Color</system:String>
+    <system:String x:Key="Spectrum.Checkboxes.ApplyForegroundPattern">Apply Foreground Pattern Color</system:String>
+    <system:String x:Key="Spectrum.Checkboxes.ApplyBackgroundPattern">Apply Background Pattern Color</system:String>
+    <system:String x:Key="Spectrum.Checkboxes.ApplyBackgroundPattern.RequiresRevit2019">Apply Background Pattern Color (Requires Revit 2019+)</system:String>
+
+    <system:String x:Key="Spectrum.Messages.SelectCategoryHere">Select a Category Here!</system:String>
+    <system:String x:Key="Spectrum.Messages.SelectCategory">Select Category</system:String>
+    <system:String x:Key="Spectrum.Messages.SelectParameter">Select Parameter</system:String>
+    <system:String x:Key="Spectrum.Messages.SpacesColorScheme">*Spaces may require a color scheme in the view.</system:String>
+    <system:String x:Key="Spectrum.Messages.NoCategorySelected">Please, select a category to reset the colors.</system:String>
+    <system:String x:Key="Spectrum.Messages.NoLegendView">In order to create a new legend, you need to have at least one. Please, create a legend view.</system:String>
+    <system:String x:Key="Spectrum.Messages.NoItemsForLegend">No items to create a legend. Please select a category and parameter with values.</system:String>
+    <system:String x:Key="Spectrum.Messages.LegendCreated">Legend created successfully: {0}</system:String>
+    <system:String x:Key="Spectrum.Messages.LegendFailed">Failed to create legend: {0}</system:String>
+    <system:String x:Key="Spectrum.Messages.FilterNotSupported">Creation of filters for this type of parameter is not supported.</system:String>
+    <system:String x:Key="Spectrum.Messages.FilterCreationFailed">View filters were not created. The selected parameter is not exposed by Revit and rules cannot be created.</system:String>
+    <system:String x:Key="Spectrum.Messages.ViewTypeNotSupported">Visibility settings cannot be modified in {0} views. Please, change your current view.</system:String>
+    <system:String x:Key="Spectrum.Messages.UnableToAccessDocument">Unable to access Revit document</system:String>
+    <system:String x:Key="Spectrum.Messages.UnableToAccessDocument.Content">Please ensure you have a Revit project open and try again.</system:String>
+    <system:String x:Key="Spectrum.Messages.ShiftClickToSelect">Shift+Click to select elements in model</system:String>
+
+    <system:String x:Key="Spectrum.Placeholders.SearchParameters">Search Parameters...</system:String>
+    <system:String x:Key="Spectrum.Placeholders.SelectCategoryAndParameter">Select a category and a parameter to see parameter values</system:String>
+
+    <system:String x:Key="Spectrum.SaveLoadDialog.Title">Save / Load Color Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.IfLoading">If Loading a Color Scheme:</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.LoadByValue">Load by Parameter Value.</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.LoadByPosition">Load by Position in Window.</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.SaveButton">Save Color Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.LoadButton">Load Color Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.SaveTitle">Specify Path to Save Color Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.LoadTitle">Specify Path to Load Color Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.NoColorsDetected">No Colors Detected</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.NoColorsDetected.Message">The list of values in the main window is empty. Please, select a category and parameter to add items with colors.</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.NoValuesDetected">No Values Detected</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.NoValuesDetected.Message">The list of values in the main window is empty. Please, select a category and parameter to add items to apply colors.</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.ErrorSaving">Error Saving Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.ErrorLoading">Error Loading Scheme</system:String>
+    <system:String x:Key="Spectrum.SaveLoadDialog.FileDoesNotExist">The file does not exist.</system:String>
+
+    <system:String x:Key="Spectrum.TaskDialog.Title">Spectrum</system:String>
+    <system:String x:Key="Spectrum.TaskDialog.Error">Spectrum Error</system:String>
+
+    <system:String x:Key="Spectrum.LegendNamePrefix">Spectrum - </system:String>
+
+</ResourceDictionary>
