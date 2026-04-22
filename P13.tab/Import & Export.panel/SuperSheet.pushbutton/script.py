@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals, print_function
-
 import os
 import re
 import json
@@ -18,22 +16,36 @@ from pyrevit import revit, DB, forms, output
 from System.Collections.ObjectModel import ObservableCollection
 from System.Collections.Generic import List
 from System.Windows import (
-    Window, WindowStartupLocation, GridLength, GridUnitType, 
-    Thickness, VerticalAlignment, HorizontalAlignment, FontWeight, FontWeights, Visibility
+    Window, WindowStartupLocation, WindowState, GridLength, GridUnitType, 
+    Thickness, VerticalAlignment, HorizontalAlignment, FontWeight, FontWeights, Visibility, CornerRadius
 )
 from System.Windows.Data import Binding
 from System.Windows.Controls import (
-    Grid, RowDefinition, ColumnDefinition, GroupBox, StackPanel, Border,
+    Grid, RowDefinition, ColumnDefinition, StackPanel, Border,
     TextBlock, TextBox, Button, DataGrid, DataGridCheckBoxColumn, 
     DataGridTextColumn, Orientation, DataGridLength, DataGridLengthUnitType, 
     ComboBox, ListBox, CheckBox, DataGridSelectionMode, Expander, WrapPanel
 )
-from System.Windows.Media import Brushes, Color, ColorConverter
+from System.Windows.Media import SolidColorBrush, ColorConverter, FontFamily
 
 doc = revit.doc
 THIS_DIR = os.path.dirname(__file__)
 CONFIG_FILE = os.path.join(THIS_DIR, 'p13_supersheet_config.json')
 LAST_SETTING_FILE = os.path.join(THIS_DIR, 'p13_last_settings.json')
+
+# --- MODERN LIGHT THEME COLORS ---
+def hex_brush(hex_code):
+    return SolidColorBrush(ColorConverter.ConvertFromString(hex_code))
+
+BG_APP = hex_brush("#f1f5f9")       # Light Slate background (พื้นหลังแอป)
+BG_CARD = hex_brush("#ffffff")      # White Card background (พื้นหลังการ์ด)
+TEXT_MAIN = hex_brush("#0f172a")    # Dark Slate text (ตัวหนังสือหลัก)
+TEXT_MUTED = hex_brush("#64748b")   # Gray text (ตัวหนังสือรอง/จาง)
+TEXT_INVERT = hex_brush("#ffffff")  # White text (สำหรับข้อความบนปุ่มสีเข้ม)
+ACCENT = hex_brush("#2563eb")       # Modern Blue
+BTN_PRIMARY = hex_brush("#10b981")  # Emerald Green
+BTN_DANGER = hex_brush("#ef4444")   # Red
+BORDER_LINE = hex_brush("#cbd5e1")  # Light gray border
 
 # --- DATA CLASS ---
 class ExportItem(object):
@@ -66,8 +78,12 @@ class SuperSheetsUltimate(Window):
         self.Width = 1400 
         self.Height = 1050
         self.WindowStartupLocation = WindowStartupLocation.CenterScreen
-        self.Background = Brushes.White
+        self.WindowState = WindowState.Maximized  # <--- เพิ่มบรรทัดนี้
+        self.Background = BG_APP
+        self.Foreground = TEXT_MAIN
         self.FontSize = 13
+        
+        self.FontFamily = FontFamily("Segoe UI")
         
         self._all_items = []
         self._profiles = {}
@@ -76,7 +92,26 @@ class SuperSheetsUltimate(Window):
 
         self._setup_ui()
         self.ContentRendered += self._initial_load
+        
         self.Closing += lambda s, e: self._save_current_as_last()
+        self.Closed += self._cleanup_memory
+
+    def _cleanup_memory(self, sender, e):
+        self.dg.ItemsSource = None
+        self._all_items = []
+        import System
+        System.GC.Collect()
+
+    def _create_card(self, header_text, content):
+        card = Border(Background=BG_CARD, CornerRadius=CornerRadius(8), 
+                      Padding=Thickness(15), Margin=Thickness(0,0,0,15),
+                      BorderBrush=BORDER_LINE, BorderThickness=Thickness(1))
+        sp = StackPanel()
+        sp.Children.Add(TextBlock(Text=header_text, FontWeight=FontWeights.Bold, 
+                                  Foreground=ACCENT, Margin=Thickness(0,0,0,10), FontSize=14))
+        sp.Children.Add(content)
+        card.Child = sp
+        return card
 
     def _setup_ui(self):
         root_grid = Grid()
@@ -85,16 +120,16 @@ class SuperSheetsUltimate(Window):
         root_grid.RowDefinitions.Add(RowDefinition(Height=GridLength.Auto)) 
         self.Content = root_grid
 
-        # 1. HEADER (Soft Tone)
-        header_border = Border(Background=Brushes.GhostWhite, Padding=Thickness(20, 15, 20, 15), 
-                               BorderBrush=Brushes.LightGray, BorderThickness=Thickness(0,0,0,1))
+        # 1. HEADER
+        header_border = Border(Background=hex_brush("#ffffff"), Padding=Thickness(20, 15, 20, 15), 
+                               BorderBrush=BORDER_LINE, BorderThickness=Thickness(0,0,0,1))
         header_sp = StackPanel(Orientation=Orientation.Horizontal)
         
         header_sp.Children.Add(TextBlock(Text="🖨️ P13 SUPERSHEETS", FontWeight=FontWeights.Bold, 
-                                        FontSize=18, Foreground=Brushes.SlateGray, 
+                                        FontSize=18, Foreground=TEXT_MAIN, 
                                         VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,25,0)))
         
-        header_sp.Children.Add(TextBlock(Text="Profile: ", VerticalAlignment=VerticalAlignment.Center))
+        header_sp.Children.Add(TextBlock(Text="Profile: ", Foreground=TEXT_MUTED, VerticalAlignment=VerticalAlignment.Center))
         self.cboProfile = ComboBox(Width=180, Height=30, VerticalContentAlignment=VerticalAlignment.Center)
         self.cboProfile.SelectionChanged += self._on_profile_select
         header_sp.Children.Add(self.cboProfile)
@@ -102,146 +137,128 @@ class SuperSheetsUltimate(Window):
         self.txtProfileName = TextBox(Width=120, Height=30, Margin=Thickness(10,0,0,0), VerticalContentAlignment=VerticalAlignment.Center)
         header_sp.Children.Add(self.txtProfileName)
         
-        btn_save = Button(Content="Save", Width=60, Margin=Thickness(5,0,0,0), Background=Brushes.AliceBlue)
+        btn_save = Button(Content="Save", Width=60, Margin=Thickness(5,0,0,0), Background=ACCENT, Foreground=TEXT_INVERT, BorderThickness=Thickness(0))
         btn_save.Click += self._on_save_profile
         header_sp.Children.Add(btn_save)
         
-        btn_del = Button(Content="Delete", Width=60, Margin=Thickness(5,0,0,0), Background=Brushes.MistyRose)
+        btn_del = Button(Content="Delete", Width=60, Margin=Thickness(5,0,0,0), Background=BTN_DANGER, Foreground=TEXT_INVERT, BorderThickness=Thickness(0))
         btn_del.Click += self._on_delete_profile
         header_sp.Children.Add(btn_del)
 
-        btn_exp_p = Button(Content="Export Config", Width=90, Margin=Thickness(20,0,0,0), Background=Brushes.White)
+        btn_exp_p = Button(Content="Export Config", Width=90, Margin=Thickness(20,0,0,0), Background=hex_brush("#f1f5f9"))
         btn_exp_p.Click += self._on_export_config
         header_sp.Children.Add(btn_exp_p)
 
-        btn_imp_p = Button(Content="Import Config", Width=90, Margin=Thickness(5,0,0,0), Background=Brushes.White)
+        btn_imp_p = Button(Content="Import Config", Width=90, Margin=Thickness(5,0,0,0), Background=hex_brush("#f1f5f9"))
         btn_imp_p.Click += self._on_import_config
         header_sp.Children.Add(btn_imp_p)
         
         header_border.Child = header_sp
         Grid.SetRow(header_border, 0); root_grid.Children.Add(header_border)
 
-        # 2. MAIN
+        # 2. MAIN LAYOUT
         main_layout = Grid(Margin=Thickness(20))
         for h in ["Auto", "Auto", "Auto", "*"]:
             main_layout.RowDefinitions.Add(RowDefinition(Height=GridLength.Auto if h == "Auto" else GridLength(1, GridUnitType.Star)))
         Grid.SetRow(main_layout, 1); root_grid.Children.Add(main_layout)
 
-        # -- Export Settings --
-        gb_format = GroupBox(Header="Export Settings", Padding=Thickness(10), Margin=Thickness(0,0,0,10), Foreground=Brushes.SlateGray)
-        
-        # Main format panel
+        # -- Export Settings (Card 1) --
         main_format_panel = StackPanel()
         
-        # Format checkboxes row
         sp_f = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,0,0,10))
-        self.chkPDF = CheckBox(Content="PDF", IsChecked=True, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
-        self.chkDWG = CheckBox(Content="DWG", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
+        self.chkPDF = CheckBox(Content="PDF", IsChecked=True, Foreground=TEXT_MAIN, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
+        self.chkDWG = CheckBox(Content="DWG", Foreground=TEXT_MAIN, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0))
         
-        # ซ่อน IFC และ NWC ตามการตั้งค่าเดิม
         self.chkIFC = CheckBox(Content="IFC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         self.chkNWC = CheckBox(Content="NWC", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(0,0,15,0), Visibility=Visibility.Collapsed)
         sp_f.Children.Add(self.chkPDF); sp_f.Children.Add(self.chkDWG); sp_f.Children.Add(self.chkIFC); sp_f.Children.Add(self.chkNWC)
         
-        sp_f.Children.Add(TextBlock(Text="| Color: ", VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(10,0,5,0)))
+        sp_f.Children.Add(TextBlock(Text="| Color: ", Foreground=TEXT_MUTED, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(10,0,5,0)))
         self.cboColor = ComboBox(Width=90, Height=28); self.cboColor.Items.Add("Color"); self.cboColor.Items.Add("B&W"); self.cboColor.SelectedIndex = 0
         sp_f.Children.Add(self.cboColor)
         
-        self.chkCombine = CheckBox(Content="Combine PDF", Margin=Thickness(20,0,0,0), VerticalAlignment=VerticalAlignment.Center)
+        self.chkCombine = CheckBox(Content="Combine PDF", Foreground=TEXT_MAIN, Margin=Thickness(20,0,0,0), VerticalAlignment=VerticalAlignment.Center)
         self.chkCombine.Checked += self._toggle_ui; self.chkCombine.Unchecked += self._toggle_ui
         sp_f.Children.Add(self.chkCombine)
         main_format_panel.Children.Add(sp_f)
         
         # PDF Advanced Options
-        pdf_expander = Expander(Header="PDF Advanced Options", Margin=Thickness(0,5,0,0), 
-                                Foreground=Brushes.SlateGray, FontWeight=FontWeights.SemiBold)
+        pdf_expander = Expander(Header="PDF Advanced Options", Margin=Thickness(0,5,0,0), Foreground=TEXT_MAIN)
         pdf_options_panel = WrapPanel(Margin=Thickness(10,10,0,10))
         
-        self.chkViewLinks = CheckBox(Content="View links in blue (Color prints only)", 
-                                     Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkViewLinks)
+        adv_options = [
+            ("View links in blue (Color prints only)", "chkViewLinks"),
+            ("Hide ref/workspaces", "chkHideRefWorksets"),
+            ("Hide unreferenced view tags", "chkHideUnrefViewTags"),
+            ("Hide scope boxes", "chkHideScopeBoxes"),
+            ("Hide crop boundaries", "chkHideCropBoundaries"),
+            ("Replace halftone with thin lines", "chkReplaceHalftone"),
+            ("Region edges mask coincident lines", "chkRegionEdgesMask")
+        ]
         
-        self.chkHideRefWorksets = CheckBox(Content="Hide ref/workspaces", 
-                                           Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkHideRefWorksets)
-        
-        self.chkHideUnrefViewTags = CheckBox(Content="Hide unreferenced view tags", 
-                                             Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkHideUnrefViewTags)
-        
-        self.chkHideScopeBoxes = CheckBox(Content="Hide scope boxes", 
-                                          Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkHideScopeBoxes)
-        
-        self.chkHideCropBoundaries = CheckBox(Content="Hide crop boundaries", 
-                                              Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkHideCropBoundaries)
-        
-        self.chkReplaceHalftone = CheckBox(Content="Replace halftone with thin lines", 
-                                           Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkReplaceHalftone)
-        
-        self.chkRegionEdgesMask = CheckBox(Content="Region edges mask coincident lines", 
-                                           Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
-        pdf_options_panel.Children.Add(self.chkRegionEdgesMask)
-        
+        for text, var_name in adv_options:
+            cb = CheckBox(Content=text, Foreground=TEXT_MAIN, Margin=Thickness(0,0,20,5), VerticalAlignment=VerticalAlignment.Center)
+            setattr(self, var_name, cb)
+            pdf_options_panel.Children.Add(cb)
+            
         pdf_expander.Content = pdf_options_panel
         main_format_panel.Children.Add(pdf_expander)
         
-        gb_format.Content = main_format_panel
-        Grid.SetRow(gb_format, 0); main_layout.Children.Add(gb_format)
+        card1 = self._create_card("EXPORT SETTINGS", main_format_panel)
+        Grid.SetRow(card1, 0); main_layout.Children.Add(card1)
 
-        # -- Naming --
-        gb_name = GroupBox(Header="Naming & Destination", Padding=Thickness(10), Margin=Thickness(0,0,0,10), Foreground=Brushes.SlateGray)
+        # -- Naming & Destination (Card 2) --
         grid_n = Grid()
         grid_n.ColumnDefinitions.Add(ColumnDefinition(Width=GridLength(1.5, GridUnitType.Star)))
         grid_n.ColumnDefinitions.Add(ColumnDefinition(Width=GridLength(1, GridUnitType.Star)))
         
         sp_n_left = StackPanel(Margin=Thickness(0,0,15,0))
         sp_path = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,0,0,8))
-        sp_path.Children.Add(TextBlock(Text="Folder: ", Width=60, VerticalAlignment=VerticalAlignment.Center))
+        sp_path.Children.Add(TextBlock(Text="Folder: ", Foreground=TEXT_MUTED, Width=60, VerticalAlignment=VerticalAlignment.Center))
         self.txtPath = TextBox(Width=350, Height=28, VerticalContentAlignment=VerticalAlignment.Center)
-        btn_br = Button(Content="...", Width=30, Margin=Thickness(5,0,0,0)); btn_br.Click += self._on_browse
-        btn_op = Button(Content="Open", Width=45, Margin=Thickness(5,0,0,0)); btn_op.Click += self._on_open_folder
+        btn_br = Button(Content="...", Width=30, Margin=Thickness(5,0,0,0), Background=hex_brush("#f1f5f9")); btn_br.Click += self._on_browse
+        btn_op = Button(Content="Open", Width=45, Margin=Thickness(5,0,0,0), Background=hex_brush("#f1f5f9")); btn_op.Click += self._on_open_folder
         sp_path.Children.Add(self.txtPath); sp_path.Children.Add(btn_br); sp_path.Children.Add(btn_op); sp_n_left.Children.Add(sp_path)
         
         sp_pre = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,0,0,8))
         self.txtPrefix = TextBox(Width=80, Height=24, VerticalContentAlignment=VerticalAlignment.Center)
         self.txtSuffix = TextBox(Width=80, Height=24, VerticalContentAlignment=VerticalAlignment.Center)
         self.txtPrefix.TextChanged += self._on_text_change; self.txtSuffix.TextChanged += self._on_text_change
-        sp_pre.Children.Add(TextBlock(Text="Prefix: ", Width=60, VerticalAlignment=VerticalAlignment.Center))
+        sp_pre.Children.Add(TextBlock(Text="Prefix: ", Foreground=TEXT_MUTED, Width=60, VerticalAlignment=VerticalAlignment.Center))
         sp_pre.Children.Add(self.txtPrefix)
-        sp_pre.Children.Add(TextBlock(Text="  Suffix: ", VerticalAlignment=VerticalAlignment.Center))
+        sp_pre.Children.Add(TextBlock(Text="  Suffix: ", Foreground=TEXT_MUTED, VerticalAlignment=VerticalAlignment.Center))
         sp_pre.Children.Add(self.txtSuffix)
         sp_n_left.Children.Add(sp_pre)
 
         self.spSingle = StackPanel()
         sp_pat = StackPanel(Orientation=Orientation.Horizontal)
-        sp_pat.Children.Add(TextBlock(Text="Pattern: ", Width=60, VerticalAlignment=VerticalAlignment.Center))
+        sp_pat.Children.Add(TextBlock(Text="Pattern: ", Foreground=TEXT_MUTED, Width=60, VerticalAlignment=VerticalAlignment.Center))
         self.txtPattern = TextBox(Width=415, Height=28, VerticalContentAlignment=VerticalAlignment.Center); self.txtPattern.TextChanged += self._on_text_change
         sp_pat.Children.Add(self.txtPattern); self.spSingle.Children.Add(sp_pat); sp_n_left.Children.Add(self.spSingle)
 
         self.spCombine = StackPanel(Visibility=Visibility.Collapsed)
         sp_c = StackPanel(Orientation=Orientation.Horizontal)
-        sp_c.Children.Add(TextBlock(Text="Filename: ", Width=65, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center))
+        sp_c.Children.Add(TextBlock(Text="Filename: ", Foreground=TEXT_MAIN, Width=65, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center))
         self.txtCombineName = TextBox(Width=410, Height=28, VerticalContentAlignment=VerticalAlignment.Center)
         sp_c.Children.Add(self.txtCombineName); self.spCombine.Children.Add(sp_c); sp_n_left.Children.Add(self.spCombine)
         
         sp_opt = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,8,0,0))
-        self.chkAutoFolder = CheckBox(Content="Auto Create Folders", IsChecked=True, Margin=Thickness(0,0,15,0), VerticalAlignment=VerticalAlignment.Center)
-        self.chkExcel = CheckBox(Content="Excel Transmittal", Foreground=Brushes.SeaGreen, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center)
+        self.chkAutoFolder = CheckBox(Content="Auto Create Folders", Foreground=TEXT_MAIN, IsChecked=True, Margin=Thickness(0,0,15,0), VerticalAlignment=VerticalAlignment.Center)
+        self.chkExcel = CheckBox(Content="Excel Transmittal", Foreground=BTN_PRIMARY, FontWeight=FontWeights.Bold, VerticalAlignment=VerticalAlignment.Center)
         sp_opt.Children.Add(self.chkAutoFolder); sp_opt.Children.Add(self.chkExcel); sp_n_left.Children.Add(sp_opt)
 
         Grid.SetColumn(sp_n_left, 0); grid_n.Children.Add(sp_n_left)
         
         sp_p_right = StackPanel()
         self.txtPSearch = TextBox(Height=24, Margin=Thickness(0,0,0,2)); self.txtPSearch.TextChanged += self._filter_params
-        self.lstP = ListBox(Height=105); sp_p_right.Children.Add(self.txtPSearch); sp_p_right.Children.Add(self.lstP)
-        btn_add_p = Button(Content="+ Insert Parameter", Height=24, Margin=Thickness(0,2,0,0)); btn_add_p.Click += self._add_param
+        self.lstP = ListBox(Height=105, Background=hex_brush("#f8fafc"), Foreground=TEXT_MAIN, BorderBrush=BORDER_LINE)
+        sp_p_right.Children.Add(self.txtPSearch); sp_p_right.Children.Add(self.lstP)
+        btn_add_p = Button(Content="+ Insert Parameter", Height=24, Margin=Thickness(0,2,0,0), Background=hex_brush("#f1f5f9")); btn_add_p.Click += self._add_param
         sp_p_right.Children.Add(btn_add_p)
         Grid.SetColumn(sp_p_right, 1); grid_n.Children.Add(sp_p_right)
         
-        gb_name.Content = grid_n; Grid.SetRow(gb_name, 1); main_layout.Children.Add(gb_name)
+        card2 = self._create_card("NAMING & DESTINATION", grid_n)
+        Grid.SetRow(card2, 1); main_layout.Children.Add(card2)
 
         # -- Filter Bar --
         sp_filter = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,5,0,10))
@@ -250,29 +267,34 @@ class SuperSheetsUltimate(Window):
         self.txtSearch = TextBox(Width=180, Height=30, Margin=Thickness(10,0,0,0), VerticalContentAlignment=VerticalAlignment.Center); self.txtSearch.TextChanged += self._filter_grid
         sp_filter.Children.Add(self.txtSearch)
         
-        btn_all = Button(Content="Check All", Height=30, Margin=Thickness(20,0,0,0), Padding=Thickness(10,0,10,0)); btn_all.Click += lambda s,e: self._set_all(True)
-        btn_none = Button(Content="Uncheck All", Height=30, Margin=Thickness(5,0,0,0), Padding=Thickness(10,0,10,0)); btn_none.Click += lambda s,e: self._set_all(False)
+        btn_all = Button(Content="Check All", Height=30, Margin=Thickness(20,0,0,0), Background=hex_brush("#f1f5f9"), Padding=Thickness(10,0,10,0)); btn_all.Click += lambda s,e: self._set_all(True)
+        btn_none = Button(Content="Uncheck All", Height=30, Margin=Thickness(5,0,0,0), Background=hex_brush("#f1f5f9"), Padding=Thickness(10,0,10,0)); btn_none.Click += lambda s,e: self._set_all(False)
         
-        btn_chk_hi = Button(Content="Check Selected", Height=30, Margin=Thickness(20,0,0,0), Background=Brushes.LightCyan, Padding=Thickness(10,0,10,0)); btn_chk_hi.Click += self._on_check_high
-        btn_un_hi = Button(Content="Uncheck Selected", Height=30, Margin=Thickness(5,0,0,0), Background=Brushes.MistyRose, Padding=Thickness(10,0,10,0)); btn_un_hi.Click += self._on_uncheck_high
+        btn_chk_hi = Button(Content="Check Selected", Height=30, Margin=Thickness(20,0,0,0), Background=ACCENT, Foreground=TEXT_INVERT, BorderThickness=Thickness(0), Padding=Thickness(10,0,10,0)); btn_chk_hi.Click += self._on_check_high
+        btn_un_hi = Button(Content="Uncheck Selected", Height=30, Margin=Thickness(5,0,0,0), Background=hex_brush("#e2e8f0"), Foreground=TEXT_MAIN, BorderThickness=Thickness(0), Padding=Thickness(10,0,10,0)); btn_un_hi.Click += self._on_uncheck_high
         
         sp_filter.Children.Add(btn_all); sp_filter.Children.Add(btn_none); sp_filter.Children.Add(btn_chk_hi); sp_filter.Children.Add(btn_un_hi)
         Grid.SetRow(sp_filter, 2); main_layout.Children.Add(sp_filter)
 
         # -- DataGrid --
-        self.dg = DataGrid(AutoGenerateColumns=False, CanUserAddRows=False, RowHeight=28, GridLinesVisibility=0, SelectionMode=DataGridSelectionMode.Extended)
+        self.dg = DataGrid(AutoGenerateColumns=False, CanUserAddRows=False, RowHeight=28, 
+                           GridLinesVisibility=0, SelectionMode=DataGridSelectionMode.Extended,
+                           Background=BG_APP, RowBackground=BG_CARD, AlternatingRowBackground=hex_brush("#f8fafc"),
+                           BorderBrush=BORDER_LINE, Foreground=TEXT_MAIN)
+                           
         self.dg.Columns.Add(DataGridCheckBoxColumn(Header="X", Binding=Binding("Include")))
         self.dg.Columns.Add(DataGridTextColumn(Header="Number", Binding=Binding("Number"), IsReadOnly=True))
-        
         self.dg.Columns.Add(DataGridTextColumn(Header="Sheet Name", Binding=Binding("Name"), Width=DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly=True))
         self.dg.Columns.Add(DataGridTextColumn(Header="Revision", Binding=Binding("Revision"), Width=DataGridLength(100), IsReadOnly=True))
-        self.dg.Columns.Add(DataGridTextColumn(Header="Preview Filename", Binding=Binding("PreviewName"), IsReadOnly=True, Width=DataGridLength(350), Foreground=Brushes.RoyalBlue))
+        
+        preview_col = DataGridTextColumn(Header="Preview Filename", Binding=Binding("PreviewName"), IsReadOnly=True, Width=DataGridLength(350))
+        self.dg.Columns.Add(preview_col)
         
         Grid.SetRow(self.dg, 3); main_layout.Children.Add(self.dg)
 
         # 3. FOOTER
-        btn_run = Button(Content="START MULTI-EXPORT", Height=55, Background=Brushes.SeaGreen, 
-                         Foreground=Brushes.White, FontWeight=FontWeights.Bold, FontSize=16)
+        btn_run = Button(Content="START MULTI-EXPORT", Height=60, Background=BTN_PRIMARY, 
+                         Foreground=TEXT_INVERT, FontWeight=FontWeights.Bold, FontSize=16, BorderThickness=Thickness(0))
         btn_run.Click += self._on_run
         Grid.SetRow(btn_run, 2); root_grid.Children.Add(btn_run)
 
@@ -295,7 +317,6 @@ class SuperSheetsUltimate(Window):
             'pdf': self.chkPDF.IsChecked, 'dwg': self.chkDWG.IsChecked, 'ifc': self.chkIFC.IsChecked, 'nwc': self.chkNWC.IsChecked,
             'combine': self.chkCombine.IsChecked, 'combine_name': self.txtCombineName.Text,
             'excel': self.chkExcel.IsChecked, 'auto_folder': self.chkAutoFolder.IsChecked,
-            # PDF Advanced Options
             'view_links': self.chkViewLinks.IsChecked,
             'hide_ref_worksets': self.chkHideRefWorksets.IsChecked,
             'hide_unref_view_tags': self.chkHideUnrefViewTags.IsChecked,
@@ -356,7 +377,6 @@ class SuperSheetsUltimate(Window):
             self.chkExcel.IsChecked = p.get('excel', False)
             self.chkAutoFolder.IsChecked = p.get('auto_folder', True)
             
-            # PDF Advanced Options
             self.chkViewLinks.IsChecked = p.get('view_links', False)
             self.chkHideRefWorksets.IsChecked = p.get('hide_ref_worksets', False)
             self.chkHideUnrefViewTags.IsChecked = p.get('hide_unref_view_tags', False)
@@ -385,7 +405,6 @@ class SuperSheetsUltimate(Window):
                 'combine_name': self.txtCombineName.Text,
                 'excel': self.chkExcel.IsChecked,
                 'auto_folder': self.chkAutoFolder.IsChecked,
-                # PDF Advanced Options
                 'view_links': self.chkViewLinks.IsChecked,
                 'hide_ref_worksets': self.chkHideRefWorksets.IsChecked,
                 'hide_unref_view_tags': self.chkHideUnrefViewTags.IsChecked,
@@ -418,7 +437,6 @@ class SuperSheetsUltimate(Window):
                 self.chkExcel.IsChecked = d.get('excel', False)
                 self.chkAutoFolder.IsChecked = d.get('auto_folder', True)
                 
-                # PDF Advanced Options
                 self.chkViewLinks.IsChecked = d.get('view_links', False)
                 self.chkHideRefWorksets.IsChecked = d.get('hide_ref_worksets', False)
                 self.chkHideUnrefViewTags.IsChecked = d.get('hide_unref_view_tags', False)
@@ -538,21 +556,17 @@ class SuperSheetsUltimate(Window):
         return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
     def _get_safe_filename(self, folder, base_name, ext):
-        """เช็คความยาว Path และป้องกันการเซฟทับไฟล์เดิม (จะเติม _01, _02 อัตโนมัติ)"""
         max_len = 250 - len(folder) - len(ext)
-        if max_len <= 0: return base_name # Folder path ยาวเกินไป ปล่อยผ่าน
+        if max_len <= 0: return base_name 
         
-        # ตัดคำถ้าชื่อไฟล์บวก Path ยาวเกินลิมิต 250 (เผื่อ 10 ตัวอักษรสำหรับระบบ)
         if len(base_name) > max_len:
             base_name = base_name[:max_len].strip()
             
         final_name = base_name
         counter = 1
         
-        # เช็คไฟล์ซ้ำ ถ้าซ้ำให้เติม _01, _02
         while os.path.exists(os.path.join(folder, final_name + ext)):
             suffix = "_{:02d}".format(counter)
-            # เช็คความยาวอีกรอบหลังจากเติม Suffix
             if len(base_name) + len(suffix) > max_len:
                 final_name = base_name[:max_len-len(suffix)].strip() + suffix
             else:
@@ -570,7 +584,6 @@ class SuperSheetsUltimate(Window):
         except: pass
 
     def _apply_pdf_options(self, opt):
-        """Apply PDF advanced options to PDFExportOptions"""
         try:
             if self.chkViewLinks.IsChecked: opt.ViewLinksInBlue = True
         except: pass
@@ -594,7 +607,6 @@ class SuperSheetsUltimate(Window):
         except: pass
 
     def _on_run(self, s, e):
-        # บังคับปิด IFC และ NWC เสมอ ป้องกันการจำค่าเดิมจากไฟล์ Profile หรือ Settings
         self.chkIFC.IsChecked = False
         self.chkNWC.IsChecked = False
         
@@ -603,7 +615,6 @@ class SuperSheetsUltimate(Window):
             self._toast("Please select at least one sheet.")
             return
 
-        # เปิดหน้าต่างเลือกโฟลเดอร์อัตโนมัติหากยังไม่ได้ใส่ค่า Path
         if not self.txtPath.Text:
             p = forms.pick_folder(title="Please select export destination folder")
             if p:
@@ -614,7 +625,6 @@ class SuperSheetsUltimate(Window):
         self._save_current_as_last()
         folder = self.txtPath.Text
 
-        # ตรวจสอบว่ามีตำแหน่ง Drive/Folder นี้อยู่จริงหรือไม่
         if not os.path.exists(folder):
             forms.alert("ไม่พบตำแหน่งโฟลเดอร์ปลายทาง หรือไดร์ฟอาจไม่พร้อมใช้งาน:\n{}".format(folder), title="Path Not Found")
             return
@@ -622,7 +632,6 @@ class SuperSheetsUltimate(Window):
         pdf_path = os.path.join(folder, "PDF") if self.chkAutoFolder.IsChecked else folder
         dwg_path = os.path.join(folder, "DWG") if self.chkAutoFolder.IsChecked else folder
         
-        # ป้องกัน Error ตอนสร้างโฟลเดอร์
         if self.chkAutoFolder.IsChecked:
             try:
                 for d in [pdf_path, dwg_path]: 
@@ -646,13 +655,15 @@ class SuperSheetsUltimate(Window):
                                 raw_c_name = raw_c_name.replace("{" + p_name + "}", val)
                         
                         final_c_name = self._sanitize(raw_c_name)
-                        # ใช้ระบบป้องกัน Path ยาวเกินและชื่อซ้ำ
                         final_c_name = self._get_safe_filename(pdf_path, final_c_name, ".pdf")
                         
                         opt = DB.PDFExportOptions()
                         opt.Combine = True
                         opt.FileName = final_c_name
                         opt.ColorDepth = DB.ColorDepthType.BlackLine if self.cboColor.SelectedIndex == 1 else DB.ColorDepthType.Color
+                        
+                        opt.ZoomType = DB.ZoomType.Zoom
+                        opt.ZoomPercentage = 100
                         
                         self._apply_pdf_options(opt)
                         doc.Export(pdf_path, List[DB.ElementId]([i.Id for i in selected]), opt)
@@ -666,12 +677,14 @@ class SuperSheetsUltimate(Window):
                     
                     if self.chkPDF.IsChecked and not self.chkCombine.IsChecked:
                         try:
-                            # ใช้ระบบป้องกัน Path ยาวเกินและชื่อซ้ำ
                             safe_pdf_fn = self._get_safe_filename(pdf_path, fn, ".pdf")
                             
                             opt = DB.PDFExportOptions()
                             opt.FileName = safe_pdf_fn
                             opt.ColorDepth = DB.ColorDepthType.BlackLine if self.cboColor.SelectedIndex == 1 else DB.ColorDepthType.Color
+                            
+                            opt.ZoomType = DB.ZoomType.Zoom
+                            opt.ZoomPercentage = 100
                             
                             self._apply_pdf_options(opt)
                             doc.Export(pdf_path, List[DB.ElementId]([item.Id]), opt)
@@ -683,7 +696,6 @@ class SuperSheetsUltimate(Window):
                     if self.chkDWG.IsChecked:
                         try:
                             clean_fn = fn.replace(".dwg", "")
-                            # ใช้ระบบป้องกัน Path ยาวเกินและชื่อซ้ำ
                             safe_dwg_fn = self._get_safe_filename(dwg_path, clean_fn, ".dwg")
                             
                             opt_dwg = DB.DWGExportOptions()
@@ -695,7 +707,6 @@ class SuperSheetsUltimate(Window):
                         pb.update_progress(c, total)
 
                     if self.chkIFC.IsChecked:
-                        # สร้าง Transaction ป้องกัน Error กรณีที่เปิดใช้ฟีเจอร์นี้ในอนาคต
                         t = DB.Transaction(doc, "Export IFC Temp")
                         t.Start()
                         try: 
@@ -704,12 +715,11 @@ class SuperSheetsUltimate(Window):
                         except Exception as ex:
                             print("IFC Error {}: {}".format(fn, ex))
                         finally:
-                            t.RollBack() # ยกเลิกการแก้ไขโมเดล
+                            t.RollBack() 
                         c += 1
                         pb.update_progress(c, total)
                         
                     if self.chkNWC.IsChecked:
-                        # สร้าง Transaction ป้องกัน Error กรณีที่เปิดใช้ฟีเจอร์นี้ในอนาคต
                         t = DB.Transaction(doc, "Export NWC Temp")
                         t.Start()
                         try: 
@@ -718,7 +728,7 @@ class SuperSheetsUltimate(Window):
                         except Exception as ex:
                             print("NWC Error {}: {}".format(fn, ex))
                         finally:
-                            t.RollBack() # ยกเลิกการแก้ไขโมเดล
+                            t.RollBack() 
                         c += 1
                         pb.update_progress(c, total)
             
