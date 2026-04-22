@@ -1,46 +1,27 @@
 title:
-  en_us: |-
-    Spec
-    trum
-  fr_fr: |-
-    Spec
-    trum
-  ru: |-
-    Spec
-    trum
-  chinese_s: Spectrum
-  es_es: |-
-    Spec
-    trum
-  de_de: |-
-    Spec
-    trum
-  pt_br: >-
-    Spec
-    
-    trum
+  en_us: Spectrum
 
 tooltip: |
-  Spectrum: เครื่องมือระบายสีและวิเคราะห์โมเดลขั้นสูง (Advanced Themes & Transparency Edition) 
-  ช่วยให้การพรีเซนต์งานและตรวจสอบค่าพารามิเตอร์ใน Revit เป็นเรื่องง่ายและสวยงาม (รองรับ Revit 2026)
-
+  Spectrum: Advanced BIM Element Colorizer & Analyzer (Revit 2024-2026 Ready)
+  
   [ENG]
-  - macOS-Inspired Interface: Modern, clean, and intuitive UI with rounded corners and professional aesthetics.
-  - Advanced Color Themes: Apply predefined palettes like Pastel, Vibrant, Dark, or Earthy with a single click.
-  - Transparency Control: Real-time surface transparency adjustment (0-100%) for better visualization of MEP and Architectural systems.
-  - Smart Export & Memory: Supports both .cschn and .csv formats. The tool automatically remembers your last used folder path.
-  - Element Interaction: Shift+Click to instantly select elements in Revit. Create Legends or View Filters directly from your color schemes.
-
+  - Futuristic Dark UI: Modern and professional interface designed to reduce eye strain.
+  - Smart Color Generation: Apply predefined palettes (Pastel, Vibrant, Dark, Earthy) or generate Gradient colors instantly.
+  - Transparency Control: Adjust surface transparency (0-100%) for better visualization of complex MEP and Architectural models.
+  - View Filters & Legends: Automatically generate View Filters and Legends directly from your applied color schemes.
+  - Smart Memory: Save and load color schemes (.cschn, .csv) with auto-category detection and path memory.
+  - Element Interaction: Shift+Click on a list item to instantly isolate and select elements in the model.
+  
   [TH]
-  - หน้าจอแบบ macOS (macOS-Inspired): ดีไซน์ทันสมัย สะอาดตา ด้วยขอบโค้งมนและ UI ที่ใช้งานง่าย
-  - ชุดสีสำเร็จรูป (Advanced Themes): เลือกใช้โทนสีระดับมืออาชีพ เช่น Pastel, Vibrant, Dark หรือ Earthy ได้ทันที
-  - ควบคุมความโปร่งใส (Transparency Control): ปรับค่าความโปร่งใสของวัตถุ (0-100%) แบบเรียลไทม์ เพื่อช่วยในการตรวจสอบงานระบบหรือพรีเซนต์งาน
-  - ระบบบันทึกอัจฉริยะ (Smart Export & Memory): รองรับทั้งไฟล์ .cschn และ .csv พร้อมระบบจดจำ Folder Path ล่าสุดอัตโนมัติ (ไม่ต้องเลือกใหม่ทุกครั้ง)
-  - การจัดการข้อมูล: ใช้ Shift+Click เพื่อเลือกวัตถุในโมเดลทันที และรองรับการสร้าง Legend หรือ View Filters จากชุดสีที่ตั้งไว้
+  - ระบบสร้างสีอัจฉริยะ: สุ่มสี ไล่สี (Gradient) หรือเลือกใช้ชุดสีสำเร็จรูป (Pastel, Vibrant, Dark, Earthy) ได้ในคลิกเดียว
+  - ควบคุมความโปร่งใส (Transparency): ปรับความโปร่งใสของวัตถุ (0-100%) แบบเรียลไทม์ เพื่อช่วยตรวจสอบงานระบบที่ซ้อนทับกัน
+  - สร้าง Legend & Filters: รองรับการสร้างตารางอธิบายสี และสร้าง View Filters อัตโนมัติ (อัปเดต API สมบูรณ์สำหรับ Revit 2026)
+  - ระบบบันทึกอัจฉริยะ (Smart Load): บันทึกและโหลดชุดสี (.cschn, .csv) พร้อมระบบเลือก Category และ Parameter คืนค่าให้อัตโนมัติ
+  - การจัดการวัตถุ: กด Shift+Click ที่รายการสีเพื่อเลือก (Select) วัตถุในโมเดลได้อย่างรวดเร็ว
 
-author: "เพิ่มพงษ์ ทวีกุล (P13)"
+author: "PyRevit Mod by P13"
 
-description: "Spectrum: BIM Element Colorizer with macOS UI, Themes, and Transparency control / เครื่องมือระบายสีพารามิเตอร์และวิเคราะห์โมเดล"
+description: "Spectrum: Advanced BIM Element Colorizer with Futuristic UI, Color Themes, Transparency control, and View Filters automation. / เครื่องมือระบายสีพารามิเตอร์และวิเคราะห์โมเดลขั้นสูง"
 
 engine:
   clean: true

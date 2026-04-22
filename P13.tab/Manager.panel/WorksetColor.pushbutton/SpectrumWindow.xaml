@@ -5,12 +5,25 @@
         Height="670" Width="560" MinWidth="560" MaxWidth="560" MinHeight="670"
         ShowInTaskbar="True" ResizeMode="CanResize"
         WindowStartupLocation="CenterScreen" Topmost="True"
-        Background="#F5F5F7" FontFamily="Segoe UI" FontSize="12" Foreground="#1C1C1E">
+        Background="#13131A" FontFamily="Segoe UI" FontSize="12" Foreground="#E2E2E9">
+    
     <Window.Resources>
-        <Style x:Key="MacButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="Foreground" Value="#1C1C1E"/>
-            <Setter Property="BorderBrush" Value="#C7C7CC"/>
+        <Style x:Key="CyberHeaderStyle" TargetType="{x:Type TextBlock}">
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="Foreground" Value="#00E5FF"/>
+            <Setter Property="Margin" Value="0,0,0,6"/>
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect Color="#00E5FF" BlurRadius="8" ShadowDepth="0" Opacity="0.4"/>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CyberButtonStyle" TargetType="{x:Type Button}">
+            <Setter Property="Background" Value="#232333"/>
+            <Setter Property="Foreground" Value="#E2E2E9"/>
+            <Setter Property="BorderBrush" Value="#38384D"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="10,0"/>
             <Setter Property="Cursor" Value="Hand"/>
@@ -20,15 +33,16 @@
                         <Border Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
                                 BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
+                                CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#E5E5EA"/>
+                                <Setter Property="Background" Value="#313145"/>
+                                <Setter Property="BorderBrush" Value="#515170"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#D1D1D6"/>
+                                <Setter Property="Background" Value="#1A1A24"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -36,28 +50,34 @@
             </Setter>
         </Style>
 
-        <Style x:Key="MacPrimaryButtonStyle" TargetType="{x:Type Button}">
-            <Setter Property="Background" Value="#007AFF"/>
+        <Style x:Key="CyberPrimaryButtonStyle" TargetType="{x:Type Button}">
             <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#007AFF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Background">
+                <Setter.Value>
+                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                        <GradientStop Color="#00C6FF" Offset="0.0"/>
+                        <GradientStop Color="#0072FF" Offset="1.0"/>
+                    </LinearGradientBrush>
+                </Setter.Value>
+            </Setter>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="{x:Type Button}">
-                        <Border Background="{TemplateBinding Background}"
-                                BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                CornerRadius="5">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                            <Border.Effect>
+                                <DropShadowEffect Color="#0072FF" BlurRadius="15" ShadowDepth="0" Opacity="0.5"/>
+                            </Border.Effect>
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter Property="Background" Value="#006DE0"/>
+                                <Setter Property="Opacity" Value="0.9"/>
                             </Trigger>
                             <Trigger Property="IsPressed" Value="True">
-                                <Setter Property="Background" Value="#0056B3"/>
+                                <Setter Property="Opacity" Value="0.7"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -66,33 +86,62 @@
         </Style>
 
         <Style TargetType="{x:Type TextBox}">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#C7C7CC"/>
+            <Setter Property="Background" Value="#F4F4F8"/>
+            <Setter Property="Foreground" Value="#13131A"/>
+            <Setter Property="BorderBrush" Value="#323247"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,0"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type TextBox}">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4">
+                            <ScrollViewer x:Name="PART_ContentHost" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter Property="BorderBrush" Value="#00E5FF"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style TargetType="{x:Type ComboBox}">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#C7C7CC"/>
+            <Setter Property="Background" Value="#F4F4F8"/>
+            <Setter Property="Foreground" Value="#13131A"/>
+            <Setter Property="BorderBrush" Value="#323247"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="6,4"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
         <Style TargetType="{x:Type ListBox}">
-            <Setter Property="Background" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#C7C7CC"/>
+            <Setter Property="Background" Value="#1A1A24"/>
+            <Setter Property="Foreground" Value="#FFFFFF"/>
+            <Setter Property="BorderBrush" Value="#2D2D40"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="4"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="{x:Type ListBox}">
+                        <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="1" CornerRadius="4">
+                            <ScrollViewer Focusable="false" Padding="{TemplateBinding Padding}">
+                                <ItemsPresenter SnapsToDevicePixels="{TemplateBinding SnapsToDevicePixels}"/>
+                            </ScrollViewer>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
+
     </Window.Resources>
     
     <Grid Margin="20">
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="20"/>
+            <ColumnDefinition Width="25"/>
             <ColumnDefinition Width="*"/>
         </Grid.ColumnDefinitions>
         
@@ -104,20 +153,20 @@
         </Grid.RowDefinitions>
 
         <StackPanel Grid.Column="0" Grid.Row="0">
-            <TextBlock x:Name="_txt_block2" Text="{DynamicResource Spectrum.Labels.CategorySelection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <ComboBox x:Name="_categories" Height="28" Margin="0,0,0,16" DisplayMemberPath="Key"/>
+            <TextBlock x:Name="_txt_block2" Text="{DynamicResource Spectrum.Labels.CategorySelection}" Style="{StaticResource CyberHeaderStyle}"/>
+            <ComboBox x:Name="_categories" Height="30" Margin="0,0,0,18" DisplayMemberPath="Key"/>
 
-            <TextBlock x:Name="_txt_block3" Text="{DynamicResource Spectrum.Labels.ParameterSelection}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <TextBox x:Name="_search_box" Height="28" Margin="0,0,0,6" GotFocus="search_box_enter" LostFocus="search_box_leave" TextChanged="on_search_text_changed"/>
-            <ComboBox x:Name="_list_box1" Height="28" Margin="0,0,0,16" DisplayMemberPath="Key" SelectionChanged="check_item"/>
+            <TextBlock x:Name="_txt_block3" Text="{DynamicResource Spectrum.Labels.ParameterSelection}" Style="{StaticResource CyberHeaderStyle}"/>
+            <TextBox x:Name="_search_box" Height="30" Margin="0,0,0,6" GotFocus="search_box_enter" LostFocus="search_box_leave" TextChanged="on_search_text_changed"/>
+            <ComboBox x:Name="_list_box1" Height="30" Margin="0,0,0,18" DisplayMemberPath="Key" SelectionChanged="check_item"/>
         </StackPanel>
 
         <StackPanel Grid.Column="2" Grid.Row="0">
-            <TextBlock x:Name="_lbl_manage_schemes" Text="{DynamicResource Spectrum.Labels.ManageSchemes}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <Button x:Name="_button_save_load_scheme" Content="{DynamicResource Spectrum.Buttons.SaveLoadScheme}" Height="28" Style="{StaticResource MacButtonStyle}" Margin="0,0,0,16" Click="save_load_color_scheme"/>
+            <TextBlock x:Name="_lbl_manage_schemes" Text="{DynamicResource Spectrum.Labels.ManageSchemes}" Style="{StaticResource CyberHeaderStyle}"/>
+            <Button x:Name="_button_save_load_scheme" Content="{DynamicResource Spectrum.Buttons.SaveLoadScheme}" Height="30" Style="{StaticResource CyberButtonStyle}" Margin="0,0,0,18" Click="save_load_color_scheme"/>
 
-            <TextBlock x:Name="_lbl_generate_colors" Text="{DynamicResource Spectrum.Labels.GenerateColors}" FontWeight="SemiBold" Margin="0,0,0,6"/>
-            <Button x:Name="_button_gradient_colors" Content="{DynamicResource Spectrum.Buttons.GradientColors}" Height="28" Style="{StaticResource MacButtonStyle}" Margin="0,0,0,6" Click="button_click_gradient_colors"/>
+            <TextBlock x:Name="_lbl_generate_colors" Text="{DynamicResource Spectrum.Labels.GenerateColors}" Style="{StaticResource CyberHeaderStyle}"/>
+            <Button x:Name="_button_gradient_colors" Content="{DynamicResource Spectrum.Buttons.GradientColors}" Height="30" Style="{StaticResource CyberButtonStyle}" Margin="0,0,0,6" Click="button_click_gradient_colors"/>
             
             <Grid Margin="0,0,0,6">
                 <Grid.ColumnDefinitions>
@@ -125,25 +174,25 @@
                     <ColumnDefinition Width="8"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <ComboBox x:Name="_combo_themes" Grid.Column="0" Height="28">
-                    <ComboBoxItem Content="Pastel Theme" IsSelected="True"/>
+                <ComboBox x:Name="_combo_themes" Grid.Column="0" Height="30">
+                    <ComboBoxItem Content="Pastel Theme"/>
                     <ComboBoxItem Content="Vibrant Theme"/>
-                    <ComboBoxItem Content="Dark Theme"/>
+                    <ComboBoxItem Content="Dark Theme" IsSelected="True"/>
                     <ComboBoxItem Content="Earthy Theme"/>
                 </ComboBox>
-                <Button x:Name="_button_apply_theme" Grid.Column="2" Content="Apply Theme" Height="28" Style="{StaticResource MacButtonStyle}" Click="button_click_apply_theme"/>
+                <Button x:Name="_button_apply_theme" Grid.Column="2" Content="Apply Theme" Height="30" Style="{StaticResource CyberButtonStyle}" Click="button_click_apply_theme"/>
             </Grid>
             
-            <Button x:Name="_button_random_colors" Content="{DynamicResource Spectrum.Buttons.RandomColors}" Height="28" Style="{StaticResource MacButtonStyle}" Margin="0,0,0,16" Click="button_click_random_colors"/>
+            <Button x:Name="_button_random_colors" Content="{DynamicResource Spectrum.Buttons.RandomColors}" Height="30" Style="{StaticResource CyberButtonStyle}" Margin="0,0,0,18" Click="button_click_random_colors"/>
         </StackPanel>
 
         <StackPanel Grid.Column="0" Grid.Row="1">
-            <TextBlock x:Name="_txt_block4" Text="{DynamicResource Spectrum.Labels.ValuesColorAssignment}" FontWeight="SemiBold" Margin="0,0,0,4"/>
-            <TextBlock x:Name="_txt_shift_click_hint" Text="{DynamicResource Spectrum.Messages.ShiftClickToSelect}" Foreground="#8E8E93" FontSize="11" Margin="0,0,0,8"/>
+            <TextBlock x:Name="_txt_block4" Text="{DynamicResource Spectrum.Labels.ValuesColorAssignment}" Style="{StaticResource CyberHeaderStyle}"/>
+            <TextBlock x:Name="_txt_shift_click_hint" Text="{DynamicResource Spectrum.Messages.ShiftClickToSelect}" Foreground="#666677" FontSize="11" Margin="0,0,0,8"/>
         </StackPanel>
 
         <StackPanel Grid.Column="2" Grid.Row="1">
-            <TextBlock x:Name="_lbl_apply_settings" Text="{DynamicResource Spectrum.Labels.ApplySettings}" FontWeight="SemiBold" Margin="0,0,0,12"/>
+            <TextBlock x:Name="_lbl_apply_settings" Text="{DynamicResource Spectrum.Labels.ApplySettings}" Style="{StaticResource CyberHeaderStyle}"/>
         </StackPanel>
 
         <Grid Grid.Column="0" Grid.Row="2">
@@ -151,29 +200,29 @@
             <TextBlock x:Name="_txt_placeholder_values" 
                        Text="{DynamicResource Spectrum.Placeholders.SelectCategoryAndParameter}" 
                        HorizontalAlignment="Center" VerticalAlignment="Center" 
-                       Foreground="#8E8E93" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="220" 
+                       Foreground="#4D4D66" TextAlignment="Center" TextWrapping="Wrap" MaxWidth="220" 
                        IsHitTestVisible="False"/>
         </Grid>
 
         <StackPanel Grid.Column="2" Grid.Row="2">
-            <CheckBox x:Name="_chk_line_color" Content="{DynamicResource Spectrum.Checkboxes.ApplyLineColor}" Margin="0,0,0,8" Checked="checkbox_changed" Unchecked="checkbox_changed"/>
-            <CheckBox x:Name="_chk_foreground_pattern" Content="{DynamicResource Spectrum.Checkboxes.ApplyForegroundPattern}" Margin="0,0,0,8" Checked="checkbox_changed" Unchecked="checkbox_changed"/>
-            <CheckBox x:Name="_chk_background_pattern" Content="{DynamicResource Spectrum.Checkboxes.ApplyBackgroundPattern}" Margin="0,0,0,16" Checked="checkbox_changed" Unchecked="checkbox_changed"/>
+            <CheckBox x:Name="_chk_line_color" Content="{DynamicResource Spectrum.Checkboxes.ApplyLineColor}" Margin="0,0,0,8" Checked="checkbox_changed" Unchecked="checkbox_changed" Foreground="#E2E2E9"/>
+            <CheckBox x:Name="_chk_foreground_pattern" Content="{DynamicResource Spectrum.Checkboxes.ApplyForegroundPattern}" Margin="0,0,0,8" Checked="checkbox_changed" Unchecked="checkbox_changed" Foreground="#E2E2E9"/>
+            <CheckBox x:Name="_chk_background_pattern" Content="{DynamicResource Spectrum.Checkboxes.ApplyBackgroundPattern}" Margin="0,0,0,20" Checked="checkbox_changed" Unchecked="checkbox_changed" Foreground="#E2E2E9"/>
 
-            <TextBlock Text="Surface Transparency (%)" Foreground="#8E8E93" FontSize="11" Margin="0,0,0,4"/>
-            <Grid Margin="0,0,0,20">
+            <TextBlock Text="Surface Transparency (%)" Foreground="#8888A0" FontSize="11" Margin="0,0,0,4"/>
+            <Grid Margin="0,0,0,25">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="40"/>
                 </Grid.ColumnDefinitions>
                 <Slider x:Name="_slider_transparency" Grid.Column="0" Minimum="0" Maximum="100" Value="0" TickFrequency="10" IsSnapToTickEnabled="True" Margin="0,0,10,0" ValueChanged="slider_transparency_changed" VerticalAlignment="Center"/>
-                <TextBlock x:Name="_txt_transparency_val" Grid.Column="1" Text="0%" VerticalAlignment="Center" HorizontalAlignment="Right" FontWeight="SemiBold"/>
+                <TextBlock x:Name="_txt_transparency_val" Grid.Column="1" Text="0%" Foreground="#00E5FF" VerticalAlignment="Center" HorizontalAlignment="Right" FontWeight="Bold"/>
             </Grid>
 
-            <Button x:Name="_button_create_legend" Content="{DynamicResource Spectrum.Buttons.CreateLegend}" Height="28" Style="{StaticResource MacButtonStyle}" Margin="0,0,0,8" Click="button_click_create_legend"/>
-            <Button x:Name="_button_create_view_filters" Content="{DynamicResource Spectrum.Buttons.CreateViewFilters}" Height="28" Style="{StaticResource MacButtonStyle}" Margin="0,0,0,10" Click="button_click_create_view_filters"/>
+            <Button x:Name="_button_create_legend" Content="{DynamicResource Spectrum.Buttons.CreateLegend}" Height="30" Style="{StaticResource CyberButtonStyle}" Margin="0,0,0,8" Click="button_click_create_legend"/>
+            <Button x:Name="_button_create_view_filters" Content="{DynamicResource Spectrum.Buttons.CreateViewFilters}" Height="30" Style="{StaticResource CyberButtonStyle}" Margin="0,0,0,10" Click="button_click_create_view_filters"/>
             
-            <TextBlock x:Name="_txt_block5" Text="{DynamicResource Spectrum.Messages.SpacesColorScheme}" Foreground="#FF3B30" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"/>
+            <TextBlock x:Name="_txt_block5" Text="{DynamicResource Spectrum.Messages.SpacesColorScheme}" Foreground="#FF3B4A" FontSize="11" TextWrapping="Wrap" Visibility="Collapsed"/>
         </StackPanel>
 
         <Grid Grid.Column="2" Grid.Row="3" Margin="0,10,0,0">
@@ -182,8 +231,8 @@
                 <ColumnDefinition Width="10"/>
                 <ColumnDefinition Width="1.5*"/>
             </Grid.ColumnDefinitions>
-            <Button x:Name="_button_reset_colors" Grid.Column="0" Content="{DynamicResource Spectrum.Buttons.Reset}" Height="34" Style="{StaticResource MacButtonStyle}" Click="button_click_reset"/>
-            <Button x:Name="_button_set_colors" Grid.Column="2" Content="{DynamicResource Spectrum.Buttons.SetColors}" Height="34" Style="{StaticResource MacPrimaryButtonStyle}" Click="button_click_set_colors"/>
+            <Button x:Name="_button_reset_colors" Grid.Column="0" Content="{DynamicResource Spectrum.Buttons.Reset}" Height="36" Style="{StaticResource CyberButtonStyle}" Click="button_click_reset"/>
+            <Button x:Name="_button_set_colors" Grid.Column="2" Content="{DynamicResource Spectrum.Buttons.SetColors}" Height="36" Style="{StaticResource CyberPrimaryButtonStyle}" Click="button_click_set_colors"/>
         </Grid>
 
     </Grid>

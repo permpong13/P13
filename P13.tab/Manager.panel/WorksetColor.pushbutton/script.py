@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import sys
-import csv
+import os
 import codecs
+import csv
 from re import split
 from math import fabs
 from random import randint
@@ -84,13 +85,16 @@ class SubscribeView(UI.IExternalEventHandler):
                 if new_view != 0:
                     wndw.list_box2.SelectionChanged -= wndw.list_selected_index_changed
                     wndw.crt_view = new_view
-                    categ_inf_used_up = get_used_categories_parameters(CAT_EXCLUDED, wndw.crt_view, new_doc)
+                    categ_inf_used_up = get_used_categories_parameters(
+                        CAT_EXCLUDED, wndw.crt_view, new_doc
+                    )
                     wndw.table_data = DataTable("Data")
                     wndw.table_data.Columns.Add("Key", System.String)
                     wndw.table_data.Columns.Add("Value", System.Object)
                     names = [x.name for x in categ_inf_used_up]
                     
                     select_category_text = wndw.get_locale_string("Spectrum.Messages.SelectCategory")
+                    if not select_category_text: select_category_text = wndw.get_locale_string("ColorSplasher.Messages.SelectCategory")
                     if not select_category_text: select_category_text = "Select Category"
                     
                     wndw.table_data.Rows.Add(select_category_text, 0)
@@ -134,12 +138,13 @@ class ApplyColors(UI.IExternalEventHandler):
             solid_fill_id = solid_fill_pattern_id()
 
             if wndw._categories.SelectedItem is None: return
-            row = wndw._get_data_row_from_item(wndw._categories.SelectedItem, wndw._categories.SelectedIndex)
+            sel_cat_row = wndw._categories.SelectedItem
+            row = wndw._get_data_row_from_item(sel_cat_row, wndw._categories.SelectedIndex)
             if row is None: return
             sel_cat = row["Value"]
             if sel_cat == 0: return
 
-            if (wndw._list_box1.SelectedIndex <= 0):
+            if (wndw._list_box1.SelectedIndex == -1 or wndw._list_box1.SelectedIndex == 0):
                 if wndw._list_box1.SelectedIndex == 0:
                     sel_param_row = wndw._list_box1.SelectedItem
                     if sel_param_row is not None:
@@ -243,16 +248,17 @@ class ResetColors(UI.IExternalEventHandler):
             if wndw._categories.SelectedItem is None:
                 sel_cat = 0
             else:
-                row = wndw._get_data_row_from_item(wndw._categories.SelectedItem, wndw._categories.SelectedIndex)
-                sel_cat = row["Value"] if row else 0
+                sel_cat_row = wndw._categories.SelectedItem
+                if hasattr(sel_cat_row, "Row"):
+                    sel_cat = sel_cat_row.Row["Value"]
+                else:
+                    sel_cat = wndw._categories.SelectedItem["Value"]
 
             if sel_cat == 0:
-                task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title")
-                if not task_title: task_title = "Spectrum"
+                task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
                 task_no_cat = UI.TaskDialog(task_title)
                 
-                main_inst = wndw.get_locale_string("Spectrum.Messages.NoCategorySelected")
-                if not main_inst: main_inst = "Please select a category."
+                main_inst = wndw.get_locale_string("Spectrum.Messages.NoCategorySelected") or wndw.get_locale_string("ColorSplasher.Messages.NoCategorySelected") or "Please select a category."
                 task_no_cat.MainInstruction = main_inst
                 
                 wndw.Topmost = False
@@ -262,11 +268,18 @@ class ResetColors(UI.IExternalEventHandler):
                 
             with revit.Transaction("Reset colors in elements"):
                 try:
-                    filter_name = sel_cat.name + "/"
+                    filter_prefix = sel_cat.name + " "
+                    sel_par_row = wndw._list_box1.SelectedItem
+                    if sel_par_row is not None:
+                        par_row = wndw._get_data_row_from_item(sel_par_row, wndw._list_box1.SelectedIndex)
+                        if par_row is not None and par_row["Value"] != 0:
+                            sel_par = par_row["Value"]
+                            filter_prefix = sel_cat.name + " " + sel_par.name + " - "
+
                     filters = view.GetFilters()
                     for filt_id in filters:
                         filt_ele = new_doc.GetElement(filt_id)
-                        if filt_ele.Name.StartsWith(filter_name):
+                        if filt_ele.Name.StartsWith(filter_prefix) or filt_ele.Name.StartsWith(sel_cat.name + "/"):
                             view.RemoveFilter(filt_id)
                             try: new_doc.Delete(filt_id)
                             except Exception: pass
@@ -298,13 +311,12 @@ class CreateLegend(UI.IExternalEventHandler):
             collector = DB.FilteredElementCollector(new_doc).OfClass(DB.View).ToElements()
             legends = [vw for vw in collector if vw.ViewType == DB.ViewType.Legend]
 
-            task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title")
-            if not task_title: task_title = "Spectrum"
+            task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
 
             if len(legends) == 0:
                 task2 = UI.TaskDialog(task_title)
-                main_inst = wndw.get_locale_string("Spectrum.Messages.NoLegendView")
-                task2.MainInstruction = main_inst if main_inst else "Please create a legend view first."
+                main_inst = wndw.get_locale_string("Spectrum.Messages.NoLegendView") or wndw.get_locale_string("ColorSplasher.Messages.NoLegendView") or "Please create a legend view first."
+                task2.MainInstruction = main_inst
                 wndw.Topmost = False
                 task2.Show()
                 wndw.Topmost = True
@@ -312,8 +324,8 @@ class CreateLegend(UI.IExternalEventHandler):
 
             if wndw.list_box2.Items.Count == 0:
                 task2 = UI.TaskDialog(task_title)
-                main_inst = wndw.get_locale_string("Spectrum.Messages.NoItemsForLegend")
-                task2.MainInstruction = main_inst if main_inst else "No items to create a legend."
+                main_inst = wndw.get_locale_string("Spectrum.Messages.NoItemsForLegend") or wndw.get_locale_string("ColorSplasher.Messages.NoItemsForLegend") or "No items to create a legend."
+                task2.MainInstruction = main_inst
                 wndw.Topmost = False
                 task2.Show()
                 wndw.Topmost = True
@@ -333,10 +345,13 @@ class CreateLegend(UI.IExternalEventHandler):
                 
                 sel_cat, sel_par = cat_row["Value"], par_row["Value"]
                 cat_name, par_name = strip_accents(sel_cat.name), strip_accents(sel_par.name)
-                renamed = False
                 
-                legend_prefix = wndw.get_locale_string("Spectrum.LegendNamePrefix")
-                if not legend_prefix: legend_prefix = "Spectrum - "
+                for char_to_remove in ["{", "}", "[", "]", ":", "\\", "|", "?", "/", "<", ">", "*", ";", '"', "'", "`", "~"]:
+                    cat_name = cat_name.replace(char_to_remove, "-")
+                    par_name = par_name.replace(char_to_remove, "-")
+                
+                renamed = False
+                legend_prefix = wndw.get_locale_string("Spectrum.LegendNamePrefix") or wndw.get_locale_string("ColorSplasher.LegendNamePrefix") or "Spectrum - "
                 
                 try:
                     new_legend.Name = legend_prefix + cat_name + " - " + par_name
@@ -351,25 +366,27 @@ class CreateLegend(UI.IExternalEventHandler):
                         except Exception:
                             if i == 999: raise Exception("Could not rename legend view")
 
+                old_all_ele = DB.FilteredElementCollector(new_doc, legends[0].Id).ToElements()
                 ele_id_type = None
-                for ele in DB.FilteredElementCollector(new_doc, legends[0].Id).ToElements():
-                    if ele.Id != new_legend.Id and isinstance(ele, DB.TextNote):
-                        ele_id_type = ele.GetTypeId()
-                        break
-                        
+                for ele in old_all_ele:
+                    if ele.Id != new_legend.Id and ele.Category is not None:
+                        if isinstance(ele, DB.TextNote):
+                            ele_id_type = ele.GetTypeId()
+                            break
+                get_elementid_value = get_elementid_value_func()
                 if not ele_id_type:
-                    for ele in DB.FilteredElementCollector(new_doc).OfClass(DB.TextNoteType).ToElements():
+                    all_text_notes = DB.FilteredElementCollector(new_doc).OfClass(DB.TextNoteType).ToElements()
+                    for ele in all_text_notes:
                         ele_id_type = ele.Id
                         break
-                
-                if not ele_id_type or get_elementid_value_func()(ele_id_type) == 0:
+                if get_elementid_value(ele_id_type) == 0:
                     raise Exception("No text note type found in the model")
                     
                 filled_type = None
                 filled_region_types = DB.FilteredElementCollector(new_doc).OfClass(DB.FilledRegionType).ToElements()
                 for f_type in filled_region_types:
                     pattern = new_doc.GetElement(f_type.ForegroundPatternId)
-                    if pattern and pattern.GetFillPattern().IsSolidFill and f_type.ForegroundPatternColor.IsValid:
+                    if pattern is not None and pattern.GetFillPattern().IsSolidFill and f_type.ForegroundPatternColor.IsValid:
                         filled_type = f_type
                         break
                         
@@ -388,7 +405,7 @@ class CreateLegend(UI.IExternalEventHandler):
                     row = wndw._get_data_row_from_item(vw_item, index)
                     if row is None: continue
                     item = row["Value"]
-                    text_line = cat_name + " / " + par_name + " - " + item.value
+                    text_line = cat_name + " / " + par_name + " - " + str(item.value)
                     new_text = DB.TextNote.Create(new_doc, new_legend.Id, DB.XYZ(0, y_pos, 0), text_line, ele_id_type)
                     new_doc.Regenerate()
                     prev_bbox = new_text.get_BoundingBox(new_legend)
@@ -440,8 +457,7 @@ class CreateLegend(UI.IExternalEventHandler):
 
                 t.Commit()
                 task2 = UI.TaskDialog(task_title)
-                success_msg = wndw.get_locale_string("Spectrum.Messages.LegendCreated")
-                if not success_msg: success_msg = "Legend created successfully: {0}"
+                success_msg = wndw.get_locale_string("Spectrum.Messages.LegendCreated") or wndw.get_locale_string("ColorSplasher.Messages.LegendCreated") or "Legend created successfully: {0}"
                 task2.MainInstruction = success_msg.replace("{0}", new_legend.Name)
                 wndw.Topmost = False
                 task2.Show()
@@ -450,8 +466,7 @@ class CreateLegend(UI.IExternalEventHandler):
             except Exception as e:
                 if t.HasStarted() and not t.HasEnded(): t.RollBack()
                 task2 = UI.TaskDialog(task_title)
-                error_msg = wndw.get_locale_string("Spectrum.Messages.LegendFailed")
-                if not error_msg: error_msg = "Failed to create legend: {0}"
+                error_msg = wndw.get_locale_string("Spectrum.Messages.LegendFailed") or wndw.get_locale_string("ColorSplasher.Messages.LegendFailed") or "Failed to create legend: {0}"
                 task2.MainInstruction = error_msg.replace("{0}", str(e))
                 wndw.Topmost = False
                 task2.Show()
@@ -485,9 +500,6 @@ class CreateFilters(UI.IExternalEventHandler):
                 if not apply_line_color and not apply_foreground_pattern_color and not apply_background_pattern_color:
                     apply_foreground_pattern_color = True
                     
-                dict_filters = {new_doc.GetElement(f_id).Name: f_id for f_id in view.GetFilters()}
-                dict_rules = {ele.Name: ele.Id for ele in DB.FilteredElementCollector(new_doc).OfClass(DB.ParameterFilterElement)}
-                
                 with revit.Transaction("Create View Filters"):
                     sel_cat_row = wndw._categories.SelectedItem
                     sel_par_row = wndw._list_box1.SelectedItem
@@ -502,6 +514,85 @@ class CreateFilters(UI.IExternalEventHandler):
                     categories.Add(sel_cat.cat.Id)
                     solid_fill_id = solid_fill_pattern_id()
                     version = int(HOST_APP.version)
+                    elementid_value = get_elementid_value_func()
+                    
+                    # --- NEW: Filter Compatibility Resolution ---
+                    # ใช้ Try/Except ดักจับความแตกต่างของ Revit API (รับ 2 ค่าสำหรับ Revit รุ่นใหม่ / 1 ค่าสำหรับรุ่นเก่า)
+                    try:
+                        filterable_ids = DB.ParameterFilterUtilities.GetFilterableParametersInCommon(new_doc, categories)
+                    except TypeError:
+                        filterable_ids = DB.ParameterFilterUtilities.GetFilterableParametersInCommon(categories)
+                    
+                    if parameter_id not in filterable_ids:
+                        resolved_id = None
+                        for f_id in filterable_ids:
+                            f_name = ""
+                            id_val = elementid_value(f_id)
+                            if id_val < 0:
+                                try:
+                                    bip = System.Enum.ToObject(DB.BuiltInParameter, id_val)
+                                    f_name = DB.LabelUtils.GetLabelFor(bip)
+                                except Exception: pass
+                            else:
+                                try:
+                                    p_ele = new_doc.GetElement(f_id)
+                                    if p_ele: f_name = p_ele.Name
+                                except Exception: pass
+                            
+                            if f_name and strip_accents(f_name) == sel_par.name:
+                                resolved_id = f_id
+                                break
+                        
+                        if not resolved_id:
+                            if "Type" in sel_par.name or "Type Name" in sel_par.name:
+                                fbips = [int(DB.BuiltInParameter.ALL_MODEL_TYPE_NAME), int(DB.BuiltInParameter.ELEM_TYPE_PARAM), int(DB.BuiltInParameter.ALL_MODEL_MARK)]
+                                for fbip in fbips:
+                                    for f_id in filterable_ids:
+                                        if elementid_value(f_id) == fbip:
+                                            resolved_id = f_id
+                                            break
+                                    if resolved_id: break
+                                    
+                        if resolved_id is not None:
+                            parameter_id = resolved_id
+                            sample_ele = DB.FilteredElementCollector(new_doc).OfCategoryId(sel_cat.cat.Id).WhereElementIsNotElementType().FirstElement()
+                            if sample_ele:
+                                # ค้นหา Parameter จาก Element โดยไม่ต้องอิง GetParameter
+                                test_param = None
+                                for p in sample_ele.Parameters:
+                                    if p.Id == parameter_id:
+                                        test_param = p
+                                        break
+                                if not test_param:
+                                    typ_ele = new_doc.GetElement(sample_ele.GetTypeId())
+                                    if typ_ele:
+                                        for p in typ_ele.Parameters:
+                                            if p.Id == parameter_id:
+                                                test_param = p
+                                                break
+                                if test_param:
+                                    param_storage_type = test_param.StorageType
+
+                    try:
+                        filter_prefix = sel_cat.name + " " + sel_par.name + " - "
+                        filters = view.GetFilters()
+                        for filt_id in filters:
+                            filt_ele = new_doc.GetElement(filt_id)
+                            if filt_ele.Name.StartsWith(filter_prefix) or filt_ele.Name.StartsWith(sel_cat.name + "/"):
+                                view.RemoveFilter(filt_id)
+                                try: new_doc.Delete(filt_id)
+                                except Exception: pass
+                    except Exception: pass
+                    
+                    dict_filters = {new_doc.GetElement(f_id).Name: f_id for f_id in view.GetFilters()}
+                    dict_rules = {}
+                    iterator = DB.FilteredElementCollector(new_doc).OfClass(DB.ParameterFilterElement).GetElementIterator()
+                    while iterator.MoveNext():
+                        ele = iterator.Current
+                        dict_rules[ele.Name] = ele.Id
+                    
+                    created_count = 0
+                    error_list = []
                     
                     for i in range(wndw.list_box2.Items.Count):
                         row = wndw._get_data_row_from_item(wndw.list_box2.Items[i], i)
@@ -530,44 +621,95 @@ class CreateFilters(UI.IExternalEventHandler):
                                 ogs.SetSurfaceBackgroundPatternId(solid_fill_id)
                                 ogs.SetCutBackgroundPatternId(solid_fill_id)
                                 
-                        filter_name = sel_cat.name + " " + sel_par.name + " - " + item.value
-                        filter_name = filter_name.translate({ord(c): None for c in "{}[]:\\|?/<>*"})
+                        filter_name = sel_cat.name + " " + sel_par.name + " - " + str(item.value)
                         
+                        for char_to_remove in ["{", "}", "[", "]", ":", "\\", "|", "?", "/", "<", ">", "*", ";", '"', "'", "`", "~"]:
+                            filter_name = filter_name.replace(char_to_remove, "")
+                        filter_name = filter_name[:150]
+                            
                         if filter_name in dict_filters or filter_name in dict_rules:
                             if filter_name in dict_rules and filter_name not in dict_filters:
                                 view.AddFilter(dict_rules[filter_name])
                                 view.SetFilterOverrides(dict_rules[filter_name], ogs)
                             else:
                                 view.SetFilterOverrides(dict_filters[filter_name], ogs)
+                            created_count += 1
                         else:
-                            if param_storage_type == DB.StorageType.Double:
-                                if item.value == "None" or len(item.values_double) == 0:
-                                    equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, "", 0.001)
-                                else:
-                                    minimo, maximo = min(item.values_double), max(item.values_double)
-                                    avg_values = (maximo + minimo) / 2
-                                    equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, avg_values, fabs(avg_values - minimo) + 0.001)
-                            elif param_storage_type == DB.StorageType.ElementId:
-                                prevalue = DB.ElementId.InvalidElementId if item.value == "None" else item.par.AsElementId()
-                                equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue)
-                            elif param_storage_type == DB.StorageType.Integer:
-                                prevalue = 0 if item.value == "None" else item.par.AsInteger()
-                                equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue)
-                            elif param_storage_type == DB.StorageType.String:
-                                prevalue = "" if item.value == "None" else item.value
-                                equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue) if version > 2023 else DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue, True)
-                            else:
-                                break
-                                
+                            equals_rule = None
                             try:
-                                elem_filter = DB.ElementParameterFilter(equals_rule)
-                                fltr = DB.ParameterFilterElement.Create(new_doc, filter_name, categories, elem_filter)
-                                view.AddFilter(fltr.Id)
-                                view.SetFilterOverrides(fltr.Id, ogs)
-                            except Exception:
-                                break
-        except Exception:
+                                if param_storage_type == DB.StorageType.Double:
+                                    if item.value == "None" or len(item.values_double) == 0:
+                                        try:
+                                            equals_rule = DB.ParameterFilterRuleFactory.CreateHasNoValueParameterRule(parameter_id)
+                                        except Exception: pass
+                                    else:
+                                        minimo = min(item.values_double)
+                                        maximo = max(item.values_double)
+                                        avg_values = (maximo + minimo) / 2.0
+                                        try:
+                                            equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, avg_values, fabs(avg_values - minimo) + 0.001)
+                                        except TypeError:
+                                            equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, avg_values)
+                                elif param_storage_type == DB.StorageType.ElementId:
+                                    if item.value == "None":
+                                        prevalue = DB.ElementId.InvalidElementId
+                                    else:
+                                        try: prevalue = item.par.AsElementId()
+                                        except Exception: continue
+                                    equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue)
+                                elif param_storage_type == DB.StorageType.Integer:
+                                    if item.value == "None":
+                                        prevalue = 0
+                                    else:
+                                        try: prevalue = item.par.AsInteger()
+                                        except Exception: continue
+                                    equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue)
+                                elif param_storage_type == DB.StorageType.String:
+                                    prevalue = "" if item.value == "None" else str(item.value)
+                                    try:
+                                        equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue, True)
+                                    except TypeError:
+                                        equals_rule = DB.ParameterFilterRuleFactory.CreateEqualsRule(parameter_id, prevalue)
+                                        
+                                if equals_rule is not None:
+                                    elem_filter = DB.ElementParameterFilter(equals_rule)
+                                    fltr = DB.ParameterFilterElement.Create(new_doc, filter_name, categories, elem_filter)
+                                    view.AddFilter(fltr.Id)
+                                    view.SetFilterOverrides(fltr.Id, ogs)
+                                    dict_rules[filter_name] = fltr.Id
+                                    dict_filters[filter_name] = fltr.Id
+                                    created_count += 1
+                                else:
+                                    error_list.append("Invalid value format for rule: " + filter_name)
+                            except Exception as rule_err:
+                                error_list.append("{}: {}".format(filter_name, str(rule_err)))
+                                continue 
+                                
+                    if created_count > 0:
+                        msg = "Successfully processed {} View Filters.".format(created_count)
+                        if error_list:
+                            msg += "\n\nNote: Some rules failed ({}):\n".format(len(error_list)) + "\n".join(set(error_list))[:500]
+                        task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
+                        task = UI.TaskDialog(task_title)
+                        task.MainInstruction = msg
+                        wndw.Topmost = False
+                        task.Show()
+                        wndw.Topmost = True
+                    elif error_list:
+                        task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
+                        task = UI.TaskDialog(task_title)
+                        task.MainInstruction = "Failed to create filters. Check compatibility of parameter."
+                        task.MainContent = "\n".join(set(error_list))[:1000]
+                        wndw.Topmost = False
+                        task.Show()
+                        wndw.Topmost = True
+
+        except Exception as ex:
             external_event_trace()
+            if getattr(CreateFilters, "_wndw", None):
+                CreateFilters._wndw.Topmost = False
+                UI.TaskDialog.Show("Filter Creation Error", str(ex))
+                CreateFilters._wndw.Topmost = True
 
     def GetName(self):
         return "Create Filters"
@@ -618,8 +760,7 @@ class SpectrumWindow(forms.WPFWindow):
         self.table_data.Columns.Add("Value", System.Object)
         names = [x.name for x in self.categs]
         
-        select_category_text = self.get_locale_string("Spectrum.Messages.SelectCategory")
-        if not select_category_text: select_category_text = "Select Category"
+        select_category_text = self.get_locale_string("Spectrum.Messages.SelectCategory") or self.get_locale_string("ColorSplasher.Messages.SelectCategory") or "Select Category"
         
         self.table_data.Rows.Add(select_category_text, 0)
         for key_, value_ in zip(names, self.categs): self.table_data.Rows.Add(key_, value_)
@@ -657,8 +798,7 @@ class SpectrumWindow(forms.WPFWindow):
 
     def _setup_ui(self):
         from System.Windows.Media import Brushes
-        placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
-        if not placeholder_text: placeholder_text = "Search Parameters..."
+        placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
         self._search_box.Text = placeholder_text
         self._search_box.Foreground = Brushes.Gray
 
@@ -693,8 +833,7 @@ class SpectrumWindow(forms.WPFWindow):
             self._table_data_2.Columns.Add("Key", System.String)
             self._table_data_2.Columns.Add("Value", System.Object)
             
-            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter")
-            if not select_parameter_text: select_parameter_text = "Select Parameter"
+            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") or self.get_locale_string("ColorSplasher.Messages.SelectParameter") or "Select Parameter"
             
             self._table_data_2.Rows.Add(select_parameter_text, 0)
             self._list_box1.ItemsSource = self._table_data_2.DefaultView
@@ -708,36 +847,28 @@ class SpectrumWindow(forms.WPFWindow):
         self.Closing += self.closing_event
 
     def search_box_enter(self, sender, e):
-        """Clear placeholder text when search box gets focus"""
         try:
             from System.Windows.Media import Brushes
-            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
-            if not placeholder_text: placeholder_text = "Search Parameters..."
+            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
             
             if self._search_box.Text == placeholder_text:
                 self._search_box.Text = ""
                 self._search_box.Foreground = Brushes.Black
-        except Exception:
-            pass
+        except Exception: pass
 
     def search_box_leave(self, sender, e):
-        """Restore placeholder text if search box is empty"""
         try:
             from System.Windows.Media import Brushes
-            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
-            if not placeholder_text: placeholder_text = "Search Parameters..."
+            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
             
             if self._search_box.Text == "":
                 self._search_box.Text = placeholder_text
                 self._search_box.Foreground = Brushes.Gray
-        except Exception:
-            pass
+        except Exception: pass
 
     def on_search_text_changed(self, sender, e):
-        """Filter parameters based on search text."""
         try:
-            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
-            if not placeholder_text: placeholder_text = "Search Parameters..."
+            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
             
             if self._search_box.Text == placeholder_text:
                 return
@@ -748,8 +879,7 @@ class SpectrumWindow(forms.WPFWindow):
             filtered_table.Columns.Add("Key", System.String)
             filtered_table.Columns.Add("Value", System.Object)
 
-            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter")
-            if not select_parameter_text: select_parameter_text = "Select Parameter"
+            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") or self.get_locale_string("ColorSplasher.Messages.SelectParameter") or "Select Parameter"
             
             filtered_table.Rows.Add(select_parameter_text, 0)
 
@@ -897,7 +1027,6 @@ class SpectrumWindow(forms.WPFWindow):
 
     def button_click_create_view_filters(self, sender, e):
         if self.list_box2.Items.Count > 0:
-            self.reset_ev.Raise()
             self.filter_ev.Raise()
 
     def save_load_color_scheme(self, sender, e):
@@ -943,7 +1072,7 @@ class SpectrumWindow(forms.WPFWindow):
             return
 
         from System.Windows.Input import Keyboard, Key
-        shift_pressed = Keyboard.IsKeyDown(Key.LeftShift) or Keyboard.IsKeyDown(Key.RightShift) or self._shift_pressed_on_click
+        shift_pressed = Keyboard.IsKeyDown(Key.LeftShift) or Keyboard.IsKeyDown(Key.RightShift) or getattr(self, "_shift_pressed_on_click", False)
 
         if shift_pressed:
             try:
@@ -987,7 +1116,7 @@ class SpectrumWindow(forms.WPFWindow):
 
     def _update_listbox_colors(self):
         from System.Windows.Media import SolidColorBrush, Color
-        if not hasattr(self, "_table_data_3") or not self._table_data_3: return
+        if getattr(self, "_table_data_3", None) is None: return
         for i in range(self.list_box2.Items.Count):
             try:
                 row = self._get_data_row_from_item(self.list_box2.Items[i], i)
@@ -1054,8 +1183,7 @@ class SpectrumWindow(forms.WPFWindow):
             self._table_data_3.Columns.Add("Key", System.String)
             self._table_data_3.Columns.Add("Value", System.Object)
 
-            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter")
-            if not select_parameter_text: select_parameter_text = "Select Parameter"
+            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") or self.get_locale_string("ColorSplasher.Messages.SelectParameter") or "Select Parameter"
             
             self._table_data_2.Rows.Add(select_parameter_text, 0)
 
@@ -1069,8 +1197,7 @@ class SpectrumWindow(forms.WPFWindow):
                 self._list_box1.SelectedIndex = 0
                 
                 from System.Windows.Media import Brushes
-                placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
-                if not placeholder_text: placeholder_text = "Search Parameters..."
+                placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
                 
                 self._search_box.Text = placeholder_text
                 self._search_box.Foreground = Brushes.Gray
@@ -1151,9 +1278,13 @@ class FormSaveLoadScheme(Forms.Form):
         with Forms.SaveFileDialog() as sfd:
             wndw = getattr(SpectrumWindow, "_current_wndw", None)
             
-            title_text = wndw.get_locale_string("Spectrum.SaveLoadDialog.SaveTitle") if wndw else "Save Scheme"
-            sfd.Title = title_text if title_text else "Save Scheme"
-            
+            title_text = "Save Scheme"
+            if wndw:
+                title_temp = wndw.get_locale_string("Spectrum.SaveLoadDialog.SaveTitle")
+                if not title_temp: title_temp = wndw.get_locale_string("ColorSplasher.SaveLoadDialog.SaveTitle")
+                if title_temp: title_text = title_temp
+                
+            sfd.Title = title_text
             sfd.Filter = "Color Scheme (*.cschn)|*.cschn|CSV File (*.csv)|*.csv"
             sfd.RestoreDirectory = True
             sfd.OverwritePrompt = True
@@ -1194,9 +1325,9 @@ class FormSaveLoadScheme(Forms.Form):
                         c = row["Value"].colour
                         
                         k = row["Key"]
-                        cat_name_str = cat_name.encode('utf-8') if isinstance(cat_name, unicode) else cat_name
-                        par_name_str = par_name.encode('utf-8') if isinstance(par_name, unicode) else par_name
-                        k_str = k.encode('utf-8') if isinstance(k, unicode) else k
+                        cat_name_str = cat_name.encode('utf-8') if hasattr(cat_name, 'encode') else str(cat_name)
+                        par_name_str = par_name.encode('utf-8') if hasattr(par_name, 'encode') else str(par_name)
+                        k_str = k.encode('utf-8') if hasattr(k, 'encode') else str(k)
                         
                         writer.writerow([cat_name_str, par_name_str, k_str, c.R, c.G, c.B])
             else:
@@ -1218,9 +1349,13 @@ class FormSaveLoadScheme(Forms.Form):
         with Forms.OpenFileDialog() as ofd:
             wndw = getattr(SpectrumWindow, "_current_wndw", None)
             
-            title_text = wndw.get_locale_string("Spectrum.SaveLoadDialog.LoadTitle") if wndw else "Load Scheme"
-            ofd.Title = title_text if title_text else "Load Scheme"
-            
+            title_text = "Load Scheme"
+            if wndw:
+                title_temp = wndw.get_locale_string("Spectrum.SaveLoadDialog.LoadTitle")
+                if not title_temp: title_temp = wndw.get_locale_string("ColorSplasher.SaveLoadDialog.LoadTitle")
+                if title_temp: title_text = title_temp
+                
+            ofd.Title = title_text
             ofd.Filter = "Color Scheme (*.cschn)|*.cschn|CSV File (*.csv)|*.csv"
             ofd.RestoreDirectory = True
             ofd.InitialDirectory = export_path if export_path and exists(export_path) else System.Environment.GetFolderPath(System.Environment.SpecialFolder.Desktop)
@@ -1249,16 +1384,16 @@ class FormSaveLoadScheme(Forms.Form):
                     has_meta = len(header) >= 6 and header[0] == "Category"
                     
                     if has_meta and len(reader) > 1:
-                        cat_name = reader[1][0].decode('utf-8') if isinstance(reader[1][0], str) else reader[1][0]
-                        par_name = reader[1][1].decode('utf-8') if isinstance(reader[1][1], str) else reader[1][1]
+                        cat_name = reader[1][0].decode('utf-8') if hasattr(reader[1][0], 'decode') else str(reader[1][0])
+                        par_name = reader[1][1].decode('utf-8') if hasattr(reader[1][1], 'decode') else str(reader[1][1])
                     
                     start_idx = 1 if (header[0] in ["Value", "Category"]) else 0
                     for row in reader[start_idx:]:
                         if has_meta and len(row) >= 6:
-                            val = row[2].decode('utf-8') if isinstance(row[2], str) else row[2]
+                            val = row[2].decode('utf-8') if hasattr(row[2], 'decode') else str(row[2])
                             data_rows.append({"val": val, "rgb": [row[3], row[4], row[5]]})
                         elif not has_meta and len(row) >= 4:
-                            val = row[0].decode('utf-8') if isinstance(row[0], str) else row[0]
+                            val = row[0].decode('utf-8') if hasattr(row[0], 'decode') else str(row[0])
                             data_rows.append({"val": val, "rgb": [row[1], row[2], row[3]]})
             else:
                 with codecs.open(path, "r", encoding='utf-8') as file:
@@ -1446,7 +1581,6 @@ def get_used_categories_parameters(cat_exc, acti_view, doc_param=None):
         list_parameters = []
         seen_param_names = set() 
         
-        # 1. ดึง Type Parameters ก่อน
         typ = ele.Document.GetElement(ele.GetTypeId())
         if typ:
             for par in typ.Parameters:
@@ -1459,7 +1593,6 @@ def get_used_categories_parameters(cat_exc, acti_view, doc_param=None):
                         list_parameters.append(p_info)
                         seen_param_names.add(p_info.name)
 
-        # 2. ดึง Instance Parameters ทีหลัง
         for par in ele.Parameters:
             if par.Definition.BuiltInParameter not in (
                 DB.BuiltInParameter.ELEM_CATEGORY_PARAM,
@@ -1503,7 +1636,6 @@ def get_color_shades(base_color, apply_line, apply_foreground, apply_background)
         return DB.Color(int(line_r * 0.7 + gray * 0.3), int(line_g * 0.7 + gray * 0.3), int(line_b * 0.7 + gray * 0.3)), base_color, base_color
     return base_color, base_color, base_color
 
-
 def launch_spectrum():
     """Main entry point for Spectrum tool."""
     try:
@@ -1536,7 +1668,13 @@ def launch_spectrum():
         event_handler_Legend = CreateLegend()
         ext_event_legend = UI.ExternalEvent.Create(event_handler_Legend)
 
+        # ค้นหาไฟล์ .xaml แบบครอบคลุมทั้ง 2 ชื่อ ป้องกัน Error หาไฟล์ไม่เจอ 100%
         xaml_file = __file__.replace("script.py", "SpectrumWindow.xaml")
+        if not os.path.exists(xaml_file):
+            xaml_file = __file__.replace("script.py", "ColorSplasherWindow.xaml")
+            if not os.path.exists(xaml_file):
+                UI.TaskDialog.Show("Error", "Could not find SpectrumWindow.xaml or ColorSplasherWindow.xaml in the folder.")
+                return
         
         wndw = SpectrumWindow(
             xaml_file,
@@ -1560,7 +1698,6 @@ def launch_spectrum():
         CreateLegend._wndw = wndw
         CreateFilters._wndw = wndw
         SpectrumWindow._current_wndw = wndw
-
 
 if __name__ == "__main__":
     launch_spectrum()
