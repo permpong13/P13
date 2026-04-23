@@ -1,13 +1,12 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=import-error,invalid-name,broad-except
-"""Advanced Copy State: บันทึก Filters ครบทุกช่อง พร้อมจำลำดับและตั้งชื่อไฟล์ได้"""
+"""Advanced Copy State: บันทึก Filters ครบทุกช่อง (Foreground & Background) รองรับ Revit 2024-2026"""
 import os
 import json
 import System
-from pyrevit import forms, script, revit, DB, EXEC_PARAMS
+from pyrevit import forms, script, revit, DB
 
 my_config = script.get_config()
-# เปลี่ยน Default Path จาก C:\ ตรงๆ เป็น My Documents ป้องกัน Error Permission Denied ใน Windows
 default_safe_path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments)
 export_path = getattr(my_config, 'export_path', default_safe_path)
 
@@ -16,7 +15,6 @@ def get_rgb(color):
 
 def get_id_val(eid):
     if eid is None or eid == DB.ElementId.InvalidElementId: return -1
-    # รองรับ Revit 2024-2026 (Value) และเวอร์ชันเก่า (IntegerValue)
     return int(eid.Value if hasattr(eid, "Value") else eid.IntegerValue)
 
 class FilterCopyAction:
@@ -24,11 +22,9 @@ class FilterCopyAction:
         view = revit.active_view
         doc = revit.doc
         
-        # 1. ตั้งชื่อ Preset (ใช้ชื่อ QuickCopy เป็นค่าเริ่มต้นเพื่อให้กด Enter ผ่านได้ไวๆ)
         preset_name = forms.ask_for_string(default="QuickCopy_State", prompt="ตั้งชื่อชุดข้อมูล Filters:\n(กด Enter เพื่อใช้ชื่อเดิมเขียนทับได้เลย)", title="Save Filter Preset")
         if not preset_name: return
 
-        # 2. เลือก Filters ที่ต้องการบันทึก
         filter_ids = view.GetFilters()
         if not filter_ids:
             forms.alert("ไม่พบ Filters ในมุมมองนี้")
@@ -40,30 +36,42 @@ class FilterCopyAction:
         )
         if not selected_filters: return
 
-        # 3. รวบรวมข้อมูลตามลำดับ
         export_data = []
         for fid in filter_ids:
             f_elem = doc.GetElement(fid)
             if f_elem.Name in selected_filters:
                 ovr = view.GetFilterOverrides(fid)
+                transparency = ovr.SurfaceTransparency if hasattr(ovr, 'SurfaceTransparency') else ovr.Transparency
+                
+                # เก็บข้อมูลครอบคลุมทั้ง FG และ BG
                 export_data.append({
                     "name": f_elem.Name,
                     "is_visible": view.GetFilterVisibility(fid),
                     "is_enabled": view.GetIsFilterEnabled(fid) if hasattr(view, 'GetIsFilterEnabled') else True,
                     "overrides": {
-                        "halftone": ovr.Halftone, "transparency": ovr.Transparency,
-                        "proj_line_color": get_rgb(ovr.ProjectionLineColor), "proj_line_weight": ovr.ProjectionLineWeight,
+                        "halftone": ovr.Halftone, 
+                        "transparency": transparency,
+                        
+                        "proj_line_color": get_rgb(ovr.ProjectionLineColor), 
+                        "proj_line_weight": ovr.ProjectionLineWeight,
                         "proj_line_pattern": get_id_val(ovr.ProjectionLinePatternId),
+                        
                         "surf_fg_pattern_id": get_id_val(ovr.SurfaceForegroundPatternId),
                         "surf_fg_pattern_color": get_rgb(ovr.SurfaceForegroundPatternColor),
-                        "cut_line_color": get_rgb(ovr.CutLineColor), "cut_line_weight": ovr.CutLineWeight,
+                        "surf_bg_pattern_id": get_id_val(ovr.SurfaceBackgroundPatternId) if hasattr(ovr, 'SurfaceBackgroundPatternId') else -1,
+                        "surf_bg_pattern_color": get_rgb(ovr.SurfaceBackgroundPatternColor) if hasattr(ovr, 'SurfaceBackgroundPatternColor') else None,
+                        
+                        "cut_line_color": get_rgb(ovr.CutLineColor), 
+                        "cut_line_weight": ovr.CutLineWeight,
                         "cut_line_pattern": get_id_val(ovr.CutLinePatternId),
+                        
                         "cut_fg_pattern_id": get_id_val(ovr.CutForegroundPatternId),
-                        "cut_fg_pattern_color": get_rgb(ovr.CutForegroundPatternColor)
+                        "cut_fg_pattern_color": get_rgb(ovr.CutForegroundPatternColor),
+                        "cut_bg_pattern_id": get_id_val(ovr.CutBackgroundPatternId) if hasattr(ovr, 'CutBackgroundPatternId') else -1,
+                        "cut_bg_pattern_color": get_rgb(ovr.CutBackgroundPatternColor) if hasattr(ovr, 'CutBackgroundPatternColor') else None
                     }
                 })
 
-        # บันทึกไฟล์
         if not os.path.exists(export_path):
             os.makedirs(export_path)
             
@@ -72,5 +80,5 @@ class FilterCopyAction:
             json.dump(export_data, f, indent=4)
         forms.toast("บันทึก Filter Preset: {} เรียบร้อย".format(preset_name))
 
-# --- Run ---
-FilterCopyAction().copy()
+if __name__ == "__main__":
+    FilterCopyAction().copy()

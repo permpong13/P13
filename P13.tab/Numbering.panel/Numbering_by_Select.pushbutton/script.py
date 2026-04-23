@@ -110,9 +110,17 @@ def run_tool():
     if prefix is None: prefix = ""
     save_setting(sel_cat_name, "prefix", prefix)
 
+    # --- เพิ่มฟังก์ชันใหม่: ตั้งค่าหมายเลขเริ่มต้น ---
+    start_num_str = forms.ask_for_string(default=get_saved_setting(sel_cat_name, "start_num", "1"), prompt="เริ่มนับจากหมายเลขใด (เช่น 0, 1, 10):")
+    if not start_num_str or not start_num_str.lstrip('-').isdigit(): # รองรับกรณีลบหรือกดเว้นว่าง
+        start_num = 1
+    else:
+        start_num = int(start_num_str)
+    save_setting(sel_cat_name, "start_num", str(start_num))
+
     # 4. เริ่มการคลิกเลือกชิ้นงาน
     with revit.TransactionGroup("Renumber " + sel_cat_name):
-        counter = 1
+        counter = start_num # นำหมายเลขเริ่มต้นมาใช้
         while True:
             try:
                 # สำหรับหมวดหมู่ "เสาเข็ม" ต้องกรองเฉพาะ element ที่มีคำว่า PILE ใน Family Name
@@ -137,7 +145,11 @@ def run_tool():
                     pick = revit.pick_element_by_category(bicat_enum, "คลิกเลือก Object (กด ESC เพื่อจบการทำงาน)")
                     if not pick: break
 
-                new_val = "{}{}".format(prefix, str(counter).zfill(int(digits)))
+                # ป้องกันกรณีตัวเลขติดลบเวลาทำ zfill
+                if counter >= 0:
+                    new_val = "{}{}".format(prefix, str(counter).zfill(int(digits)))
+                else:
+                    new_val = "{}-{}".format(prefix, str(abs(counter)).zfill(int(digits)))
 
                 with revit.Transaction("Set " + selected_param):
                     if set_param_value(pick, selected_param, new_val):
