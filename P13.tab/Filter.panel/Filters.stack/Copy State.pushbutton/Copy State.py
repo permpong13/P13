@@ -3,20 +3,16 @@
 """Advanced Copy State: บันทึก Filters ครบทุกช่อง พร้อมจำลำดับและตั้งชื่อไฟล์ได้"""
 import os
 import json
-import System
 from pyrevit import forms, script, revit, DB, EXEC_PARAMS
 
 my_config = script.get_config()
-# เปลี่ยน Default Path จาก C:\ ตรงๆ เป็น My Documents ป้องกัน Error Permission Denied ใน Windows
-default_safe_path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments)
-export_path = getattr(my_config, 'export_path', default_safe_path)
+export_path = getattr(my_config, 'export_path', r'C:\\')
 
 def get_rgb(color):
     return [int(color.Red), int(color.Green), int(color.Blue)] if color and color.IsValid else None
 
 def get_id_val(eid):
     if eid is None or eid == DB.ElementId.InvalidElementId: return -1
-    # รองรับ Revit 2024-2026 (Value) และเวอร์ชันเก่า (IntegerValue)
     return int(eid.Value if hasattr(eid, "Value") else eid.IntegerValue)
 
 class FilterCopyAction:
@@ -24,8 +20,8 @@ class FilterCopyAction:
         view = revit.active_view
         doc = revit.doc
         
-        # 1. ตั้งชื่อ Preset (ใช้ชื่อ QuickCopy เป็นค่าเริ่มต้นเพื่อให้กด Enter ผ่านได้ไวๆ)
-        preset_name = forms.ask_for_string(default="QuickCopy_State", prompt="ตั้งชื่อชุดข้อมูล Filters:\n(กด Enter เพื่อใช้ชื่อเดิมเขียนทับได้เลย)", title="Save Filter Preset")
+        # 1. ตั้งชื่อ Preset
+        preset_name = forms.ask_for_string(default="Filter_Preset_01", prompt="ตั้งชื่อชุดข้อมูล Filters:", title="Save Filter Preset")
         if not preset_name: return
 
         # 2. เลือก Filters ที่ต้องการบันทึก
@@ -64,9 +60,6 @@ class FilterCopyAction:
                 })
 
         # บันทึกไฟล์
-        if not os.path.exists(export_path):
-            os.makedirs(export_path)
-            
         file_path = os.path.join(export_path, "{}.json".format(preset_name))
         with open(file_path, 'w') as f:
             json.dump(export_data, f, indent=4)
