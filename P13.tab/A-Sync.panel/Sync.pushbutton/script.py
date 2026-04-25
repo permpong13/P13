@@ -15,15 +15,17 @@ ADMIN_USER = "Permpong13"
 def sync_tools():
     current_user = os.environ.get('USERNAME')
     
-    # 1. ป้องกันเครื่อง Admin รันซ้ำซ้อน (เปลี่ยนจาก Alert เป็นพิมพ์ลง Console แทน จะได้ไม่ต้องกดปิด)
+    # 1. ป้องกันเครื่อง Admin รันซ้ำซ้อน (พิมพ์ลง Console แทน จะได้ไม่ต้องกดปิด)
     if current_user == ADMIN_USER:
         print("Admin Mode: Please use the .bat file on your desktop to Push.")
         return
 
-    # 2. หาตำแหน่งโฟลเดอร์หลัก (P13.extension)
+    # 2. หาตำแหน่งโฟลเดอร์หลัก (รองรับทั้ง P13.extension และ P13.extension.extension)
     current_path = os.path.dirname(os.path.abspath(__file__))
     dest_path = current_path
-    while not dest_path.endswith("P13.extension"):
+    
+    # [แก้ไขจุดนี้] เปลี่ยนมาใช้ startswith เพื่อเช็คชื่อจากด้านหน้า
+    while not os.path.basename(dest_path).startswith("P13.extension"):
         parent = os.path.dirname(dest_path)
         if parent == dest_path: break
         dest_path = parent
@@ -62,7 +64,7 @@ def sync_tools():
                     # ข้ามไฟล์ที่ติด Lock แบบเงียบๆ
                     continue
 
-        # 5. ลบไฟล์ Temp ขยะทิ้งหลังจากอัปเดตเสร็จ (ฟังก์ชันใหม่ที่เพิ่มให้)
+        # 5. ลบไฟล์ Temp ขยะทิ้งหลังจากอัปเดตเสร็จ 
         try:
             if os.path.exists(temp_zip): os.remove(temp_zip)
             if os.path.exists(temp_dir): shutil.rmtree(temp_dir)

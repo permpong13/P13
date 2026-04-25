@@ -21,12 +21,13 @@ def silent_auto_update():
     if current_user == ADMIN_USER:
         return
 
-    # 2. เตรียมไฟล์สำหรับเช็คเวอร์ชัน และหาโฟลเดอร์หลัก (P13.extension)
+    # 2. เตรียมไฟล์สำหรับเช็คเวอร์ชัน และหาโฟลเดอร์หลัก
     current_dir = os.path.dirname(os.path.abspath(__file__))
     version_file = os.path.join(current_dir, "last_commit.txt")
     
     dest_path = current_dir
-    while not dest_path.endswith("P13.extension"):
+    # [แก้ไขจุดนี้] ใช้ startswith เพื่อให้รองรับชื่อโฟลเดอร์ที่อาจมี .extension ซ้อนกัน
+    while not os.path.basename(dest_path).startswith("P13.extension"):
         parent = os.path.dirname(dest_path)
         if parent == dest_path: break
         dest_path = parent
