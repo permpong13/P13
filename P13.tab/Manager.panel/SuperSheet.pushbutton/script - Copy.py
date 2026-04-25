@@ -12,24 +12,20 @@ clr.AddReference('PresentationFramework')
 clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
 
-from pyrevit import revit, DB, forms, output, HOST_APP
+from pyrevit import revit, DB, forms, output
 from System.Collections.ObjectModel import ObservableCollection
 from System.Collections.Generic import List
 from System.Windows import (
     Window, WindowStartupLocation, WindowState, GridLength, GridUnitType, 
-    Thickness, VerticalAlignment, HorizontalAlignment, FontWeight, FontWeights, Visibility, CornerRadius,
-    FrameworkElementFactory, DataTemplate, RoutedEventHandler, FrameworkElement
+    Thickness, VerticalAlignment, HorizontalAlignment, FontWeight, FontWeights, Visibility, CornerRadius
 )
-from System.Windows.Data import Binding, UpdateSourceTrigger
+from System.Windows.Data import Binding
 from System.Windows.Controls import (
     Grid, RowDefinition, ColumnDefinition, StackPanel, Border,
     TextBlock, TextBox, Button, DataGrid, DataGridCheckBoxColumn, 
     DataGridTextColumn, Orientation, DataGridLength, DataGridLengthUnitType, 
-    ComboBox, ListBox, CheckBox, DataGridSelectionMode, Expander, WrapPanel,
-    DataGridTemplateColumn
+    ComboBox, ListBox, CheckBox, DataGridSelectionMode, Expander, WrapPanel
 )
-from System.Windows.Controls.Primitives import ToggleButton
-from System.Windows.Input import KeyEventHandler, Key
 from System.Windows.Media import SolidColorBrush, ColorConverter, FontFamily
 
 doc = revit.doc
@@ -41,11 +37,11 @@ LAST_SETTING_FILE = os.path.join(THIS_DIR, 'p13_last_settings.json')
 def hex_brush(hex_code):
     return SolidColorBrush(ColorConverter.ConvertFromString(hex_code))
 
-BG_APP = hex_brush("#f1f5f9")       # Light Slate background
-BG_CARD = hex_brush("#ffffff")      # White Card background
-TEXT_MAIN = hex_brush("#0f172a")    # Dark Slate text
-TEXT_MUTED = hex_brush("#64748b")   # Gray text
-TEXT_INVERT = hex_brush("#ffffff")  # White text
+BG_APP = hex_brush("#f1f5f9")       # Light Slate background (พื้นหลังแอป)
+BG_CARD = hex_brush("#ffffff")      # White Card background (พื้นหลังการ์ด)
+TEXT_MAIN = hex_brush("#0f172a")    # Dark Slate text (ตัวหนังสือหลัก)
+TEXT_MUTED = hex_brush("#64748b")   # Gray text (ตัวหนังสือรอง/จาง)
+TEXT_INVERT = hex_brush("#ffffff")  # White text (สำหรับข้อความบนปุ่มสีเข้ม)
 ACCENT = hex_brush("#2563eb")       # Modern Blue
 BTN_PRIMARY = hex_brush("#10b981")  # Emerald Green
 BTN_DANGER = hex_brush("#ef4444")   # Red
@@ -82,7 +78,7 @@ class SuperSheetsUltimate(Window):
         self.Width = 1400 
         self.Height = 1050
         self.WindowStartupLocation = WindowStartupLocation.CenterScreen
-        self.WindowState = WindowState.Maximized
+        self.WindowState = WindowState.Maximized  # <--- เพิ่มบรรทัดนี้
         self.Background = BG_APP
         self.Foreground = TEXT_MAIN
         self.FontSize = 13
@@ -285,24 +281,8 @@ class SuperSheetsUltimate(Window):
                            GridLinesVisibility=0, SelectionMode=DataGridSelectionMode.Extended,
                            Background=BG_APP, RowBackground=BG_CARD, AlternatingRowBackground=hex_brush("#f8fafc"),
                            BorderBrush=BORDER_LINE, Foreground=TEXT_MAIN)
-        
-        # --- NEW: Template Column สำหรับ Sync Checkbox + Spacebar ---
-        chk_factory = FrameworkElementFactory(CheckBox)
-        chk_factory.SetBinding(ToggleButton.IsCheckedProperty, Binding("Include", UpdateSourceTrigger=UpdateSourceTrigger.PropertyChanged))
-        chk_factory.AddHandler(ToggleButton.ClickEvent, RoutedEventHandler(self._on_check_click))
-        chk_factory.SetValue(FrameworkElement.HorizontalAlignmentProperty, HorizontalAlignment.Center)
-        chk_factory.SetValue(FrameworkElement.VerticalAlignmentProperty, VerticalAlignment.Center)
-        
-        dt = DataTemplate()
-        dt.VisualTree = chk_factory
-        
-        col_chk = DataGridTemplateColumn()
-        col_chk.Header = "X"
-        col_chk.CellTemplate = dt
-        self.dg.Columns.Add(col_chk)
-        
-        self.dg.PreviewKeyDown += self._on_dg_keydown # รองรับการกดสเปซบาร์
-        
+                           
+        self.dg.Columns.Add(DataGridCheckBoxColumn(Header="X", Binding=Binding("Include")))
         self.dg.Columns.Add(DataGridTextColumn(Header="Number", Binding=Binding("Number"), IsReadOnly=True))
         self.dg.Columns.Add(DataGridTextColumn(Header="Sheet Name", Binding=Binding("Name"), Width=DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly=True))
         self.dg.Columns.Add(DataGridTextColumn(Header="Revision", Binding=Binding("Revision"), Width=DataGridLength(100), IsReadOnly=True))
@@ -327,34 +307,6 @@ class SuperSheetsUltimate(Window):
         self._load_print_sets()
         self._load_last_settings() 
         self._update_all_previews()
-        
-    # --- ฟังก์ชันใหม่: จัดการการคลิก Checkbox รวดเดียว ---
-    def _on_check_click(self, sender, e):
-        try:
-            if self._ignore_events: return
-            item = sender.DataContext
-            # ถ้าไอเทมที่กดเป็น 1 ในหลายๆ แถวที่ไฮไลต์ไว้
-            if item in self.dg.SelectedItems and self.dg.SelectedItems.Count > 1:
-                is_checked = sender.IsChecked
-                self._ignore_events = True
-                for sel_item in self.dg.SelectedItems:
-                    sel_item.Include = is_checked
-                self.dg.Items.Refresh()
-                self._ignore_events = False
-        except: pass
-
-    # --- ฟังก์ชันใหม่: จัดการการกดปุ่ม Spacebar รวดเดียว ---
-    def _on_dg_keydown(self, sender, e):
-        try:
-            if e.Key == Key.Space and self.dg.SelectedItems.Count > 0:
-                self._ignore_events = True
-                new_state = not self.dg.SelectedItems[0].Include
-                for item in self.dg.SelectedItems:
-                    item.Include = new_state
-                self.dg.Items.Refresh()
-                self._ignore_events = False
-                e.Handled = True
-        except: pass
 
     def _on_save_profile(self, s, e):
         n = self.txtProfileName.Text.strip()
@@ -654,25 +606,6 @@ class SuperSheetsUltimate(Window):
             if self.chkRegionEdgesMask.IsChecked: opt.RegionEdgesMaskCoincidentLines = True
         except: pass
 
-    # --- ฟังก์ชันใหม่: ดักจับเฉพาะหน้าต่าง Update Resources (ปลอดภัยต่อ PDF) ---
-    def _safe_dialog_handler(self, sender, args):
-        try:
-            is_update_dialog = False
-            if hasattr(args, "Message") and args.Message:
-                msg = args.Message
-                if "resources are not up to date" in msg or "Update Resources" in msg:
-                    is_update_dialog = True
-            
-            if hasattr(args, "DialogId") and args.DialogId:
-                dialog_id = args.DialogId
-                if "UpdateReferences" in dialog_id or "MissingResources" in dialog_id or "UpdateResources" in dialog_id:
-                    is_update_dialog = True
-                    
-            if is_update_dialog:
-                args.OverrideResult(1001) # สั่งกด Continue ให้อัตโนมัติ
-        except:
-            pass
-
     def _on_run(self, s, e):
         self.chkIFC.IsChecked = False
         self.chkNWC.IsChecked = False
@@ -707,11 +640,6 @@ class SuperSheetsUltimate(Window):
                 forms.alert("ไม่สามารถสร้างโฟลเดอร์ย่อยในตำแหน่งที่เลือกได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง:\n" + str(ex), title="Folder Error")
                 return
 
-        # --- เปิดระบบดักหน้าต่าง Update Resources ---
-        uiapp = HOST_APP.uiapp
-        try: uiapp.DialogBoxShowing += self._safe_dialog_handler
-        except: pass
-
         try:
             total = len(selected) * (int(self.chkPDF.IsChecked) + int(self.chkDWG.IsChecked) + int(self.chkIFC.IsChecked) + int(self.chkNWC.IsChecked))
             if self.chkCombine.IsChecked: total += 1
@@ -721,20 +649,12 @@ class SuperSheetsUltimate(Window):
                 if self.chkCombine.IsChecked and self.chkPDF.IsChecked:
                     try:
                         raw_c_name = self.txtCombineName.Text
-                        
-                        if not raw_c_name.strip():
-                            raw_c_name = "Combined_Set"
-
                         if "{" in raw_c_name and selected:
                             for p_name in [x.strip("{}") for x in re.findall(r'\{.*?\}', raw_c_name)]:
                                 val = selected[0].get_param_val(p_name)
                                 raw_c_name = raw_c_name.replace("{" + p_name + "}", val)
                         
                         final_c_name = self._sanitize(raw_c_name)
-                        
-                        if not final_c_name.strip():
-                            final_c_name = "Combined_Set"
-
                         final_c_name = self._get_safe_filename(pdf_path, final_c_name, ".pdf")
                         
                         opt = DB.PDFExportOptions()
@@ -755,9 +675,6 @@ class SuperSheetsUltimate(Window):
                 for item in selected:
                     fn = self._sanitize(item.PreviewName)
                     
-                    if not fn.strip():
-                        fn = "Sheet_" + (item.Number if item.Number else str(item.Id))
-
                     if self.chkPDF.IsChecked and not self.chkCombine.IsChecked:
                         try:
                             safe_pdf_fn = self._get_safe_filename(pdf_path, fn, ".pdf")
@@ -820,15 +737,10 @@ class SuperSheetsUltimate(Window):
             self.Close()
             os.startfile(folder)
             self._toast("Done!")
-            
         except Exception as ex: 
             forms.alert("Critical Error:\n" + str(ex))
             import traceback
             traceback.print_exc()
-        finally:
-            # --- ปิดระบบดักหน้าต่างเมื่อทำงานเสร็จ ---
-            try: uiapp.DialogBoxShowing -= self._safe_dialog_handler
-            except: pass
 
 if __name__ == '__main__':
     SuperSheetsUltimate().ShowDialog()
