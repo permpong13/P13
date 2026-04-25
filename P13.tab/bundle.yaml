@@ -3,11 +3,11 @@ layout:
   - Calculation
   - Check
   - Coordinate
-  - Filter
   - Import & Export
   - Manager
   - Modify
   - Numbering
   - Tags
+  -Filter
   - X-MEP
   - Z-Support

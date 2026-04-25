@@ -1,0 +1,80 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NEXUS Filter Manager" Height="500" Width="400"
+        Background="#0D1117" WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize" WindowStyle="ToolWindow">
+    
+    <Window.Resources>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#161B22"/>
+            <Setter Property="Foreground" Value="#00E5FF"/>
+            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="10"/>
+            <Setter Property="Margin" Value="20, 8"/>
+            <Setter Property="BorderBrush" Value="#00E5FF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Left" VerticalAlignment="Center" Margin="15,0,0,0"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#00E5FF"/>
+                    <Setter Property="Foreground" Value="#0D1117"/>
+                    <Setter Property="Effect">
+                        <Setter.Value>
+                            <DropShadowEffect Color="#00E5FF" BlurRadius="15" ShadowDepth="0"/>
+                        </Setter.Value>
+                    </Setter>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <StackPanel Margin="10,25,10,10">
+            <TextBlock Text="NEXUS" Foreground="#00E5FF" FontSize="28" FontWeight="Black" HorizontalAlignment="Center" FontFamily="Segoe UI">
+                <TextBlock.Effect>
+                    <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0"/>
+                </TextBlock.Effect>
+            </TextBlock>
+            <TextBlock Text="ADVANCED FILTER MANAGER" Foreground="#8B949E" FontSize="12" FontWeight="Medium" HorizontalAlignment="Center" Margin="0,0,0,30"/>
+            
+            <Button Name="btn_export" Content="📊 EXPORT FILTER REPORT" />
+            <Button Name="btn_purge" Content="🧹 SMART PURGE UNUSED" />
+            <Button Name="btn_delete" Content="🗑️ MANUAL BATCH DELETE" />
+            <Button Name="btn_transfer" Content="📥 TRANSFER FROM PROJECT" />
+            
+            <Rectangle Height="1" Fill="#30363D" Margin="20,20,20,20"/>
+            
+            <Button Name="btn_close" Content="✖ CLOSE TERMINAL" BorderBrush="#FF0055" Foreground="#FF0055">
+                <Button.Style>
+                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                        <Style.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Background" Value="#FF0055"/>
+                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect Color="#FF0055" BlurRadius="15" ShadowDepth="0"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </Style.Triggers>
+                    </Style>
+                </Button.Style>
+            </Button>
+        </StackPanel>
+    </Grid>
+</Window>

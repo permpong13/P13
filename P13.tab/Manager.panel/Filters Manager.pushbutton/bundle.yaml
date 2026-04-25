@@ -1,0 +1,34 @@
+title: "V-Filters\nManager"
+
+tooltip: |
+  ลบ View Templates แบบระบุเฉพาะรายการที่ต้องการ พร้อมระบบตรวจสอบการใช้งานก่อนลบ  
+  ปลอดภัย เหมาะสำหรับทำความสะอาดโมเดลที่มี Template ค้างจำนวนมาก
+    ฟีเจอร์หลัก:
+    • แสดง View Templates ทั้งหมดพร้อมจำนวน View ที่ใช้อยู่  
+    • แสดง Preview ก่อนลบ:
+        - 🟢 ปลอดภัย (ไม่ถูกใช้งาน)  
+        - 🟡 มี View ใช้อยู่บางส่วน  
+        - 🔴 มี View ใช้อยู่จำนวนมาก  
+    • ลบเฉพาะ Templates ที่เลือกเท่านั้น  
+    • ยืนยันการลบก่อนดำเนินการจริง  
+    • ทำงานแบบรวดเร็ว ปลอดภัย ไม่แตะ View อื่น
+    
+  View Template Quick Apply – Short Description  
+  เครื่องมือนี้ช่วยให้คุณเลือก View Template และนำไปใช้กับหลาย View 
+  ได้อย่างรวดเร็วมาก เหมาะสำหรับงานจัดมาตรฐานมุมมองของโปรเจกต์
+    ฟังก์ชันหลัก:
+    • เลือก View Template จากรายชื่อทั้งหมด  
+    • ตั้ง Template ที่เลือกให้เป็น Default สำหรับครั้งถัดไป  
+    • หากไม่เลือก View → ระบบจะดึงทุก View (ที่ไม่ใช่ Template) มาให้เลือกทันที  
+    • แสดงรายการ View พร้อมสถานะ:
+         - Current Template: None / Existing Template Name  
+    • รองรับการเลือกหลาย View พร้อมกัน (Multi-Select)  
+    • กด Apply เพื่อใช้ Template พร้อมกันหลาย View  
+    รายงานผลลัพธ์:
+    ✔ สำเร็จจำนวนกี่ View  
+    ❌ View ไหนไม่สามารถใช้ Template ได้ พร้อมเหตุผล
+
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Selective deletion of unused or unwanted view templates with usage checking and preview.& Fast batch apply of View Templates with auto-detection, defaults, and detailed results."
+
