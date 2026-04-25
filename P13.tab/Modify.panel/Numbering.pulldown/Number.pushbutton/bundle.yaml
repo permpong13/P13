@@ -1,0 +1,25 @@
+title: "Numbering by Category"
+
+tooltip: |
+  เครื่องมือรันหมายเลข (Numbering) ขั้นสูงสำหรับ Revit
+  มาพร้อมหน้าต่างใช้งานแบบ 3-Pane, โหมด Live Pick และระบบจัดการผ่านไฟล์ CSV
+
+  [ENG]
+  - 3-Pane Interface: Filter by Categories and specific Family Types with a real-time elements preview.
+  - Live Pick Mode: Interactively click elements in the model to number them sequentially on the fly with auto-highlighting.
+  - Advanced Sorting: Auto-sort elements by X, Y, or Z coordinates in both positive and negative directions.
+  - Custom Parameters: Write numbers to default parameters (Mark, Comments, etc.) or define any custom parameter.
+  - Flexible Formatting: Control Start, Step, Digits, and apply Global or Category-specific Prefixes and Suffixes.
+  - CSV Import/Export: Export the preview list to a CSV file, edit externally, and import back to update the model.
+
+  [TH]
+  - หน้าต่างใช้งาน 3 ส่วน (3-Pane UI): กรองข้อมูลตาม Category และเลือกเจาะจงเฉพาะ Family Types พร้อมดูพรีวิวรายการได้ทันที
+  - โหมดคลิกสด (Live Pick): คลิกเลือกชิ้นงานในโมเดลเพื่อรันเลขต่อเนื่องแบบเรียลไทม์ (ชิ้นไหนคลิกแล้วจะมีไฮไลท์บอกสถานะ)
+  - การเรียงลำดับขั้นสูง (Advanced Sorting): จัดเรียงลำดับการรันเลขตามแกนพิกัด X, Y, Z ทั้งเดินหน้าและถอยหลัง
+  - พารามิเตอร์อิสระ (Custom Parameters): รันเลขลงในพารามิเตอร์พื้นฐาน หรือพิมพ์ระบุชื่อพารามิเตอร์แบบ Custom เองได้
+  - กำหนดรูปแบบตัวเลข (Flexible Formatting): ตั้งค่าเลขเริ่มต้น, ค่าสเต็ปการรัน, จำนวนหลัก และใส่ Prefix/Suffix ทั้งแบบรวมและแยกหมวดหมู่ได้
+  - นำเข้าและส่งออก (CSV Import/Export): ส่งออกตารางพรีวิวไปแก้ไขในไฟล์ CSV แล้ว Import กลับมาอัปเดตใส่ชิ้นงานได้
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Advanced numbering tool with 3-Pane UI, directional sorting, Live Pick mode, and CSV support. / เครื่องมือรันหมายเลขขั้นสูงพร้อมโหมดคลิกสด"

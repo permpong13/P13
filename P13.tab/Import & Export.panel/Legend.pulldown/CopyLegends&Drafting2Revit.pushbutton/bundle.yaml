@@ -1,0 +1,17 @@
+title: "Copy Legends to Revit"
+
+tooltip: |
+  🇬🇧 [EN] Tool to push Legend and Drafting Views to other projects.
+  Key Features:
+  • Multi-Type Support: Batch copy both Legends and Drafting Views in one go.
+  • Smart Conversion: Choose to keep Legends as-is or convert 2D content to Drafting Views.
+  • Multi-Project Export: Push views to several open background documents simultaneously.
+
+  🇹🇭 [TH] เครื่องมือสำหรับคัดลอก Legend และ Drafting View ข้ามโปรเจกต์
+  ฟังก์ชันหลัก:
+  • รองรับ 2 ประเภทวิว: เลือกและคัดลอกทั้ง Legend และ Drafting View ได้พร้อมกัน
+  • ตัวเลือกการแปลงไฟล์: คัดลอก Legend ตามต้นฉบับ หรือแปลงเฉพาะเส้น 2D ไปเป็น Drafting View
+  • ส่งออกหลายไฟล์พร้อมกัน:
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Batch copy and convert Legends and Drafting Views to other projects with clean naming. / คัดลอกและแปลง Legend รวมถึง Drafting View ข้ามโปรเจกต์พร้อมระบบจัดการชื่อสะอาด"

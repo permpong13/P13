@@ -1,8 +1,7 @@
-title: "S-Filter"
+title: "Filter\nSelect"
 
 tooltip: |
-  เครื่องมือกรองวัตถุขั้นสุดยอด (Ultimate Filter) สำหรับ Revit 
-  พร้อมระบบ AI การจัดกลุ่ม และ UX ระดับสูงที่รองรับไฟล์ Link
+  เครื่องมือกรองวัตถุ  พร้อมระบบ AI การจัดกลุ่ม และรองรับไฟล์ Link
 
   [ENG]
   - Custom Grouping: Dynamically group elements in the Tree View by Category, Level, or Workset.
