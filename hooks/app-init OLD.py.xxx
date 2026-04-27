@@ -5,6 +5,7 @@ import zipfile
 import shutil
 import json
 from pyrevit.loader import sessionmgr
+from pyrevit import forms
 
 # ==========================================
 # SETTINGS
@@ -21,39 +22,62 @@ def silent_auto_update():
     if current_user == ADMIN_USER:
         return
 
-    # 2. เตรียมไฟล์สำหรับเช็คเวอร์ชัน และหาโฟลเดอร์หลัก
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    # 2. ตรวจสอบและแก้ไขปัญหาชื่อโฟลเดอร์ซ้อน (.extension.extension)
+    current_file_path = os.path.abspath(__file__)
+    # ไล่หาโฟลเดอร์ระดับ .extension
+    check_path = current_file_path
+    ext_folder_path = None
+    
+    # วนลูปหาโฟลเดอร์ที่ลงท้ายด้วย .extension
+    for _ in range(5): # จำกัดชั้นการค้นหา
+        check_path = os.path.dirname(check_path)
+        if os.path.basename(check_path).endswith(".extension"):
+            ext_folder_path = check_path
+            break
+            
+    if ext_folder_path and os.path.basename(ext_folder_path) == "P13.extension.extension":
+        new_name = os.path.join(os.path.dirname(ext_folder_path), "P13.extension")
+        try:
+            if not os.path.exists(new_name):
+                os.rename(ext_folder_path, new_name)
+                forms.alert("ตรวจพบชื่อโฟลเดอร์ซ้ำซ้อน ระบบได้แก้ไขให้เรียบร้อยแล้ว\nกรุณาปิดและเปิด Revit ใหม่อีกครั้งเพื่อเริ่มการอัปเดต", 
+                            title="System Updated")
+                return # หยุดการทำงานเพื่อให้ User รีสตาร์ท
+        except:
+            pass
+
+    # 3. เตรียมไฟล์สำหรับเช็คเวอร์ชัน และหาพาธปลายทางที่ถูกต้อง
+    current_dir = os.path.dirname(current_file_path)
     version_file = os.path.join(current_dir, "last_commit.txt")
     
     dest_path = current_dir
-    # [แก้ไขจุดนี้] ใช้ startswith เพื่อให้รองรับชื่อโฟลเดอร์ที่อาจมี .extension ซ้อนกัน
     while not os.path.basename(dest_path).startswith("P13.extension"):
         parent = os.path.dirname(dest_path)
         if parent == dest_path: break
         dest_path = parent
 
     try:
-        # 3. เช็ค Commit ล่าสุดแบบเงียบๆ
+        # 4. เช็ค Commit ล่าสุดจาก GitHub
         request = urllib2.Request(GITHUB_COMMIT_API)
         request.add_header('User-Agent', 'pyRevit-SilentUpdate')
         response = urllib2.urlopen(request, timeout=5)
         data = json.loads(response.read())
         latest_sha = data['sha']
 
-        # 4. อ่านเวอร์ชันเดิมในเครื่อง
+        # 5. อ่านเวอร์ชันเดิมในเครื่อง
         local_sha = ""
         if os.path.exists(version_file):
             with open(version_file, 'r') as f:
                 local_sha = f.read().strip()
 
-        # 5. ถ้ามีอัปเดตใหม่ ให้ดาวน์โหลดและทับไฟล์ทันที
+        # 6. ถ้ามีอัปเดตใหม่ ให้ดำเนินการทันที
         if latest_sha != local_sha:
             temp_zip = os.path.join(os.environ['TEMP'], "P13_update.zip")
             temp_dir = os.path.join(os.environ['TEMP'], "P13_temp_extract")
             
             if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
             
-            # ดาวน์โหลด
+            # ดาวน์โหลด Zip
             response_zip = urllib2.urlopen(GITHUB_API_URL)
             with open(temp_zip, 'wb') as f:
                 f.write(response_zip.read())
@@ -64,7 +88,7 @@ def silent_auto_update():
             
             extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
             
-            # ก๊อปปี้ไฟล์แบบข้ามไฟล์ที่ถูก Lock (เงียบๆ ไม่เก็บ Log กวนใจ)
+            # ก๊อปปี้ทับไฟล์เดิม (ข้ามไฟล์ที่ถูก Lock)
             for root, dirs, files in os.walk(extracted_folder):
                 rel_path = os.path.relpath(root, extracted_folder)
                 target_dir = os.path.join(dest_path, rel_path)
@@ -80,22 +104,22 @@ def silent_auto_update():
                     except:
                         continue
 
-            # ลบไฟล์ขยะ
+            # ล้างไฟล์ชั่วคราว
             try:
                 if os.path.exists(temp_zip): os.remove(temp_zip)
                 if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
             except:
                 pass
             
-            # บันทึกเวอร์ชันใหม่
+            # บันทึก SHA ใหม่
             with open(version_file, 'w') as f:
                 f.write(latest_sha)
 
-            # โหลด pyRevit ใหม่เงียบๆ เพื่อให้เครื่องมือใหม่พร้อมใช้
+            # รีโหลดเครื่องมือใหม่
             sessionmgr.reload_pyrevit()
 
     except Exception:
-        # หากไม่มีเน็ต หรือเกิด Error ใดๆ ให้ปล่อยผ่านไปเลย User จะได้ทำงานต่อได้
+        # หากเกิดข้อผิดพลาด ให้ทำงานต่อไปเงียบๆ
         pass
 
 if __name__ == '__main__':
