@@ -45,7 +45,16 @@ def sync_tools():
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
         
+        # ค้นหาโฟลเดอร์ที่แตกออกมา (ปกติ GitHub จะสร้างโฟลเดอร์ชื่อ Repo ครอบไว้ 1 ชั้น)
         extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
+        
+        # --- [เพิ่ม Logic วิธี B] ป้องกันโฟลเดอร์ซ้อนกัน ---
+        # ตรวจสอบว่าข้างในมีโฟลเดอร์ P13.extension ซ่อนอยู่อีกชั้นหรือไม่
+        # ถ้ามี ให้ขยับเข้าไปใช้โฟลเดอร์ชั้นในแทน เพื่อไม่ให้เวลา Copy แล้วกลายเป็น .extension.extension
+        inner_folder = os.path.join(extracted_folder, "P13.extension")
+        if os.path.exists(inner_folder):
+            extracted_folder = inner_folder
+        # ------------------------------------------------
         
         # 4. การก๊อปปี้แบบ Safety
         for root, dirs, files in os.walk(extracted_folder):
