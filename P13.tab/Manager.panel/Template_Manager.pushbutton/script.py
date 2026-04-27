@@ -1,40 +1,33 @@
 # -*- coding: utf-8 -*-
-"""View Template Manager - Ultimate Pro (Full Version)"""
-__title__ = "จัดการ View Template (All-in-One)"
+"""View Template Manager - DiRootsOne Style"""
+__title__ = "View Template (DiRootsOne UI)"
 __author__ = "Permpong & Gemini"
 
 import clr
-import os
-import csv
-import codecs
-from datetime import datetime
 
 clr.AddReference('RevitAPI')
 from Autodesk.Revit.DB import *
-from pyrevit import forms, script
+from pyrevit import forms
 
 doc = __revit__.ActiveUIDocument.Document
-output = script.get_output()
-cfg = script.get_config() # สำหรับจดจำค่าการตั้งค่า
 
 # --------------------------------------------------------
-# ⚙️ CORE ENGINE (วิเคราะห์ข้อมูล)
+# ⚙️ CORE ENGINE (Data Analysis)
 # --------------------------------------------------------
 
 def get_template_data():
-    """วิเคราะห์ Template ทั้งหมดและแยกกลุ่มตามการใช้งานจริง"""
+    """Analyze all Templates and fetch usage count"""
     all_tpls = [v for v in FilteredElementCollector(doc).OfClass(View) if v.IsTemplate]
     used_list, unused_list = [], []
 
     if not all_tpls:
         return [], []
 
-    with forms.ProgressBar(title="กำลังวิเคราะห์การใช้งาน...", cancellable=True) as pb:
+    with forms.ProgressBar(title="Loading View Templates...", cancellable=True) as pb:
         for i, tpl in enumerate(all_tpls):
             if pb.cancelled: break
             pb.update_progress(i + 1, len(all_tpls))
 
-            # ใช้ Filter หา View ที่ผูกกับ Template นี้
             rule = ParameterFilterRuleFactory.CreateEqualsRule(ElementId(BuiltInParameter.VIEW_TEMPLATE), tpl.Id)
             count = FilteredElementCollector(doc).OfClass(View).WherePasses(ElementParameterFilter(rule)).GetElementCount()
 
@@ -47,32 +40,57 @@ def get_template_data():
     return used_list, unused_list
 
 # --------------------------------------------------------
-# 🛠️ TOOLS (ฟังก์ชันจัดการเพิ่มเติม)
+# 🛠️ TOOLS (Batch Processing Functions)
 # --------------------------------------------------------
 
-def bulk_rename(all_tpls):
-    """เปลี่ยนชื่อ Template แบบกลุ่ม (Prefix / Find & Replace)"""
-    prefix = forms.ask_for_string(default="", prompt="ใส่คำนำหน้า (Prefix):", title="Bulk Rename")
-    find_str = forms.ask_for_string(default="", prompt="คำที่ต้องการหา (Find):", title="Bulk Rename")
-    replace_str = forms.ask_for_string(default="", prompt="คำที่ต้องการแทนที่ (Replace):", title="Bulk Rename")
+def bulk_rename(selected_tpls):
+    """Batch Rename selected templates"""
+    prefix = forms.ask_for_string(default="", prompt="1. Enter Prefix (Leave blank if none):", title="Rename: Prefix")
+    if prefix is None: prefix = ""
+    
+    find_str = forms.ask_for_string(default="", prompt="2. Enter text to find (Leave blank if none):", title="Rename: Find")
+    if find_str is None: find_str = ""
+    
+    replace_str = ""
+    if find_str:
+        replace_str = forms.ask_for_string(default="", prompt="3. Enter replacement text:", title="Rename: Replace")
+        if replace_str is None: replace_str = ""
 
-    t = Transaction(doc, "Bulk Rename Templates")
+    if not prefix and not find_str:
+        return
+
+    t = Transaction(doc, "Batch Rename Templates")
     t.Start()
-    for tpl in all_tpls:
-        new_name = tpl['name']
+    success_count, error_count = 0, 0
+    
+    for tpl in selected_tpls:
+        old_name = tpl['name']
+        new_name = old_name
+        
         if find_str: new_name = new_name.replace(find_str, replace_str)
         if prefix: new_name = prefix + new_name
         
-        try: tpl['el'].Name = new_name
-        except: pass
+        if new_name != old_name:
+            try: 
+                tpl['el'].Name = new_name
+                success_count += 1
+            except: 
+                error_count += 1
+                pass
+                
     t.Commit()
-    forms.alert("เปลี่ยนชื่อเรียบร้อยแล้ว")
+    
+    if error_count > 0:
+        forms.alert("Renamed {} items.\nFailed {} items (Skipped due to duplicate names).".format(success_count, error_count))
+    else:
+        forms.alert("Successfully renamed {} items.".format(success_count))
 
 def duplicate_templates(selected_tpls):
-    """คัดลอก Template ที่เลือกพร้อมตั้งชื่อใหม่"""
-    suffix = forms.ask_for_string(default="_Copy", prompt="ใส่คำต่อท้ายชื่อ:", title="Duplicate")
+    """Batch Duplicate selected templates"""
+    suffix = forms.ask_for_string(default="_Copy", prompt="Enter Suffix for duplicated templates:", title="Batch Duplicate")
+    if suffix is None: return
     
-    t = Transaction(doc, "Duplicate Templates")
+    t = Transaction(doc, "Batch Duplicate Templates")
     t.Start()
     for tpl in selected_tpls:
         try:
@@ -80,129 +98,89 @@ def duplicate_templates(selected_tpls):
             doc.GetElement(new_tpl_id).Name = tpl['name'] + suffix
         except: pass
     t.Commit()
-    forms.alert("คัดลอกสำเร็จ")
+    forms.alert("Successfully duplicated {} items.".format(len(selected_tpls)))
 
 # --------------------------------------------------------
-# 📊 EXPORT SYSTEM (ระบบส่งออกรายงาน)
+# 🎨 UI & DASHBOARD (Unified View)
 # --------------------------------------------------------
 
-def export_to_excel(all_data):
-    """ส่งออกรายชื่อ Template เป็น CSV โดยจดจำโฟลเดอร์ล่าสุด"""
-    export_dir = getattr(cfg, "export_path", None)
-    
-    # หากไม่มีการตั้งค่า Path หรือ Path เดิมหายไป ให้เลือกใหม่
-    if not export_dir or not os.path.exists(export_dir):
-        export_dir = forms.pick_folder(title="เลือก Folder สำหรับ Export (ระบบจะจำค่านี้ไว้)")
-        if export_dir:
-            cfg.export_path = export_dir
-            script.save_config()
-        else: return
-
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_path = os.path.join(export_dir, "ViewTemplate_Report_{}.csv".format(timestamp))
-    
-    try:
-        with codecs.open(file_path, 'w', 'utf-8-sig') as f:
-            writer = csv.writer(f)
-            writer.writerow(["Template Name", "Status", "Usage Count", "Element ID"])
-            for tpl in sorted(all_data, key=lambda k: k['name']):
-                status = "Active" if tpl['count'] > 0 else "Unused"
-                writer.writerow([tpl['name'], status, tpl['count'], tpl['id'].IntegerValue])
-                
-        if forms.alert("ส่งออกสำเร็จที่:\n{}\n\nเปิดโฟลเดอร์เลยไหม?".format(file_path), yes=True, no=True):
-            os.startfile(export_dir)
-    except Exception as e:
-        forms.alert("Error: {}".format(str(e)))
-
-# --------------------------------------------------------
-# 🎨 UI & DASHBOARD
-# --------------------------------------------------------
-
-def print_dashboard(used, unused):
-    """สร้างตารางรายงาน (ลบ output.clear() เพื่อป้องกัน Error ใน Revit 2026)"""
-    output.print_md("# 🏢 View Template Pro Dashboard")
-    output.insert_divider()
-    
-    header = ["สถานะการใช้งาน", "จำนวน", "ข้อแนะนำ"]
-    table_data = [
-        ["✅ ถูกใช้งานอยู่ (Active)", str(len(used)), "ข้อมูลสำคัญ ห้ามลบ"],
-        ["⚠️ ไม่ได้ใช้งาน (Unused)", str(len(unused)), "ลบเพื่อลดขนาดไฟล์ได้"]
-    ]
-    output.print_table(table_data, columns=header)
-    output.print_md("> **รวมทั้งหมด:** {} รายการ".format(len(used) + len(unused)))
-    output.insert_divider()
-
-# --------------------------------------------------------
-# 🚀 MAIN COMMANDS
-# --------------------------------------------------------
+class TemplateOption(forms.TemplateListItem):
+    """Custom UI Wrapper: Formats the list to look like a DataGrid"""
+    @property
+    def name(self):
+        # สร้างการแสดงผลแบบตาราง (Grid Layout) ในบรรทัดเดียว
+        status_icon = "🟢 [ ACTIVE ]" if self.item['count'] > 0 else "🔴 [ UNUSED ]"
+        view_count = "Views: {:02d}".format(self.item['count'])
+        return "{}  |  {}  ➡️  {}".format(status_icon, view_count, self.item['name'])
 
 def run_manager():
-    used, unused = get_template_data()
-    all_data = used + unused
-    
-    if not all_data:
-        forms.alert("ไม่พบ View Template ในโปรเจคนี้", exitscript=True)
-
-    print_dashboard(used, unused)
-
-    ops = {
-        "1. ดูรายละเอียด Template ที่ใช้งานอยู่": "SHOW_USED",
-        "2. คัดลอก Template (Duplicate)": "DUPLICATE",
-        "3. เปลี่ยนชื่อกลุ่ม (Bulk Rename)": "RENAME",
-        "4. เลือกและลบ Template ที่ไม่ได้ใช้ (Cleanup)": "DELETE_UNUSED",
-        "5. 📊 ส่งออกรายงานเป็นไฟล์ Excel (CSV)": "EXPORT",
-        "6. ⚙️ ตั้งค่า Folder สำหรับ Export ใหม่": "SET_PATH",
-        "7. ปิดโปรแกรม": "EXIT"
-    }
-    
-    choice = forms.CommandSwitchWindow.show(ops.keys(), title="เลือกการดำเนินการ (View Template Pro)")
-    
-    if not choice or ops[choice] == "EXIT": return
-
-    if ops[choice] == "SHOW_USED":
-        display = sorted(["🔹 {} (ใช้ใน {} views)".format(i['name'], i['count']) for i in used])
-        forms.SelectFromList.show(display, title="รายการที่ใช้งานอยู่", button_name="รับทราบ")
-        run_manager()
-
-    elif ops[choice] == "DUPLICATE":
-        selected = forms.SelectFromList.show([i['name'] for i in all_data], multiselect=True, title="เลือก Template ที่จะ Copy")
-        if selected:
-            to_dup = [i for i in all_data if i['name'] in selected]
-            duplicate_templates(to_dup)
-        run_manager()
-
-    elif ops[choice] == "RENAME":
-        selected = forms.SelectFromList.show([i['name'] for i in all_data], multiselect=True, title="เลือก Template ที่จะเปลี่ยนชื่อ")
-        if selected:
-            to_rename = [i for i in all_data if i['name'] in selected]
-            bulk_rename(to_rename)
-        run_manager()
-
-    elif ops[choice] == "DELETE_UNUSED":
-        if not unused:
-            forms.alert("ไม่มีรายการที่ไม่ได้ใช้งาน")
-        else:
-            unused_names = sorted([i['name'] for i in unused])
-            selected = forms.SelectFromList.show(unused_names, title="ลบ Unused Templates", multiselect=True)
-            if selected and forms.alert("ยืนยันการลบ {} รายการ?".format(len(selected)), yes=True, no=True):
-                to_del = [i['el'] for i in unused if i['name'] in selected]
-                with Transaction(doc, "Cleanup Unused Templates") as t:
-                    t.Start()
-                    for tpl in to_del: doc.Delete(tpl.Id)
-                    t.Commit()
-        run_manager()
+    while True:
+        used, unused = get_template_data()
+        all_data = used + unused
         
-    elif ops[choice] == "EXPORT":
-        export_to_excel(all_data)
-        run_manager()
+        if not all_data:
+            forms.alert("No View Templates found in this project.", exitscript=True)
 
-    elif ops[choice] == "SET_PATH":
-        new_dir = forms.pick_folder(title="เลือก Folder ใหม่สำหรับบันทึกไฟล์")
-        if new_dir:
-            cfg.export_path = new_dir
-            script.save_config()
-            forms.alert("อัปเดต Path เรียบร้อย!")
-        run_manager()
+        # ห่อข้อมูลเพื่อแสดงผล
+        list_items = [TemplateOption(tpl) for tpl in all_data]
+        
+        # สร้างข้อความ Dashboard เพื่อนำไปโชว์ในหน้าต่างหลักเลย
+        dashboard_msg = "📊 DASHBOARD: Total {}  |  ✅ Active: {}  |  ⚠️ Unused: {}\n\nSelect templates below and click 'Next Action':".format(
+            len(all_data), len(used), len(unused)
+        )
+        
+        # 1. หน้าต่างหลัก (Main Hub) - แสดงทุกอย่าง
+        selected_items = forms.SelectFromList.show(
+            list_items,
+            title="DiRootsOne Style DataGrid",
+            message=dashboard_msg,
+            button_name="Next Action ⚙️",
+            multiselect=True
+        )
+        
+        if not selected_items:
+            break # ปิดหน้าต่าง (จบการทำงาน)
+            
+        # 2. แถบเครื่องมือจัดการ (Action Toolbar)
+        ops = {
+            "📄 Duplicate Selected Templates": "DUPLICATE",
+            "✏️ Rename Selected Templates": "RENAME",
+            "❌ Delete Selected Templates (Unused Only)": "DELETE",
+            "🔙 Cancel (Back to List)": "BACK"
+        }
+        
+        choice = forms.CommandSwitchWindow.show(
+            ops.keys(), 
+            message="Apply action to {} selected templates:".format(len(selected_items)),
+            title="Action Menu"
+        )
+        
+        if not choice or ops[choice] == "BACK":
+            continue
+        
+        if ops[choice] == "DUPLICATE":
+            duplicate_templates(selected_items)
+            
+        elif ops[choice] == "RENAME":
+            bulk_rename(selected_items)
+            
+        elif ops[choice] == "DELETE":
+            to_delete = [tpl for tpl in selected_items if tpl['count'] == 0]
+            ignored = len(selected_items) - len(to_delete)
+            
+            if not to_delete:
+                forms.alert("None of the selected templates are UNUSED.\nActive templates cannot be deleted from here.")
+            else:
+                msg = "Confirm deletion of {} UNUSED templates?".format(len(to_delete))
+                if ignored > 0:
+                    msg += "\n\n(Safety Guard: {} ACTIVE templates were automatically skipped)".format(ignored)
+                
+                if forms.alert(msg, yes=True, no=True):
+                    with Transaction(doc, "Batch Delete Unused Templates") as t:
+                        t.Start()
+                        for tpl in to_delete: doc.Delete(tpl['el'].Id)
+                        t.Commit()
+                    forms.alert("Deleted {} items successfully.".format(len(to_delete)))
 
 if __name__ == "__main__":
     run_manager()
