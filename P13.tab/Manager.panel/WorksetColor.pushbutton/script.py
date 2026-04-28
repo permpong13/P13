@@ -93,8 +93,7 @@ class SubscribeView(UI.IExternalEventHandler):
                     wndw.table_data.Columns.Add("Value", System.Object)
                     names = [x.name for x in categ_inf_used_up]
                     
-                    select_category_text = wndw.get_locale_string("Spectrum.Messages.SelectCategory")
-                    if not select_category_text: select_category_text = wndw.get_locale_string("ColorSplasher.Messages.SelectCategory")
+                    select_category_text = wndw.get_locale_string("Spectrum.Messages.SelectCategory") if hasattr(wndw, 'get_locale_string') else "Select Category"
                     if not select_category_text: select_category_text = "Select Category"
                     
                     wndw.table_data.Rows.Add(select_category_text, 0)
@@ -255,10 +254,10 @@ class ResetColors(UI.IExternalEventHandler):
                     sel_cat = wndw._categories.SelectedItem["Value"]
 
             if sel_cat == 0:
-                task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
+                task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") if hasattr(wndw, 'get_locale_string') else "Spectrum"
                 task_no_cat = UI.TaskDialog(task_title)
                 
-                main_inst = wndw.get_locale_string("Spectrum.Messages.NoCategorySelected") or wndw.get_locale_string("ColorSplasher.Messages.NoCategorySelected") or "Please select a category."
+                main_inst = wndw.get_locale_string("Spectrum.Messages.NoCategorySelected") if hasattr(wndw, 'get_locale_string') else "Please select a category."
                 task_no_cat.MainInstruction = main_inst
                 
                 wndw.Topmost = False
@@ -311,11 +310,11 @@ class CreateLegend(UI.IExternalEventHandler):
             collector = DB.FilteredElementCollector(new_doc).OfClass(DB.View).ToElements()
             legends = [vw for vw in collector if vw.ViewType == DB.ViewType.Legend]
 
-            task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
+            task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") if hasattr(wndw, 'get_locale_string') else "Spectrum"
 
             if len(legends) == 0:
                 task2 = UI.TaskDialog(task_title)
-                main_inst = wndw.get_locale_string("Spectrum.Messages.NoLegendView") or wndw.get_locale_string("ColorSplasher.Messages.NoLegendView") or "Please create a legend view first."
+                main_inst = wndw.get_locale_string("Spectrum.Messages.NoLegendView") if hasattr(wndw, 'get_locale_string') else "Please create a legend view first."
                 task2.MainInstruction = main_inst
                 wndw.Topmost = False
                 task2.Show()
@@ -324,7 +323,7 @@ class CreateLegend(UI.IExternalEventHandler):
 
             if wndw.list_box2.Items.Count == 0:
                 task2 = UI.TaskDialog(task_title)
-                main_inst = wndw.get_locale_string("Spectrum.Messages.NoItemsForLegend") or wndw.get_locale_string("ColorSplasher.Messages.NoItemsForLegend") or "No items to create a legend."
+                main_inst = wndw.get_locale_string("Spectrum.Messages.NoItemsForLegend") if hasattr(wndw, 'get_locale_string') else "No items to create a legend."
                 task2.MainInstruction = main_inst
                 wndw.Topmost = False
                 task2.Show()
@@ -351,7 +350,7 @@ class CreateLegend(UI.IExternalEventHandler):
                     par_name = par_name.replace(char_to_remove, "-")
                 
                 renamed = False
-                legend_prefix = wndw.get_locale_string("Spectrum.LegendNamePrefix") or wndw.get_locale_string("ColorSplasher.LegendNamePrefix") or "Spectrum - "
+                legend_prefix = wndw.get_locale_string("Spectrum.LegendNamePrefix") if hasattr(wndw, 'get_locale_string') else "Spectrum - "
                 
                 try:
                     new_legend.Name = legend_prefix + cat_name + " - " + par_name
@@ -457,7 +456,7 @@ class CreateLegend(UI.IExternalEventHandler):
 
                 t.Commit()
                 task2 = UI.TaskDialog(task_title)
-                success_msg = wndw.get_locale_string("Spectrum.Messages.LegendCreated") or wndw.get_locale_string("ColorSplasher.Messages.LegendCreated") or "Legend created successfully: {0}"
+                success_msg = wndw.get_locale_string("Spectrum.Messages.LegendCreated") if hasattr(wndw, 'get_locale_string') else "Legend created successfully: {0}"
                 task2.MainInstruction = success_msg.replace("{0}", new_legend.Name)
                 wndw.Topmost = False
                 task2.Show()
@@ -466,7 +465,7 @@ class CreateLegend(UI.IExternalEventHandler):
             except Exception as e:
                 if t.HasStarted() and not t.HasEnded(): t.RollBack()
                 task2 = UI.TaskDialog(task_title)
-                error_msg = wndw.get_locale_string("Spectrum.Messages.LegendFailed") or wndw.get_locale_string("ColorSplasher.Messages.LegendFailed") or "Failed to create legend: {0}"
+                error_msg = wndw.get_locale_string("Spectrum.Messages.LegendFailed") if hasattr(wndw, 'get_locale_string') else "Failed to create legend: {0}"
                 task2.MainInstruction = error_msg.replace("{0}", str(e))
                 wndw.Topmost = False
                 task2.Show()
@@ -516,8 +515,6 @@ class CreateFilters(UI.IExternalEventHandler):
                     version = int(HOST_APP.version)
                     elementid_value = get_elementid_value_func()
                     
-                    # --- NEW: Filter Compatibility Resolution ---
-                    # ใช้ Try/Except ดักจับความแตกต่างของ Revit API (รับ 2 ค่าสำหรับ Revit รุ่นใหม่ / 1 ค่าสำหรับรุ่นเก่า)
                     try:
                         filterable_ids = DB.ParameterFilterUtilities.GetFilterableParametersInCommon(new_doc, categories)
                     except TypeError:
@@ -557,7 +554,6 @@ class CreateFilters(UI.IExternalEventHandler):
                             parameter_id = resolved_id
                             sample_ele = DB.FilteredElementCollector(new_doc).OfCategoryId(sel_cat.cat.Id).WhereElementIsNotElementType().FirstElement()
                             if sample_ele:
-                                # ค้นหา Parameter จาก Element โดยไม่ต้องอิง GetParameter
                                 test_param = None
                                 for p in sample_ele.Parameters:
                                     if p.Id == parameter_id:
@@ -689,14 +685,14 @@ class CreateFilters(UI.IExternalEventHandler):
                         msg = "Successfully processed {} View Filters.".format(created_count)
                         if error_list:
                             msg += "\n\nNote: Some rules failed ({}):\n".format(len(error_list)) + "\n".join(set(error_list))[:500]
-                        task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
+                        task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") if hasattr(wndw, 'get_locale_string') else "Spectrum"
                         task = UI.TaskDialog(task_title)
                         task.MainInstruction = msg
                         wndw.Topmost = False
                         task.Show()
                         wndw.Topmost = True
                     elif error_list:
-                        task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") or wndw.get_locale_string("ColorSplasher.TaskDialog.Title") or "Spectrum"
+                        task_title = wndw.get_locale_string("Spectrum.TaskDialog.Title") if hasattr(wndw, 'get_locale_string') else "Spectrum"
                         task = UI.TaskDialog(task_title)
                         task.MainInstruction = "Failed to create filters. Check compatibility of parameter."
                         task.MainContent = "\n".join(set(error_list))[:1000]
@@ -760,7 +756,7 @@ class SpectrumWindow(forms.WPFWindow):
         self.table_data.Columns.Add("Value", System.Object)
         names = [x.name for x in self.categs]
         
-        select_category_text = self.get_locale_string("Spectrum.Messages.SelectCategory") or self.get_locale_string("ColorSplasher.Messages.SelectCategory") or "Select Category"
+        select_category_text = self.get_locale_string("Spectrum.Messages.SelectCategory") if hasattr(self, 'get_locale_string') else "Select Category"
         
         self.table_data.Rows.Add(select_category_text, 0)
         for key_, value_ in zip(names, self.categs): self.table_data.Rows.Add(key_, value_)
@@ -798,7 +794,7 @@ class SpectrumWindow(forms.WPFWindow):
 
     def _setup_ui(self):
         from System.Windows.Media import Brushes
-        placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
+        placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") if hasattr(self, 'get_locale_string') else "Search Parameters..."
         self._search_box.Text = placeholder_text
         self._search_box.Foreground = Brushes.Gray
 
@@ -833,7 +829,7 @@ class SpectrumWindow(forms.WPFWindow):
             self._table_data_2.Columns.Add("Key", System.String)
             self._table_data_2.Columns.Add("Value", System.Object)
             
-            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") or self.get_locale_string("ColorSplasher.Messages.SelectParameter") or "Select Parameter"
+            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") if hasattr(self, 'get_locale_string') else "Select Parameter"
             
             self._table_data_2.Rows.Add(select_parameter_text, 0)
             self._list_box1.ItemsSource = self._table_data_2.DefaultView
@@ -849,8 +845,11 @@ class SpectrumWindow(forms.WPFWindow):
     def search_box_enter(self, sender, e):
         try:
             from System.Windows.Media import Brushes
-            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
-            
+            placeholder_text = "Search Parameters..."
+            if hasattr(self, 'get_locale_string'):
+                loc_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
+                if loc_text: placeholder_text = loc_text
+                
             if self._search_box.Text == placeholder_text:
                 self._search_box.Text = ""
                 self._search_box.Foreground = Brushes.Black
@@ -859,8 +858,11 @@ class SpectrumWindow(forms.WPFWindow):
     def search_box_leave(self, sender, e):
         try:
             from System.Windows.Media import Brushes
-            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
-            
+            placeholder_text = "Search Parameters..."
+            if hasattr(self, 'get_locale_string'):
+                loc_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
+                if loc_text: placeholder_text = loc_text
+                
             if self._search_box.Text == "":
                 self._search_box.Text = placeholder_text
                 self._search_box.Foreground = Brushes.Gray
@@ -868,46 +870,67 @@ class SpectrumWindow(forms.WPFWindow):
 
     def on_search_text_changed(self, sender, e):
         try:
-            placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
-            
+            # 1. ปิด Event ชั่วคราว ป้องกันการรันคำสั่งซ้ำซ้อน
+            try: self._list_box1.SelectionChanged -= self.check_item
+            except: pass
+
+            placeholder_text = "Search Parameters..."
+            if hasattr(self, 'get_locale_string'):
+                loc_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters")
+                if loc_text: placeholder_text = loc_text
+                
             if self._search_box.Text == placeholder_text:
                 return
                 
-            search_text = self._search_box.Text.lower()
+            search_text = self._search_box.Text.lower().strip()
 
             filtered_table = DataTable("Data")
             filtered_table.Columns.Add("Key", System.String)
             filtered_table.Columns.Add("Value", System.Object)
 
-            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") or self.get_locale_string("ColorSplasher.Messages.SelectParameter") or "Select Parameter"
-            
+            select_parameter_text = "Select Parameter"
+            if hasattr(self, 'get_locale_string'):
+                loc_sel = self.get_locale_string("Spectrum.Messages.SelectParameter")
+                if loc_sel: select_parameter_text = loc_sel
+                
             filtered_table.Rows.Add(select_parameter_text, 0)
 
-            if len(self._all_parameters) > 0:
+            # 2. ค้นหาและกรอง Parameter 
+            if hasattr(self, '_all_parameters') and len(self._all_parameters) > 0:
                 for key_, value_ in self._all_parameters:
                     if search_text == "" or search_text in key_.lower():
                         filtered_table.Rows.Add(key_, value_)
 
+            # 3. จำค่าเดิมที่ผู้ใช้เคยเลือกไว้ (ถ้ามี)
             selected_item_value = None
             if self._list_box1.SelectedIndex > 0 and self._list_box1.SelectedIndex < self._list_box1.Items.Count:
-                sel_item = self._list_box1.SelectedItem
-                row = self._get_data_row_from_item(sel_item, self._list_box1.SelectedIndex)
-                if row is not None:
-                    selected_item_value = row["Value"]
+                row = self._get_data_row_from_item(self._list_box1.SelectedItem, self._list_box1.SelectedIndex)
+                if row is not None: selected_item_value = row["Value"]
 
+            # 4. อัปเดตตารางตัวเลือก
             self._list_box1.ItemsSource = filtered_table.DefaultView
-
+            
+            # 5. พยายามเลือกกลับไปที่ตัวเดิม ถ้าหาไม่เจอให้ค้างอยู่ที่ "Select Parameter" (0)
+            found_index = 0
             if selected_item_value is not None:
                 for indx in range(self._list_box1.Items.Count):
-                    item = self._list_box1.Items[indx]
-                    row = self._get_data_row_from_item(item, indx)
-                    if row is not None:
-                        item_value = row["Value"]
-                        if item_value == selected_item_value:
-                            self._list_box1.SelectedIndex = indx
-                            break
-        except Exception:
-            external_event_trace()
+                    row = self._get_data_row_from_item(self._list_box1.Items[indx], indx)
+                    if row is not None and row["Value"] == selected_item_value:
+                        found_index = indx
+                        break
+            
+            self._list_box1.SelectedIndex = found_index
+
+            # *** เอาคำสั่งกาง Dropdown ออกทั้งหมด เพื่อไม่ให้มันมาแย่ง Focus คีย์บอร์ด ***
+            # บังคับให้ขีดกระพริบค้างอยู่ที่กล่อง Search ตลอดเวลา
+            self._search_box.Focus()
+
+        except Exception as ex:
+            pass
+        finally:
+            # 6. เปิด Event กลับคืน
+            try: self._list_box1.SelectionChanged += self.check_item
+            except: pass
 
     def checkbox_changed(self, sender, e):
         self._config.set_option("Spectrum_ApplyLineColor", self._chk_line_color.IsChecked)
@@ -1183,7 +1206,7 @@ class SpectrumWindow(forms.WPFWindow):
             self._table_data_3.Columns.Add("Key", System.String)
             self._table_data_3.Columns.Add("Value", System.Object)
 
-            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") or self.get_locale_string("ColorSplasher.Messages.SelectParameter") or "Select Parameter"
+            select_parameter_text = self.get_locale_string("Spectrum.Messages.SelectParameter") if hasattr(self, 'get_locale_string') else "Select Parameter"
             
             self._table_data_2.Rows.Add(select_parameter_text, 0)
 
@@ -1197,7 +1220,7 @@ class SpectrumWindow(forms.WPFWindow):
                 self._list_box1.SelectedIndex = 0
                 
                 from System.Windows.Media import Brushes
-                placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") or self.get_locale_string("ColorSplasher.Placeholders.SearchParameters") or "Search Parameters..."
+                placeholder_text = self.get_locale_string("Spectrum.Placeholders.SearchParameters") if hasattr(self, 'get_locale_string') else "Search Parameters..."
                 
                 self._search_box.Text = placeholder_text
                 self._search_box.Foreground = Brushes.Gray
@@ -1280,8 +1303,7 @@ class FormSaveLoadScheme(Forms.Form):
             
             title_text = "Save Scheme"
             if wndw:
-                title_temp = wndw.get_locale_string("Spectrum.SaveLoadDialog.SaveTitle")
-                if not title_temp: title_temp = wndw.get_locale_string("ColorSplasher.SaveLoadDialog.SaveTitle")
+                title_temp = wndw.get_locale_string("Spectrum.SaveLoadDialog.SaveTitle") if hasattr(wndw, 'get_locale_string') else None
                 if title_temp: title_text = title_temp
                 
             sfd.Title = title_text
@@ -1351,8 +1373,7 @@ class FormSaveLoadScheme(Forms.Form):
             
             title_text = "Load Scheme"
             if wndw:
-                title_temp = wndw.get_locale_string("Spectrum.SaveLoadDialog.LoadTitle")
-                if not title_temp: title_temp = wndw.get_locale_string("ColorSplasher.SaveLoadDialog.LoadTitle")
+                title_temp = wndw.get_locale_string("Spectrum.SaveLoadDialog.LoadTitle") if hasattr(wndw, 'get_locale_string') else None
                 if title_temp: title_text = title_temp
                 
             ofd.Title = title_text
