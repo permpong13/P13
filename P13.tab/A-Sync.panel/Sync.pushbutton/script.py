@@ -8,7 +8,8 @@ from pyrevit.loader import sessionmgr
 # ==========================================
 # SETTINGS (Public GitHub Repository)
 # ==========================================
-USER_REPO = "Permpong13/P13.extension"
+# [แก้ไขจุดนี้] เปลี่ยนจาก P13.extension เป็น P13 ตามชื่อ Repo ใหม่บน GitHub
+USER_REPO = "Permpong13/P13" 
 GITHUB_API_URL = "https://api.github.com/repos/{}/zipball/main".format(USER_REPO)
 ADMIN_USER = "Permpong13"
 
@@ -20,11 +21,11 @@ def sync_tools():
         print("Admin Mode: Please use the .bat file on your desktop to Push.")
         return
 
-    # 2. หาตำแหน่งโฟลเดอร์หลัก (รองรับทั้ง P13.extension และ P13.extension.extension)
+    # 2. หาตำแหน่งโฟลเดอร์หลักในเครื่อง (ที่เครื่องลูกจะเป็น P13.extension)
     current_path = os.path.dirname(os.path.abspath(__file__))
     dest_path = current_path
     
-    # [แก้ไขจุดนี้] เปลี่ยนมาใช้ startswith เพื่อเช็คชื่อจากด้านหน้า
+    # เช็คหาโฟลเดอร์หลักที่ชื่อขึ้นต้นด้วย P13.extension
     while not os.path.basename(dest_path).startswith("P13.extension"):
         parent = os.path.dirname(dest_path)
         if parent == dest_path: break
@@ -45,18 +46,10 @@ def sync_tools():
         with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
             zip_ref.extractall(temp_dir)
         
-        # ค้นหาโฟลเดอร์ที่แตกออกมา (ปกติ GitHub จะสร้างโฟลเดอร์ชื่อ Repo ครอบไว้ 1 ชั้น)
+        # ค้นหาโฟลเดอร์ที่แตกออกมา (GitHub จะสร้างโฟลเดอร์ชื่อ Repo เช่น Permpong13-P13-xxx ครอบไว้ 1 ชั้น)
         extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
         
-        # --- [เพิ่ม Logic วิธี B] ป้องกันโฟลเดอร์ซ้อนกัน ---
-        # ตรวจสอบว่าข้างในมีโฟลเดอร์ P13.extension ซ่อนอยู่อีกชั้นหรือไม่
-        # ถ้ามี ให้ขยับเข้าไปใช้โฟลเดอร์ชั้นในแทน เพื่อไม่ให้เวลา Copy แล้วกลายเป็น .extension.extension
-        inner_folder = os.path.join(extracted_folder, "P13.extension")
-        if os.path.exists(inner_folder):
-            extracted_folder = inner_folder
-        # ------------------------------------------------
-        
-        # 4. การก๊อปปี้แบบ Safety
+        # 4. การก๊อปปี้แบบ Safety (เอาของที่อยู่ใน Repo ไปทับในโฟลเดอร์ P13.extension โดยตรง)
         for root, dirs, files in os.walk(extracted_folder):
             rel_path = os.path.relpath(root, extracted_folder)
             target_dir = os.path.join(dest_path, rel_path)
