@@ -1,0 +1,21 @@
+title: "Smart\nArea"
+
+tooltip: |
+  🇬🇧 [EN] Smart Area Calculator Tool
+  Features:
+  1. Pick Points (Shoelace): Click corners to calculate area. Shows temporary guide lines.
+  2. Select Element (Auto-Clean): Select a pre-drawn element to calculate area, then auto-deletes it.
+  • Converts to Thai Units (Rai-Ngan-Wa).
+  • Quick cost estimation & Accumulate mode.
+  • Auto-copies results to clipboard.
+
+  🇹🇭 [TH] เครื่องมือคำนวณพื้นที่แบบชั่วคราว
+  ฟังก์ชันการทำงาน:
+  1. คลิกจุดยอดมุม (Shoelace): หาพื้นที่จากการคลิกมุม พร้อมแสดงเส้นไกด์ไลน์ชั่วคราว
+  2. เลือกชิ้นงาน (Auto-Clean): เลือกพื้นที่ที่วาดไว้ (เช่น Filled Region) เพื่อคำนวณ แล้วระบบจะลบทิ้งให้ทันที
+  • แปลงหน่วยเป็น ไร่-งาน-ตารางวา อัตโนมัติ
+  • มีโหมดสะสมพื้นที่ และประเมินราคาก่อสร้างเบื้องต้น
+  • คัดลอกผลลัพธ์ลง Clipboard ให้อัตโนมัติ
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "เครื่องมือคำนวณพื้นที่ชั่วคราว (Temporary Area) พร้อมแปลงหน่วยไทยและประเมินราคา"
