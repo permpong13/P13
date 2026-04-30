@@ -1,0 +1,65 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="P13 COMMAND CENTER" Height="650" Width="600"
+        Background="#0b0f19" FontFamily="Consolas" WindowStartupLocation="CenterScreen">
+    
+    <Window.Resources>
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#00ffcc"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Margin" Value="0,10,0,5"/>
+        </Style>
+        <Style TargetType="ListBox">
+            <Setter Property="Background" Value="#05080f"/>
+            <Setter Property="Foreground" Value="#e0f2f1"/>
+            <Setter Property="BorderBrush" Value="#00ffcc"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+        <Style TargetType="ComboBox">
+            <Setter Property="Background" Value="#05080f"/>
+            <Setter Property="Foreground" Value="#000000"/> <!-- ปรับเป็นสีดำเพื่อให้เห็นเมนูขาวได้ชัด หรือเปลี่ยนเป็นขาวถ้าใช้ Dark Menu -->
+            <Setter Property="BorderBrush" Value="#00ffcc"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="Padding" Value="5"/>
+        </Style>
+        <Style TargetType="Button">
+            <Setter Property="Background" Value="#002b24"/>
+            <Setter Property="Foreground" Value="#00ffcc"/>
+            <Setter Property="BorderBrush" Value="#00ffcc"/>
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="60"/>
+        </Grid.RowDefinitions>
+
+        <!-- [STEP 1] SelectionMode="Extended" เพื่อใช้ Shift และ Ctrl ได้เหมือน Windows -->
+        <TextBlock Grid.Row="0" Text="⚡ [STEP 1] SELECT DESTINATION NODES" FontWeight="Bold" Foreground="#ff007f"/>
+        <ListBox Grid.Row="1" x:Name="DestDocsList" SelectionMode="Extended" ToolTip="Standard Windows Selection (Shift/Ctrl) enabled."/>
+
+        <!-- [STEP 2] SelectionMode="Extended" สำหรับเลือก View -->
+        <TextBlock Grid.Row="2" Text="💠 [STEP 2] SELECT SOURCE DATA (Legends / Drafting)" FontWeight="Bold" Foreground="#ff007f"/>
+        <ListBox Grid.Row="3" x:Name="SourceViewsList" SelectionMode="Extended" ToolTip="Standard Windows Selection (Shift/Ctrl) enabled."/>
+
+        <TextBlock Grid.Row="4" Text="⚙️ [STEP 3] TRANSFER PROTOCOL" FontWeight="Bold" Foreground="#ff007f"/>
+        <ComboBox Grid.Row="5" x:Name="ModeCombo">
+            <ComboBoxItem Content="💠 DIRECT TRANSFER (Keep Original Types)"/>
+            <ComboBoxItem Content="⚡ COMPILE AS DRAFTING (Convert all to Drafting)"/>
+            <ComboBoxItem Content="🌟 SYNTHESIZE AS LEGEND (Dest. must have >=1 Legend)"/>
+        </ComboBox>
+
+        <Button Grid.Row="6" x:Name="ExecuteBtn" Content="/// INITIATE NEURAL TRANSFER ///" Click="ExecuteTransfer" Margin="0,15,0,0"/>
+    </Grid>
+</Window>
