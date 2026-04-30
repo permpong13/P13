@@ -1,11 +1,23 @@
-# -*- coding: utf-8 -*-
 title: "Copy-F"
 
 tooltip: >-
- Copy Filter อย่างละเอียด 
-  บันทึกทั้งการเปิด-ปิด, การตั้งค่าเส้น, สี, ความโปร่งใส และการจดจำลำดับ 
-  สามารถเลือกรายการที่ต้องการและตั้งชื่อไฟล์ Preset ได้ 
+  🇬🇧 [EN] Advanced Copy Filter State
+  Save complete view filter settings into named JSON presets.
+  Features:
+  • Records Visibility, Enable/Disable, Halftone, and Transparency.
+  • Captures Projection/Cut Lines (Color, Weight, Pattern).
+  • Captures Surface/Cut Patterns (Both Foreground & Background).
+  • Allows selective saving and custom preset naming.
+  • Compatible with Revit 2024-2026.
+
+  🇹🇭 [TH] เครื่องมือบันทึกสถานะฟิลเตอร์ (Copy Filter State)
+  บันทึกการตั้งค่า Filter ในมุมมองปัจจุบันเป็นไฟล์ Preset (JSON)
+  ฟังก์ชันการทำงาน:
+  • บันทึกการเปิด-ปิด (Visibility, Enable), Halftone และความโปร่งใส (Transparency)
+  • บันทึกการตั้งค่าเส้น (Projection / Cut Lines) ทั้งสี ความหนา และรูปแบบ
+  • บันทึกสีและลวดลายของพื้นผิว (Surface / Cut Patterns) ครอบคลุมทั้ง Foreground และ Background
+  • สามารถเลือกเฉพาะรายการ Filter ที่ต้องการบันทึก และตั้งชื่อไฟล์ Preset ได้เอง
+  • รองรับการทำงานร่วมกับ Revit 2024-2026
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
 description: "Advanced filter state backup tool with Named Presets and Selective Copy"
-

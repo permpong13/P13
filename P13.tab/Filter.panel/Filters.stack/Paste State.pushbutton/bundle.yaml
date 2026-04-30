@@ -1,8 +1,23 @@
-# -*- coding: utf-8 -*-
 title: "Paste-F"
 
 tooltip: >-
-  Paste สถานะ Filter
+  🇬🇧 [EN] Advanced Paste Filter State
+  Apply saved filter presets (JSON) across multiple Views and View Templates.
+  Features:
+  • Auto-load: Instantly loads the most recent preset saved within the last 5 minutes.
+  • Categorized Selection: Neatly groups targets into "View Templates" and specific "View Types".
+  • Full Graphic Override: Applies Line/Pattern weights, styles, and colors.
+  • Deep Pattern Support: Accurately restores both Foreground and Background surface/cut patterns.
+  • Safe Pattern Checking: Ensures only valid Drafting Patterns are applied to prevent visual bugs.
+
+  🇹🇭 [TH] เครื่องมือวางสถานะฟิลเตอร์ (Paste Filter State)
+  นำค่า Preset ของ Filter ที่บันทึกไว้ (JSON) ไปวางลงใน Views หรือ View Templates ได้ทีละหลายๆ รายการ
+  ฟังก์ชันการทำงาน:
+  • Auto-load: โหลดไฟล์ Preset ล่าสุดที่เพิ่งบันทึกภายใน 5 นาทีให้อัตโนมัติ โดยไม่ต้องกดเลือกไฟล์
+  • Categorized Selection: จัดกลุ่มรายการที่จะวางอย่างเป็นระเบียบ แยก View Templates และ View Types ออกจากกัน
+  • Full Graphic Override: คืนค่าการตั้งค่าเส้น ลวดลาย และสี ได้อย่างสมบูรณ์
+  • Deep Pattern Support: รองรับการวางค่าลวดลายพื้นผิวทั้งแบบ Foreground และ Background 
+  • Safe Pattern Checking: ระบบตรวจจับเพื่ออนุญาตเฉพาะ Drafting Pattern เท่านั้น ป้องกันปัญหาการแสดงผลผิดพลาด
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Advanced Paste Filter"
+description: "Advanced filter state application tool supporting multiple Views, Templates, and deep graphic overrides."
