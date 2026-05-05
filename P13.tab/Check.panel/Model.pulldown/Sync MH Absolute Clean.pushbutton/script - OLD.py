@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__title__ = "Sync MH\nAbsolute Clean (v3.1)"
+__title__ = "Sync MH\nAbsolute Clean (v3)"
 
 import clr
 clr.AddReference('RevitAPI')
@@ -44,10 +44,10 @@ def sync_data():
         {"chk": "D", "front": "Left_Invert",  "dest": ["C4_INV_TXT", "C4_W_TXT", "C4_H_TXT", "C4_X1_TXT", "C4_X2_TXT"], "src_other": ["W_Left", "H_Left", "X1D", "X2D"]}
     ]
 
-    # แก้ไข: เพิ่มการใช้ i เพื่อส่งค่าให้ update_progress
-    with forms.ProgressBar(title="กำลัง Sync ข้อมูล MH... ({value}/{max})", cancellable=True) as pb:
+    # ใช้ Progress Bar เพื่อแสดงสถานะการทำงาน (ฟีเจอร์จาก v2)
+    with forms.ProgressBar(title="กำลัง Sync ข้อมูล MH... ({value}/{max})", step=1, cancellable=True) as pb:
         with revit.Transaction("Sync Top-Front Absolute Clean"):
-            for i, el in enumerate(elements):
+            for el in elements:
                 # ตรวจสอบการกดยกเลิก
                 if pb.cancelled:
                     break
@@ -61,7 +61,7 @@ def sync_data():
                     target_params = []
                     for d_name in side["dest"]:
                         p = get_p(el, d_name)
-                        if p and not p.IsReadOnly: 
+                        if p and not p.IsReadOnly: # เช็คเพิ่มเติมเพื่อป้องกัน Error หาก Type Parameter โดนล็อค
                             p.Set("") 
                         target_params.append(p)
 
@@ -85,16 +85,15 @@ def sync_data():
                             target_params[0].Set("{:.3f}".format(inv_m))
 
                         # ใส่ค่า W, H, X1, X2
-                        for idx, src_name in enumerate(side["src_other"], 1):
+                        for i, src_name in enumerate(side["src_other"], 1):
                             s_p = get_p(el, src_name)
-                            d_p = target_params[idx]
+                            d_p = target_params[i]
                             if s_p and d_p and not d_p.IsReadOnly:
                                 val_str = s_p.AsValueString().replace(" m", "").strip()
                                 if val_str not in ["0", "0.00", "0.000", "", "m", "0 m"]:
                                     d_p.Set(val_str)
                 
-                # FIX: ใส่ค่าตำแหน่งปัจจุบัน (i+1) และจำนวนทั้งหมด (count)
-                pb.update_progress(i + 1, count)
+                pb.update_progress()
 
     forms.alert("Sync ข้อมูลเรียบร้อยแล้ว รองรับทั้ง Type และ Instance!", title="Done")
 
