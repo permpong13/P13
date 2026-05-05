@@ -1,0 +1,20 @@
+title: "Cut Wall\nAngle"
+
+tooltip: |
+  เครื่องมือตัดปลายผนังเฉียงด้วย Void Form พร้อมระบบจดจำชื่อ Family
+
+  [ENG]
+  - Auto Void Cut: Select a wall and draw a line (e.g., 45 degrees) to instantly cut the wall using a line-based Void Family.
+  - Smart Settings Memory: Automatically remembers the Void Family name you use. If the family is not found, it prompts for the new name and saves it for future sessions.
+  - Quick Action: Completes the task in just 3 clicks—pick the wall, then pick 2 points to define the cutting line and angle.
+  - Non-Destructive: Uses Revit's InstanceVoidCutUtils, ensuring the original wall parameters remain intact while modifying the geometry.
+
+  [TH]
+  - ตัดผนังอัตโนมัติ (Auto Void Cut): เลือกผนังและลากเส้น (เช่น มุม 45 องศา) เพื่อปาดผนังทิ้งทันทีด้วย Void Family แบบ Line-based
+  - ระบบจดจำอัจฉริยะ (Smart Settings Memory): จดจำชื่อ Family ตัวตัดที่ใช้งานล่าสุด หากไม่พบในโปรเจกต์ จะมีหน้าต่างให้ระบุชื่อใหม่และบันทึกไว้ใช้ครั้งต่อไปแบบอัตโนมัติ
+  - ใช้งานรวดเร็ว (Quick Action): จบงานได้ใน 3 คลิก – เลือกผนังเป้าหมาย 1 ครั้ง และคลิกอีก 2 จุดเพื่อกำหนดแนวเส้นตัด
+  - ปลอดภัยต่อข้อมูล (Non-Destructive): ใช้กระบวนการตัด Void ของ Revit ทำให้ข้อมูล Parameter ของผนังเดิมไม่เสียหาย
+
+
+description: "Quickly cut walls at any angle using a line-based Void family with auto-memory configuration. / เครื่องมือปาดเฉียงปลายผนังด้วย Void พร้อมระบบจดจำการตั้งค่า"
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
