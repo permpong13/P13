@@ -1,0 +1,23 @@
+title: "Change\nPhasing"
+
+tooltip: |
+  เครื่องมือจัดการ Phase และตัวกรอง (Advanced Phasing)
+  สามารถของการกรองชิ้นงานแบบ Tree View เข้ากับการจัดการ Phase แบบกลุ่ม
+
+  [ENG]
+  - Single-Window UI: Advanced Tree View filtering by Category, Level, or Workset with real-time search.
+  - Batch Phasing Control: Update Phase Created and Demolished for multiple checked elements instantly from the UI.
+  - Deep Group Unpacking: Automatically modifies elements inside nested groups without ungrouping them.
+  - Memory & Visibility: Save/Restore selections, Isolate, Highlight (Yellow), and Hide elements on the fly.
+  - Transactional Safety: Applies all phasing changes safely with error reporting and undo support.
+
+  [TH]
+  - หน้าต่าง UI อัจฉริยะ: กรองชิ้นงานแบบ Tree View (ตาม Category, Level, Workset) พร้อมระบบค้นหาแบบ Real-time
+  - จัดการ Phase แบบกลุ่ม: เลือกชิ้นงานในหน้าต่าง แล้วกดอัปเดต Phase Created / Demolished ได้ทันที
+  - เจาะทะลุ Group อัตโนมัติ: เข้าถึงและเปลี่ยน Phase ชิ้นงานที่ซ่อนอยู่ใน Group (และ Group ซ้อนทับ) โดยที่ Group ไม่แตก
+  - ระบบความจำ & การจัดการ View: ระบบจดจำการเลือก (Save/Restore Memory) พร้อมปุ่ม Select, Isolate, สาดสี Highlight และ Hide
+  - ปลอดภัยและมีรายงานผล: ทำงานแบบรวม Transaction (กด Undo ย้อนกลับได้ในคลิกเดียว) พร้อมหน้าต่างสรุปผลการทำงาน
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Advanced element filter with integrated batch phasing control, nested group unpacking, and memory selection / เครื่องมือกรองชิ้นงานขั้นสูงพร้อมระบบเปลี่ยน Phase แบบกลุ่มและเจาะ Group"
