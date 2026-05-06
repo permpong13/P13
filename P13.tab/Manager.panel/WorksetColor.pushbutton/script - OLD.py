@@ -47,7 +47,7 @@ CAT_EXCLUDED = (
     int(DB.BuiltInCategory.OST_CenterLines),
     int(DB.BuiltInCategory.OST_CurtainGridsRoof),
     int(DB.BuiltInCategory.OST_SWallRectOpening),
-    # -2000278, # Detail Items (Removed from exclusion list)
+    -2000278,
     -1,
 )
 
@@ -242,8 +242,7 @@ class ResetColors(UI.IExternalEventHandler):
             if not wndw: return
             
             ogs = DB.OverrideGraphicSettings()
-            # Changed to allow resetting colors on view dependent elements (Detail Items)
-            collector = DB.FilteredElementCollector(new_doc, view.Id).WhereElementIsNotElementType().ToElementIds()
+            collector = DB.FilteredElementCollector(new_doc, view.Id).WhereElementIsNotElementType().WhereElementIsViewIndependent().ToElementIds()
             
             if wndw._categories.SelectedItem is None:
                 sel_cat = 0
@@ -922,6 +921,7 @@ class SpectrumWindow(forms.WPFWindow):
             
             self._list_box1.SelectedIndex = found_index
 
+            # *** เอาคำสั่งกาง Dropdown ออกทั้งหมด เพื่อไม่ให้มันมาแย่ง Focus คีย์บอร์ด ***
             # บังคับให้ขีดกระพริบค้างอยู่ที่กล่อง Search ตลอดเวลา
             self._search_box.Focus()
 
@@ -1528,8 +1528,7 @@ def get_range_values(category, param, new_view):
         if category.int_id == int(sample_bic):
             bic = sample_bic
             break
-    # Changed to allow view dependent elements (Detail Items)
-    collector = DB.FilteredElementCollector(doc_param, new_view.Id).OfCategory(bic).WhereElementIsNotElementType().ToElements()
+    collector = DB.FilteredElementCollector(doc_param, new_view.Id).OfCategory(bic).WhereElementIsNotElementType().WhereElementIsViewIndependent().ToElements()
     list_values, used_colors = [], set()
     
     for ele in collector:
@@ -1580,11 +1579,10 @@ def get_used_categories_parameters(cat_exc, acti_view, doc_param=None):
             doc_param = acti_view.Document
     except (AttributeError, RuntimeError):
         doc_param = revit.DOCS.doc
-    
-    # Changed to allow view dependent elements (Detail Items)
     collector = (
         DB.FilteredElementCollector(doc_param, acti_view.Id)
         .WhereElementIsNotElementType()
+        .WhereElementIsViewIndependent()
         .ToElements()
     )
     list_cat = []
