@@ -27,7 +27,7 @@ def convert_to_thai_units(area_sqm):
     return rai, ngan, wa
 
 # ---------------------------------------------------------
-# Option 1: Pick Points (Shoelace Formula) + Orange Line + Auto-Close
+# Option 1: Pick Points (Shoelace Formula) + Orange Line
 # ---------------------------------------------------------
 def mode_pick_points():
     points = []
@@ -38,31 +38,7 @@ def mode_pick_points():
     
     try:
         while True:
-            # ปรับข้อความแจ้งเตือนเพื่อให้รู้ว่าคลิกจุดเริ่มต้นเพื่อจบได้[cite: 1]
-            pt = uidoc.Selection.PickPoint("Click Point {} (Press ESC to calculate, or click Start Point to close)".format(len(points) + 1))
-            
-            # --- ฟังก์ชันใหม่: ตรวจสอบการคลิกกลับไปที่จุดเริ่มต้นเพื่อจบวงรอบอัตโนมัติ ---
-            if len(points) >= 3 and pt.DistanceTo(points[0]) < 0.001:
-                # วาดเส้นปิดวงรอบให้เห็นภาพก่อนจบการทำงาน
-                if prev_pt and doc.ActiveView.ViewType != DB.ViewType.ThreeD:
-                    t = DB.Transaction(doc, "Draw Final Line")
-                    t.Start()
-                    try:
-                        line = DB.Line.CreateBound(prev_pt, pt)
-                        detail_curve = doc.Create.NewDetailCurve(doc.ActiveView, line)
-                        
-                        orange_color = DB.Color(255, 109, 0)
-                        ogs = DB.OverrideGraphicSettings()
-                        ogs.SetProjectionLineColor(orange_color)
-                        ogs.SetProjectionLineWeight(5)
-                        doc.ActiveView.SetElementOverrides(detail_curve.Id, ogs)
-                    except:
-                        pass
-                    t.Commit()
-                    uidoc.RefreshActiveView()
-                break # ออกจาก Loop ทันทีโดยไม่ต้องกด ESC
-            # -------------------------------------------------------------------
-            
+            pt = uidoc.Selection.PickPoint("Click Point {} (Press ESC to calculate)".format(len(points) + 1))
             points.append(pt)
             
             if prev_pt and doc.ActiveView.ViewType != DB.ViewType.ThreeD:
@@ -72,11 +48,11 @@ def mode_pick_points():
                     line = DB.Line.CreateBound(prev_pt, pt)
                     detail_curve = doc.Create.NewDetailCurve(doc.ActiveView, line)
                     
-                    # สีและความหนาของเส้นเดิมยังอยู่ครบ[cite: 1]
-                    orange_color = DB.Color(255, 109, 0) # สีส้มเข้ม (Dark Orange)[cite: 1]
+                    # ปรับแต่งเส้นไกด์ไลน์ให้เป็นสีส้มเข้มและหนาขึ้น
+                    orange_color = DB.Color(255, 109, 0) # สีส้มเข้ม (Dark Orange)
                     ogs = DB.OverrideGraphicSettings()
                     ogs.SetProjectionLineColor(orange_color)
-                    ogs.SetProjectionLineWeight(5) # ปรับความหนาของเส้น (1-16)[cite: 1]
+                    ogs.SetProjectionLineWeight(5) # ปรับความหนาของเส้น (1-16)
                     doc.ActiveView.SetElementOverrides(detail_curve.Id, ogs)
                     
                 except:
@@ -87,7 +63,6 @@ def mode_pick_points():
             prev_pt = pt
             
     except OperationCanceledException:
-        # ฟังก์ชัน ESC แบบเดิมยังคงทำงานได้ตามปกติเพื่อป้องกันไม่ให้เสียความสามารถเดิม
         pass
         
     tg.RollBack()
@@ -221,7 +196,7 @@ class SmartAreaUI(forms.WPFWindow):
         if cost_per_sqm > 0:
             output.print_md("**💰 Estimated Cost (@ {:,.2f} /sq.m.):** {:,.2f}".format(cost_per_sqm, total_cost))
             
-        # ใช้ HTML เพื่อขยายฟอนต์และเปลี่ยนสีให้แสดงผลภาษาไทยเด่นชัดที่สุด[cite: 1]
+        # ใช้ HTML เพื่อขยายฟอนต์และเปลี่ยนสีให้แสดงผลภาษาไทยเด่นชัดที่สุด
         output.print_md('<br><span style="font-size: 22px; font-weight: bold; color: #FF6D00;">🇹🇭 หน่วยไทย: {} ไร่ - {} งาน - {:.2f} ตารางวา</span>'.format(rai, ngan, wa))
         
         output.print_md("---")
