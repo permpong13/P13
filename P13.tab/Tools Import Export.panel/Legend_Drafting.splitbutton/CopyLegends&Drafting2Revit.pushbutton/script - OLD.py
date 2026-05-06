@@ -4,12 +4,10 @@ __author__ = 'Permpong Taweekul (P13)'
 __doc__ = 'Advanced tool to copy Legends & Drafting Views with Custom XAML UI'
 
 import sys
-import os
 import clr
 clr.AddReference('PresentationFramework')
 from pyrevit import revit, DB, script, forms, HOST_APP
 from System.Collections.Generic import List
-from System.Windows.Media import Brushes
 
 cfg = script.get_config()
 out = script.get_output()
@@ -33,77 +31,32 @@ class CustomUI(forms.WPFWindow):
         
         # จัดการข้อมูลให้อยู่ในรูปแบบ Dictionary เพื่อง่ายต่อการดึงค่ากลับ
         self.doc_dict = {d.Title: d for d in open_docs}
+        # ใส่ชื่อและประเภทเพื่อให้แยกง่ายขึ้นใน UI
+        self.view_dict = {"{} [{}]".format(v.Name, v.ViewType): v for v in source_views}
         
-        # แยก Legend และ Drafting ออกจากกัน
-        self.legend_dict = {v.Name: v for v in source_views if v.ViewType == DB.ViewType.Legend}
-        self.drafting_dict = {v.Name: v for v in source_views if v.ViewType == DB.ViewType.DraftingView}
-        
-        # ส่งรายชื่อเข้า ListBox ใน XAML เริ่มต้น
+        # ส่งรายชื่อเข้า ListBox ใน XAML
         self.DestDocsList.ItemsSource = sorted(self.doc_dict.keys())
-        self.LegendViewsList.ItemsSource = sorted(self.legend_dict.keys())
-        self.DraftingViewsList.ItemsSource = sorted(self.drafting_dict.keys())
+        self.SourceViewsList.ItemsSource = sorted(self.view_dict.keys())
         
         # โหลดการตั้งค่าโหมดเดิมที่เคยบันทึกไว้
         saved_mode_index = cfg.get_option('p13_view_copymode_index', 0)
         self.ModeCombo.SelectedIndex = int(saved_mode_index)
         
-        # ผูก Event สำหรับระบบ Search
-        self.DestSearch.TextChanged += self.SearchDest
-        self.LegendSearch.TextChanged += self.SearchLegend
-        self.DraftingSearch.TextChanged += self.SearchDrafting
-
         self.is_executed = False
         self.selected_dest_docs = []
         self.selected_src_views = []
         self.selected_mode_index = 0
-        self.ShowDialog()
-
-    # --- ฟังก์ชันค้นหา (Search Filters) ---
-    def SearchDest(self, sender, args):
-        query = self.DestSearch.Text.lower()
-        if "search" in query: return # ข้ามหากเป็น Placeholder
-        self.DestDocsList.ItemsSource = [k for k in sorted(self.doc_dict.keys()) if query in k.lower()]
-
-    def SearchLegend(self, sender, args):
-        query = self.LegendSearch.Text.lower()
-        if "search" in query: return
-        self.LegendViewsList.ItemsSource = [k for k in sorted(self.legend_dict.keys()) if query in k.lower()]
-
-    def SearchDrafting(self, sender, args):
-        query = self.DraftingSearch.Text.lower()
-        if "search" in query: return
-        self.DraftingViewsList.ItemsSource = [k for k in sorted(self.drafting_dict.keys()) if query in k.lower()]
-
-    # --- ฟังก์ชันลบ/เพิ่ม Placeholder ---
-    def RemovePlaceholder(self, sender, args):
-        if "Search" in sender.Text:
-            sender.Text = ""
-            sender.Foreground = Brushes.White
-
-    def AddPlaceholder(self, sender, args):
-        # ใช้ strip() ของ Python ในการเช็คค่าว่าง เพื่อหลีกเลี่ยงบัค
-        if not sender.Text.strip():
-            if sender.Name == "DestSearch": sender.Text = "Search Destination..."
-            elif sender.Name == "LegendSearch": sender.Text = "Search Legends..."
-            elif sender.Name == "DraftingSearch": sender.Text = "Search Drafting Views..."
-            sender.Foreground = Brushes.Gray
+        self.ShowDialog()   # <--- เพิ่มบรรทัดนี้
 
     # ฟังก์ชันเมื่อกดปุ่มใน XAML
     def ExecuteTransfer(self, sender, args):
-        # ล้างค่าเก่าทิ้งก่อนเสมอ ป้องกันการกดปุ่มซ้ำแล้วส่งค่าผิดพลาด
-        self.selected_dest_docs = []
-        self.selected_src_views = []
-
         # ดึงค่าไฟล์ปลายทางที่ถูกเลือก
         for item in self.DestDocsList.SelectedItems:
             self.selected_dest_docs.append(self.doc_dict[item])
             
-        # ดึงค่า View ต้นทางที่ถูกเลือก จากทั้ง 2 หน้าต่าง
-        for item in self.LegendViewsList.SelectedItems:
-            self.selected_src_views.append(self.legend_dict[item])
-            
-        for item in self.DraftingViewsList.SelectedItems:
-            self.selected_src_views.append(self.drafting_dict[item])
+        # ดึงค่า View ต้นทางที่ถูกเลือก
+        for item in self.SourceViewsList.SelectedItems:
+            self.selected_src_views.append(self.view_dict[item])
             
         self.selected_mode_index = self.ModeCombo.SelectedIndex
         
@@ -135,6 +88,8 @@ def main():
         forms.alert("No Legends or Drafting Views found in this document.", title="P13 System")
         sys.exit(0)
 
+    import os
+
     # หาตำแหน่งโฟลเดอร์ปัจจุบันที่สคริปต์นี้วางอยู่
     current_dir = os.path.dirname(__file__)
     xaml_path = os.path.join(current_dir, 'ui.xaml')
@@ -162,14 +117,9 @@ def main():
 
     report_data = []
 
-    # ป้องกัน ZeroDivisionError ด้วยการตรวจจับจำนวน Task ก่อน
-    total_tasks = len(dest_docs) * len(views)
-    if total_tasks == 0:
-        forms.alert("SYSTEM ERROR: Total tasks calculated as 0. Transfer aborted.", title="P13 System")
-        sys.exit(0)
-
     # โค้ดหลักในการคัดลอก (ทำงานเหมือนเดิม 100%)
     with forms.ProgressBar(title='[P13] NEURAL NETWORK TRANSFER IN PROGRESS... ({value} of {max_value})') as pb:
+        total_tasks = len(dest_docs) * len(views)
         current_task = 0
         
         for dest_doc in dest_docs:

@@ -1,0 +1,24 @@
+title: "Beam\nBy Edge"
+
+tooltip: |
+  [ENG] Click on object edges (e.g., floors, sidewalks) to create structural framing along the path. Supports curves and sloped edges.
+  [TH] คลิ๊กเลือกเส้นขอบของวัตถุ (เช่น พื้น, ทางเท้า) เพื่อสร้างคานวิ่งตามแนวเส้นนั้น รองรับทั้งเส้นโค้งและสโลปต่างระดับ
+
+description: |
+  [ENG]
+  How to use:
+  1. Click the 'Create Beam By Edge' button.
+  2. Select one or multiple edges in 3D or Plan view.
+  3. Click 'Finish' on the Options Bar to generate the beams.
+  *Note: Beams will follow the exact 3D curve and slope of the selected edges.
+
+  [TH]
+  วิธีการใช้งาน:
+  1. กดปุ่มคำสั่ง 'Create Beam By Edge'
+  2. คลิ๊กเลือกเส้นขอบ (Edges) ของวัตถุ (สามารถเลือกได้หลายเส้นพร้อมกัน)
+  3. กดปุ่ม Finish บนแถบ Options Bar เพื่อยืนยันการสร้าง
+  *หมายเหตุ: คานจะถูกสร้างตามแนวเส้น 3D และระดับความสูงจริงโดยอัตโนมัติ
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Click on object edges (e.g., floors, sidewalks) to create structural framing along the path. Supports curves and sloped edges."
