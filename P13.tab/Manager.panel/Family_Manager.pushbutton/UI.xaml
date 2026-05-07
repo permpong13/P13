@@ -122,7 +122,7 @@
                         <TextBlock Text="Search:" VerticalAlignment="Center" Margin="0,0,10,0"/>
                         <TextBox x:Name="TextSearch" Width="300" Height="30" VerticalContentAlignment="Center" Padding="5"/>
                         <Button x:Name="BtnClearSearch" Content="Clear" Margin="5,0" Background="#E5E5EA" Foreground="Black"/>
-                        <Button x:Name="BtnAdvancedSearch" Content="Adv. Search" Margin="5,0" Background="#5856D6" IsEnabled="False"/>
+                        <Button x:Name="BtnAdvancedSearch" Content="Adv. Search" Margin="5,0" Background="#5856D6"/>
                     </StackPanel>
                     
                     <DataGrid x:Name="DataGridFamilies" Grid.Row="1" AutoGenerateColumns="False" 
@@ -193,7 +193,7 @@
                             <Button x:Name="BtnAddPrefix" Content="Prefix" Background="#5AC8FA"/>
                             <Button x:Name="BtnAddSuffix" Content="Suffix" Background="#5AC8FA"/>
                             <Button x:Name="BtnDuplicate" Content="Duplicate" Background="#5856D6"/>
-                            <Button x:Name="BtnCopyTypes" Content="Copy Types" Background="#5856D6" IsEnabled="False"/>
+                            <Button x:Name="BtnCopyTypes" Content="Copy Types" Background="#5856D6"/>
                             <Button x:Name="BtnDeleteTypes" Content="Delete" Background="#FF3B30"/>
                             <Button x:Name="BtnPurgeUnused" Content="Purge" Background="#FF3B30"/>
                         </StackPanel>
@@ -211,9 +211,9 @@
         <Border Grid.Row="2" Style="{StaticResource IOSCard}">
             <StackPanel Orientation="Horizontal">
                 <Button x:Name="BtnShowParameters" Content="Show Params" Background="#5856D6"/>
-                <Button x:Name="BtnFindReplace" Content="Find &amp; Replace" Background="#E5E5EA" Foreground="Black" IsEnabled="False"/>
+                <Button x:Name="BtnFindReplace" Content="Find &amp; Replace" Background="#E5E5EA" Foreground="Black"/>
                 <Button x:Name="BtnBatchRename" Content="Batch Rename" Background="#FF9500"/>
-                <Button x:Name="BtnBatchParam" Content="Batch Edit Param" Background="#FF9500" IsEnabled="False"/>
+                <Button x:Name="BtnBatchParam" Content="Batch Edit Param" Background="#FF9500"/>
                 <Button x:Name="BtnReloadFamily" Content="Reload Family" Background="#5856D6"/>
                 <Button x:Name="BtnSettings" Content="Settings" Background="#E5E5EA" Foreground="Black"/>
             </StackPanel>

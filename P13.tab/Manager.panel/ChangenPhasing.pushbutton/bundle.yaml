@@ -12,11 +12,11 @@ tooltip: |
   - Transactional Safety: Applies all phasing changes safely with error reporting and undo support.
 
   [TH]
-  - หน้าต่าง UI อัจฉริยะ: กรองชิ้นงานแบบ Tree View (ตาม Category, Level, Workset) พร้อมระบบค้นหาแบบ Real-time
+  - หน้าต่าง UI: กรองชิ้นงานแบบ Tree View (ตาม Category, Level, Workset) พร้อมระบบค้นหาแบบ Real-time
   - จัดการ Phase แบบกลุ่ม: เลือกชิ้นงานในหน้าต่าง แล้วกดอัปเดต Phase Created / Demolished ได้ทันที
   - เจาะทะลุ Group อัตโนมัติ: เข้าถึงและเปลี่ยน Phase ชิ้นงานที่ซ่อนอยู่ใน Group (และ Group ซ้อนทับ) โดยที่ Group ไม่แตก
   - ระบบความจำ & การจัดการ View: ระบบจดจำการเลือก (Save/Restore Memory) พร้อมปุ่ม Select, Isolate, สาดสี Highlight และ Hide
-  - ปลอดภัยและมีรายงานผล: ทำงานแบบรวม Transaction (กด Undo ย้อนกลับได้ในคลิกเดียว) พร้อมหน้าต่างสรุปผลการทำงาน
+  - มีรายงานผล: ทำงานแบบรวม Transaction (กด Undo ย้อนกลับได้ในคลิกเดียว) พร้อมหน้าต่างสรุปผลการทำงาน
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
 

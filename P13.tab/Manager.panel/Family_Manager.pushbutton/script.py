@@ -9,6 +9,11 @@ Features:
 3. Enhanced UX (Image Tooltips on hover)
 4. Robust memory management and logging
 5. Smart Multi-Check Selection
+6. Advanced Regex Search & Find/Replace
+7. Batch Edit Parameters & Copy Type Parameters
+8. Naming Data Validation
+9. Custom Native WPF Input Dialogs (Revit-Style)
+10. UI Bug Fixes (Category Sorting, Clear Search & Scope Filtering)
 """
 __author__ = "เพิ่มพงษ์"
 
@@ -49,7 +54,6 @@ from System.Collections.Generic import List, Dictionary
 from System.Windows import Application, Window
 from System.Windows.Controls import DataGrid, DataGridCell, DataGridTextColumn
 from System.Windows.Threading import Dispatcher, DispatcherPriority, DispatcherTimer
-# นำเข้าสำหรับการจัดการรูปภาพและคีย์บอร์ด (Spacebar)
 from System.Windows.Media.Imaging import BitmapImage, BitmapCacheOption
 from System.Windows.Input import Key 
 from System.Windows.Data import Binding
@@ -113,7 +117,7 @@ class SettingsManager(object):
         self.save_settings()
 
 # ----------------------------------------------------------------------
-# Helper Functions
+# Helper Functions & UI Components
 # ----------------------------------------------------------------------
 def get_id_value(element_id):
     if not element_id: return -1
@@ -133,6 +137,13 @@ def get_safe_name(element, default="<Unknown>"):
         if hasattr(element, 'Category') and element.Category: return element.Category.Name
     except: pass
     return default
+
+def get_valid_name(name):
+    if not name: return ""
+    invalid_chars = r'[\\:\{\}\[\]|;<>?\'~]'
+    if re.search(invalid_chars, name):
+        LOGGER.warning("Invalid characters found and replaced in name: {}".format(name))
+    return re.sub(invalid_chars, '_', name)
 
 def get_image_source(bitmap):
     if bitmap is None: return None
@@ -154,6 +165,73 @@ def get_image_source(bitmap):
     finally:
         if ms: ms.Dispose()
         if bitmap: bitmap.Dispose()
+
+# ==================== หน้าต่าง Input ยุคใหม่ (Custom WPF Dialog) ====================
+class CustomInputDialog(forms.WPFWindow):
+    def __init__(self, title, prompt_text, default_text=""):
+        self.result = None
+        xaml_str = """
+        <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                Title="{title}" Width="380" Height="200" 
+                WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+                Topmost="True" Background="#F2F2F7">
+            <Window.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="5">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.8"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Window.Resources>
+            <Grid Margin="15">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+                
+                <TextBlock Text="{prompt_text}" TextWrapping="Wrap" Grid.Row="0" Margin="0,0,0,10" FontSize="13" Foreground="#333333"/>
+                <TextBox x:Name="txtInput" Grid.Row="1" Height="28" VerticalContentAlignment="Center" Padding="5,0" FontSize="13" BorderBrush="#CCCCCC" BorderThickness="1"/>
+                
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Row="2" Margin="0,15,0,0">
+                    <Button x:Name="btnOk" Content="OK" Width="80" Height="28" Background="#007AFF" Foreground="White" BorderThickness="0" Margin="0,0,10,0" IsDefault="True"/>
+                    <Button x:Name="btnCancel" Content="Cancel" Width="80" Height="28" Background="#E5E5EA" Foreground="Black" BorderThickness="0" IsCancel="True"/>
+                </StackPanel>
+            </Grid>
+        </Window>
+        """.replace("{title}", title).replace("{prompt_text}", prompt_text.replace("\n", "&#x0a;"))
+        
+        self.temp_xaml = os.path.join(tempfile.gettempdir(), "P13_InputDialog.xaml")
+        with codecs.open(self.temp_xaml, 'w', encoding='utf-8-sig') as f:
+            f.write(xaml_str)
+            
+        forms.WPFWindow.__init__(self, self.temp_xaml)
+        
+        self.txtInput.Text = default_text
+        self.txtInput.Focus()
+        self.txtInput.SelectAll()
+        
+        self.btnOk.Click += self.ok_click
+        self.btnCancel.Click += self.cancel_click
+        
+    def ok_click(self, sender, args):
+        self.result = self.txtInput.Text
+        self.Close()
+        
+    def cancel_click(self, sender, args):
+        self.result = None
+        self.Close()
 
 # ----------------------------------------------------------------------
 # Data Classes
@@ -224,14 +302,10 @@ class P13FamilyManager(forms.WPFWindow):
 
     def setup_controls(self):
         try:
-            if hasattr(self, 'CheckAutoRefresh'):
-                self.CheckAutoRefresh.IsChecked = self.auto_refresh
-            if hasattr(self, 'CheckGroupByCategory'):
-                self.CheckGroupByCategory.IsChecked = self.group_by_category
-            if hasattr(self, 'CheckShowParameters'):
-                self.CheckShowParameters.IsChecked = self.show_parameters
-            if hasattr(self, 'CheckShowOnlyVisible'):
-                self.CheckShowOnlyVisible.IsChecked = True
+            if hasattr(self, 'CheckAutoRefresh'): self.CheckAutoRefresh.IsChecked = self.auto_refresh
+            if hasattr(self, 'CheckGroupByCategory'): self.CheckGroupByCategory.IsChecked = self.group_by_category
+            if hasattr(self, 'CheckShowParameters'): self.CheckShowParameters.IsChecked = self.show_parameters
+            if hasattr(self, 'CheckShowOnlyVisible'): self.CheckShowOnlyVisible.IsChecked = True
         except Exception as e:
             LOGGER.error("Error setting up controls: {}".format(e))
 
@@ -275,13 +349,17 @@ class P13FamilyManager(forms.WPFWindow):
         if hasattr(self, 'BtnBatchRename'): self.BtnBatchRename.Click += self.batch_rename_click
         if hasattr(self, 'BtnSettings'): self.BtnSettings.Click += self.settings_click
         
+        if hasattr(self, 'BtnFindReplace'): self.BtnFindReplace.Click += self.find_replace_click
+        if hasattr(self, 'BtnAdvancedSearch'): self.BtnAdvancedSearch.Click += self.advanced_search_click
+        
+        if hasattr(self, 'BtnBatchParam'): self.BtnBatchParam.Click += self.batch_edit_param_click
+        if hasattr(self, 'BtnCopyTypes'): self.BtnCopyTypes.Click += self.copy_types_click
+        
         if hasattr(self, 'HeaderCheckBox'):
              self.HeaderCheckBox.Checked += self.select_all_click
              self.HeaderCheckBox.Unchecked += self.select_none_click
 
-    # ==================== EVENT ใหม่สำหรับการเลือกพร้อมกันหลายรายการ ====================
     def row_checkbox_click(self, sender, args):
-        """จัดการเมื่อมีการกดติ๊กถูกบนแถวที่ถูกไฮไลต์ร่วมกันหลายแถว"""
         try:
             row = sender.DataContext
             if not row: return
@@ -295,7 +373,6 @@ class P13FamilyManager(forms.WPFWindow):
             LOGGER.error("Error in row_checkbox_click: {}".format(e))
 
     def datagrid_preview_keydown(self, sender, args):
-        """กด Spacebar เพื่อสลับสถานะติ๊กถูกสำหรับทุกแถวที่เลือก"""
         try:
             if args.Key == Key.Space:
                 selected_items = list(self.DataGridFamilies.SelectedItems)
@@ -308,7 +385,6 @@ class P13FamilyManager(forms.WPFWindow):
                     args.Handled = True 
         except Exception as e:
             LOGGER.error("Error in datagrid_preview_keydown: {}".format(e))
-    # ====================================================================================
 
     def favorite_click(self, sender, args):
         try:
@@ -327,7 +403,7 @@ class P13FamilyManager(forms.WPFWindow):
                 row = args.Row.Item 
                 element = row.TypeElement
                 textbox = args.EditingElement
-                new_value = textbox.Text
+                new_value = get_valid_name(textbox.Text) 
                 
                 if element and element.IsValidObject and new_value != row.TypeName:
                     try:
@@ -357,7 +433,9 @@ class P13FamilyManager(forms.WPFWindow):
         self.search_timer.Stop()
         self.search_timer.Start()
 
-    def clear_search_click(self, sender, args): self.TextSearch.Text = ""
+    def clear_search_click(self, sender, args): 
+        self.TextSearch.Text = ""
+        self.apply_filters() 
 
     def category_selection_changed(self, sender, args):
         if self.ComboCategory.SelectedItem:
@@ -380,11 +458,13 @@ class P13FamilyManager(forms.WPFWindow):
 
     def load_categories(self):
         cats = self.doc.Settings.Categories
-        items = [CategoryItem("All Categories", -1)]
+        cat_items = []
         for c in cats:
             name = get_safe_name(c)
-            if name: items.append(CategoryItem(name, get_id_value(c.Id)))
-        items.sort(key=lambda x: x.Name)
+            if name: cat_items.append(CategoryItem(name, get_id_value(c.Id)))
+            
+        cat_items.sort(key=lambda x: x.Name)
+        items = [CategoryItem("All Categories", -1)] + cat_items
         self.Dispatcher.Invoke(System.Action(lambda: self.update_category_combo(items)))
 
     def update_category_combo(self, items):
@@ -462,26 +542,50 @@ class P13FamilyManager(forms.WPFWindow):
                                                            element_id=get_id_value(fam.Id)))
             except Exception as e:
                 LOGGER.error("Family loop error: {}".format(e))
-                
+        
+        System.GC.Collect() 
+        
         self.family_rows = list(self.all_family_rows)
         self.Dispatcher.Invoke(System.Action(self.update_ui_after_load))
 
     def update_ui_after_load(self):
-        self.DataGridFamilies.ItemsSource = self.family_rows
+        self.apply_filters() 
         if hasattr(self, 'StatTotalFamilies'): self.StatTotalFamilies.Text = str(self.stats["total_families"])
         if hasattr(self, 'StatTotalTypes'): self.StatTotalTypes.Text = str(self.stats["total_types"])
         if hasattr(self, 'StatTotalInstances'): self.StatTotalInstances.Text = str(self.stats["total_instances"])
         if hasattr(self, 'StatInPlaceFamilies'): self.StatInPlaceFamilies.Text = str(self.stats["in_place_families"])
-        self.LabelStatus.Text = "Loaded {} types".format(len(self.family_rows))
 
     def apply_filters(self):
         res = list(self.all_family_rows)
-        if self.current_scope == "View":
-             view_ids = set(get_id_value(e.Id) for e in DB.FilteredElementCollector(self.doc, self.doc.ActiveView.Id).ToElements())
-             res = [r for r in res if r.ElementId in map(str, view_ids) or r.TypeId in map(str, view_ids)]
-        elif self.current_scope == "Selected":
-             sel_ids = [get_id_value(id) for id in self.uidoc.Selection.GetElementIds()]
-             res = [r for r in res if int(r.ElementId) in sel_ids or int(r.TypeId) in sel_ids]
+        
+        try:
+            if self.current_scope == "View":
+                 view_elems = DB.FilteredElementCollector(self.doc, self.doc.ActiveView.Id).WhereElementIsNotElementType().ToElements()
+                 valid_type_ids = set()
+                 for e in view_elems:
+                     try:
+                         tid = e.GetTypeId()
+                         if tid and tid != DB.ElementId.InvalidElementId:
+                             valid_type_ids.add(str(get_id_value(tid)))
+                     except: pass
+                 res = [r for r in res if r.TypeId in valid_type_ids]
+
+            elif self.current_scope == "Selected":
+                 sel_ids = self.uidoc.Selection.GetElementIds()
+                 valid_ids = set()
+                 for eid in sel_ids:
+                     valid_ids.add(str(get_id_value(eid))) 
+                     try:
+                         e = self.doc.GetElement(eid)
+                         if e:
+                             tid = e.GetTypeId()
+                             if tid and tid != DB.ElementId.InvalidElementId:
+                                 valid_ids.add(str(get_id_value(tid))) 
+                     except: pass
+                 res = [r for r in res if (r.TypeId in valid_ids) or (r.ElementId in valid_ids)]
+                 
+        except Exception as e:
+            LOGGER.error("Scope Filter Error: {}".format(e))
 
         if self.selected_category and self.selected_category != "All Categories":
             res = [r for r in res if r.Category == self.selected_category]
@@ -536,9 +640,14 @@ class P13FamilyManager(forms.WPFWindow):
     def rename_click(self, sender, args):
         sel = [r for r in self.family_rows if r.IsSelected]
         if not sel: forms.alert("Select items."); return
-        new = forms.ask_for_string("New Name:")
+        
+        dialog = CustomInputDialog("Rename", "Enter New Name:")
+        dialog.ShowDialog()
+        new = dialog.result
+        
         if new:
-            with DB.Transaction(self.doc, "Rename") as t:
+            new = get_valid_name(new)
+            with DB.Transaction(self.doc, "Rename Types") as t:
                 t.Start()
                 for s in sel: 
                     if s.TypeElement: 
@@ -552,8 +661,13 @@ class P13FamilyManager(forms.WPFWindow):
     def add_prefix_click(self, sender, args):
         sel = [r for r in self.family_rows if r.IsSelected]
         if not sel: forms.alert("Select items."); return
-        pre = forms.ask_for_string("Prefix:")
+        
+        dialog = CustomInputDialog("Add Prefix", "Enter Prefix:")
+        dialog.ShowDialog()
+        pre = dialog.result
+        
         if pre:
+            pre = get_valid_name(pre)
             with DB.Transaction(self.doc, "Add Prefix") as t:
                 t.Start()
                 for s in sel: 
@@ -568,8 +682,13 @@ class P13FamilyManager(forms.WPFWindow):
     def add_suffix_click(self, sender, args):
         sel = [r for r in self.family_rows if r.IsSelected]
         if not sel: forms.alert("Select items."); return
-        suf = forms.ask_for_string("Suffix:")
+        
+        dialog = CustomInputDialog("Add Suffix", "Enter Suffix:")
+        dialog.ShowDialog()
+        suf = dialog.result
+        
         if suf:
+            suf = get_valid_name(suf)
             with DB.Transaction(self.doc, "Add Suffix") as t:
                 t.Start()
                 for s in sel: 
@@ -631,12 +750,77 @@ class P13FamilyManager(forms.WPFWindow):
             self.load_data_async()
         except Exception as e: forms.alert("Error: {}".format(e))
 
+    def find_replace_click(self, sender, args):
+        sel = [r for r in self.family_rows if r.IsSelected]
+        if not sel: forms.alert("Please select items first."); return
+        
+        dialog1 = CustomInputDialog("Find & Replace", "Enter Text to Find:")
+        dialog1.ShowDialog()
+        find_str = dialog1.result
+        if not find_str: return
+        
+        dialog2 = CustomInputDialog("Find & Replace", "Replace with (Leave blank to remove text):")
+        dialog2.ShowDialog()
+        replace_str = dialog2.result
+        if replace_str is None: return 
+        
+        replace_str = get_valid_name(replace_str)
+        
+        with DB.Transaction(self.doc, "Find and Replace") as t:
+            t.Start()
+            for r in sel:
+                if r.TypeElement and find_str in r.TypeName:
+                    new_name = r.TypeName.replace(find_str, replace_str)
+                    try: 
+                        r.TypeElement.Name = new_name
+                    except Exception as e: 
+                        LOGGER.error("Find/Replace failed for {}: {}".format(r.TypeName, e))
+            t.Commit()
+        self.load_data_async()
+
+    def advanced_search_click(self, sender, args):
+        dialog = CustomInputDialog("Advanced Regex Search", "Enter Regex Pattern\n(e.g. ^Wall.*_01$ or \d{2}):")
+        dialog.ShowDialog()
+        pattern = dialog.result
+        if not pattern: return
+        
+        try:
+            regex = re.compile(pattern, re.IGNORECASE)
+            res = [r for r in self.all_family_rows if regex.search(r.TypeName) or regex.search(r.FamilyName)]
+            
+            self.family_rows = res
+            self.DataGridFamilies.ItemsSource = self.family_rows
+            self.DataGridFamilies.Items.Refresh()
+            self.LabelStatus.Text = "Regex Search found {} items".format(len(res))
+        except Exception as e:
+            forms.alert("Invalid Regex Pattern:\n{}".format(e))
+
     def create_type_catalog_click(self, sender, args):
         selected = [r for r in self.family_rows if r.IsSelected and r.TypeElement]
-        if not selected: forms.alert("Select types."); return
+        if not selected: forms.alert("Select types to create catalogs."); return
         export_path = self.settings_mgr.get_export_path()
         if not export_path: return
-        forms.alert("Catalog Exported to: " + export_path)
+
+        families_dict = {}
+        for r in selected:
+            if r.FamilyName not in families_dict:
+                families_dict[r.FamilyName] = []
+            families_dict[r.FamilyName].append(r.TypeName)
+
+        created_files = 0
+        for fam_name, type_names in families_dict.items():
+            txt_path = os.path.join(export_path, fam_name + ".txt")
+            try:
+                with codecs.open(txt_path, 'w', encoding='utf-8-sig') as f:
+                    f.write(",Type Comments##OTHER##\n") 
+                    for t in type_names:
+                        f.write("{},\"\"\n".format(t))
+                created_files += 1
+            except Exception as e:
+                LOGGER.error("Failed to write catalog for {}: {}".format(fam_name, e))
+
+        forms.alert("{} Type Catalog(s) successfully generated at:\n{}".format(created_files, export_path))
+        os.startfile(export_path)
 
     def export_csv_click(self, sender, args):
         if not self.family_rows: return
@@ -645,11 +829,11 @@ class P13FamilyManager(forms.WPFWindow):
         fname = os.path.join(export_path, "Export_FamilyList_{}.csv".format(datetime.datetime.now().strftime("%Y%m%d_%H%M%S")))
         
         try:
-            with open(fname, mode='w') as f:
+            with codecs.open(fname, mode='w', encoding='utf-8-sig') as f:
                 writer = csv.writer(f)
-                writer.writerow(["Family Name", "Type Name", "Category", "Instance Count"])
+                writer.writerow(["Family Name", "Type Name", "Category", "Instance Count", "In-Place", "Shared"])
                 for r in self.family_rows:
-                    writer.writerow([r.FamilyName, r.TypeName, r.Category, r.InstanceCount])
+                    writer.writerow([r.FamilyName, r.TypeName, r.Category, r.InstanceCount, r.IsInPlace, r.IsShared])
             forms.alert("Exported to " + fname)
             os.startfile(export_path) 
         except Exception as e: 
@@ -665,18 +849,134 @@ class P13FamilyManager(forms.WPFWindow):
         forms.alert(msg, title="Parameters (First 5)")
 
     def batch_rename_click(self, sender, args):
-        sel = [r for r in self.family_rows if r.IsSelected]
-        if not sel: forms.alert("Select items."); return
-        pat = forms.ask_for_string("Pattern ({name}, {index}):", default="{name}_{index}")
-        if pat:
-             with DB.Transaction(self.doc, "Batch Rename") as t:
+        checked_items = [r for r in self.family_rows if r.IsSelected]
+        highlighted_items = list(self.DataGridFamilies.SelectedItems)
+        
+        sel_set = set(checked_items + highlighted_items)
+        sel = list(sel_set)
+
+        if not sel: 
+            MessageBox.Show("Please select items to rename (Check or Highlight row).", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            return
+            
+        dialog = CustomInputDialog("Batch Rename Pattern", "Pattern ({name}, {index}):\n(e.g. {name}_{index} or F1_{index})", "{name}_{index}")
+        dialog.ShowDialog()
+        pat = dialog.result
+            
+        if not pat: 
+            return
+            
+        success_count = 0
+        error_list = []
+        category_counters = {}
+        
+        try:
+            with DB.Transaction(self.doc, "Batch Rename") as t:
                 t.Start()
-                for i, r in enumerate(sel, 1):
-                    if r.TypeElement:
-                        try: r.TypeElement.Name = pat.replace("{name}", r.TypeName).replace("{index}", str(i))
-                        except Exception as e: LOGGER.error("Batch rename failed: {}".format(e))
+                
+                for r in sel:
+                    if not r.TypeElement: continue
+                        
+                    cat_name = r.Category if r.Category else "Unknown"
+                    if cat_name not in category_counters:
+                        category_counters[cat_name] = 1
+                    
+                    idx = category_counters[cat_name]
+                    idx_str = str(idx).zfill(2) 
+                    
+                    new_name = pat.replace("{name}", r.TypeName).replace("{index}", idx_str)
+                    invalid_chars = r'[\\:\{\}\[\]|;<>?\'~]'
+                    new_name = re.sub(invalid_chars, '_', new_name)
+                    
+                    if new_name == r.TypeName: continue 
+                        
+                    try: 
+                        r.TypeElement.Name = new_name
+                        r.TypeName = new_name 
+                        category_counters[cat_name] += 1
+                        success_count += 1
+                    except Exception as e: 
+                        error_list.append("{} -> {}: {}".format(r.TypeName, new_name, str(e)))
+                
                 t.Commit()
-             self.load_data_async()
+                
+            if error_list:
+                err_msg = "Success: {}\nFailed: {}\n\nError Examples:\n".format(success_count, len(error_list))
+                err_msg += "\n".join(error_list[:10])
+                MessageBox.Show(err_msg, "Batch Rename Result", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            elif success_count > 0:
+                MessageBox.Show("Successfully renamed {} items.".format(success_count), "Success", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                if hasattr(self, 'LabelStatus'):
+                    self.LabelStatus.Text = "Batch Renamed {} items".format(success_count)
+            else:
+                MessageBox.Show("No items were renamed (Names might be identical).", "Info", MessageBoxButtons.OK, MessageBoxIcon.Information)
+                
+            self.load_data_async()
+            
+        except Exception as ex:
+            MessageBox.Show("Critical Error:\n{}".format(str(ex)), "Critical Error", MessageBoxButtons.OK, MessageBoxIcon.Error)
+
+    def batch_edit_param_click(self, sender, args):
+        sel = [r for r in self.family_rows if r.IsSelected and r.TypeElement]
+        if not sel: forms.alert("Select items."); return
+        
+        dialog1 = CustomInputDialog("Batch Edit Param", "Enter Parameter Name to edit:")
+        dialog1.ShowDialog()
+        param_name = dialog1.result
+        if not param_name: return
+        
+        dialog2 = CustomInputDialog("Batch Edit Param", "Enter new value for '{}':".format(param_name))
+        dialog2.ShowDialog()
+        param_val = dialog2.result
+        if param_val is None: return
+
+        with DB.Transaction(self.doc, "Batch Edit Params") as t:
+            t.Start()
+            count = 0
+            for r in sel:
+                p = r.TypeElement.LookupParameter(param_name)
+                if p and not p.IsReadOnly:
+                    try:
+                        if p.StorageType == DB.StorageType.String: p.Set(param_val)
+                        elif p.StorageType == DB.StorageType.Integer: p.Set(int(param_val))
+                        elif p.StorageType == DB.StorageType.Double: p.Set(float(param_val))
+                        count += 1
+                    except: pass
+            t.Commit()
+            
+        forms.alert("Updated parameter '{}' for {} types.".format(param_name, count))
+
+    def copy_types_click(self, sender, args):
+        sel = [r for r in self.family_rows if r.IsSelected and r.TypeElement]
+        if len(sel) < 2: 
+            forms.alert("Select at least 2 types.\n(1st selected is Source, others are Targets)"); 
+            return
+            
+        source = sel[0]
+        targets = sel[1:]
+        
+        with DB.Transaction(self.doc, "Copy Type Parameters") as t:
+            t.Start()
+            copied = 0
+            for target in targets:
+                for p_src in source.TypeElement.Parameters:
+                    if p_src.IsReadOnly: continue
+                    p_tgt = target.TypeElement.LookupParameter(p_src.Definition.Name)
+                    if p_tgt and not p_tgt.IsReadOnly and p_tgt.StorageType == p_src.StorageType:
+                        try:
+                            if p_src.StorageType == DB.StorageType.String: 
+                                p_tgt.Set(p_src.AsString() or "")
+                            elif p_src.StorageType == DB.StorageType.Integer: 
+                                p_tgt.Set(p_src.AsInteger())
+                            elif p_src.StorageType == DB.StorageType.Double: 
+                                p_tgt.Set(p_src.AsDouble())
+                            elif p_src.StorageType == DB.StorageType.ElementId: 
+                                p_tgt.Set(p_src.AsElementId())
+                        except: pass
+                copied += 1
+            t.Commit()
+            
+        forms.alert("Successfully copied parameters from '{}' to {} types.".format(source.TypeName, copied))
 
     def settings_click(self, sender, args):
         current_path = self.settings_mgr.get_export_path()

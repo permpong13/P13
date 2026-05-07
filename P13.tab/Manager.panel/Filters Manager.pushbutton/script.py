@@ -12,7 +12,7 @@ doc = revit.doc
 # ==========================================
 UI_XAML = """<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="NEXUS Filter Manager" Height="500" Width="400"
+        Title="P13 Filter Manager" Height="500" Width="400"
         Background="#0D1117" WindowStartupLocation="CenterScreen"
         ResizeMode="NoResize" WindowStyle="ToolWindow">
     
@@ -56,7 +56,7 @@ UI_XAML = """<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/present
 
     <Grid>
         <StackPanel Margin="10,25,10,10">
-            <TextBlock Text="NEXUS" Foreground="#00E5FF" FontSize="28" FontWeight="Black" HorizontalAlignment="Center" FontFamily="Segoe UI">
+            <TextBlock Text="P13" Foreground="#00E5FF" FontSize="28" FontWeight="Black" HorizontalAlignment="Center" FontFamily="Segoe UI">
                 <TextBlock.Effect>
                     <DropShadowEffect Color="#00E5FF" BlurRadius="10" ShadowDepth="0"/>
                 </TextBlock.Effect>
