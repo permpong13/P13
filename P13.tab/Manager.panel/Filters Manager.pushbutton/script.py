@@ -195,9 +195,19 @@ def cmd_batch_delete(filter_data):
     for f_id, data in filter_data.items():
         usage_count = len(data["UsedInViews"])
         display_name = "{} [ใช้งาน: {} Views]".format(data["Name"], usage_count)
-        options.append({"name": display_name, "element": data["Element"]})
         
-    options = sorted(options, key=lambda x: x["name"])
+        # เพิ่มคีย์ "count" และ "raw_name" เข้าไปเก็บค่าไว้ใช้ตอนสั่งเรียงลำดับ
+        options.append({
+            "name": display_name, 
+            "element": data["Element"],
+            "count": usage_count,
+            "raw_name": data["Name"]
+        })
+        
+    # อัปเกรดการจัดเรียง: 
+    # 1. เรียงตามจำนวน Views ก่อน (0 จะอยู่บนสุด) 
+    # 2. ถ้า Views เท่ากัน ให้เรียงตามชื่อตัวอักษร (A-Z)
+    options = sorted(options, key=lambda x: (x["count"], x["raw_name"].lower()))
     
     selected_items = forms.SelectFromList.show(
         [opt["name"] for opt in options],

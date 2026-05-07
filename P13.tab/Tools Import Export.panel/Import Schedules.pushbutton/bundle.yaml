@@ -1,0 +1,20 @@
+title: "Import\nSchedules"
+
+tooltip: |
+  เครื่องมือสำหรับนำเข้าตาราง (Schedules) จากไฟล์ Revit อื่นที่เปิดค้างไว้อยู่ เข้ามายังโปรเจคปัจจุบัน
+
+  [ENG]
+  - Cross-Document Import: Easily copy schedules from any currently open Revit model into your active project.
+  - Smart Filtering: Automatically ignores internal system schedules and view templates to keep your selection clean.
+  - Multi-Selection: Select and import one or multiple schedules at the same time.
+  - Safe & Native: Uses standard Revit API. Automatically appends a number if the schedule name already exists in the active model.
+
+  [TH]
+  - นำเข้าข้ามไฟล์: ดึงตาราง (Schedules) จากไฟล์ Revit โมเดลอื่นที่เปิดอยู่เข้ามาใช้ในงานปัจจุบันได้ทันที
+  - กรองข้อมูลอัจฉริยะ: ตัดตารางระบบ (Internal Schedules) และ View Templates ออกจากตัวเลือกให้โดยอัตโนมัติ
+  - เลือกได้หลายรายการ: สามารถติ๊กเลือก Schedules ที่ต้องการนำเข้าได้มากกว่า 1 รายการในครั้งเดียว
+  - คัดลอกปลอดภัย: ดำเนินการผ่าน Revit API มาตรฐาน หากชื่อตารางซ้ำ ระบบจะรันตัวเลขต่อท้ายให้ทันที
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Import Schedules from another open Revit model into the active document. / นำเข้าตาราง (Schedules) จากไฟล์ Revit อื่นที่กำลังเปิดอยู่เข้ามาใช้ในไฟล์ปัจจุบัน"
