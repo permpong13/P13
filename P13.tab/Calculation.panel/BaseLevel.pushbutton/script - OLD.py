@@ -242,26 +242,6 @@ def get_element_level_id(element):
 # =====================================================
 output.print_md("### **กำลังตั้งค่า Base_Level ให้ทุกรายการ...**")
 
-# ⭐️ OPTIMIZATION 4: ทำการ Check out Worksets ล่วงหน้าเพื่อป้องกัน Error "You are trying to checkout a large number of elements"
-if doc.IsWorkshared:
-    try:
-        output.print_md("⏳ **กำลัง Check out Worksets ที่เกี่ยวข้องอัตโนมัติจาก Central Model...**")
-        ws_ids = set()
-        for e in unique_elements:
-            try:
-                if hasattr(e, 'WorksetId') and e.WorksetId != DB.WorksetId.InvalidWorksetId:
-                    ws_ids.add(e.WorksetId)
-            except: pass
-            
-        if ws_ids:
-            ws_list = List[DB.WorksetId]()
-            for w_id in ws_ids:
-                ws_list.Add(w_id)
-            DB.WorksharingUtils.CheckoutWorksets(doc, ws_list)
-            output.print_md("✅ **Check out Worksets ล่วงหน้าสำเร็จเรียบร้อย**")
-    except Exception as ex:
-        output.print_md("⚠️ **ไม่สามารถ Check out Worksets อัตโนมัติได้ (อาจติดสิทธิ์ของผู้อื่น): {}**".format(ex))
-
 t = DB.Transaction(doc, "Set Base Level - ST, AR & MEP")
 t.Start()
 
