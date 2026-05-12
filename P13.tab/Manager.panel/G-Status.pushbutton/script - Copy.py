@@ -75,32 +75,6 @@ def get_workset_name(doc, elem):
     return "Non-Shared"
 
 # =====================================================
-# ฟังก์ชันช่วยอ่านค่า Parameter ให้ตรงตามชนิดข้อมูล
-# =====================================================
-def get_param_value(p):
-    if not p:
-        return "Not Found"
-    if not p.HasValue:
-        return "Empty"
-    
-    st = p.StorageType
-    if st == DB.StorageType.String:
-        val = p.AsString()
-        return val if val else "Empty"
-    elif st == DB.StorageType.Double:
-        val = p.AsValueString()
-        if not val:
-            val = str(p.AsDouble())
-        return val.replace(".0", "")
-    elif st == DB.StorageType.Integer:
-        return str(p.AsInteger())
-    elif st == DB.StorageType.ElementId:
-        eid = p.AsElementId()
-        # รองรับ Revit 2024-2026 (.Value) และเวอร์ชันเก่า (.IntegerValue)
-        return str(eid.Value if hasattr(eid, 'Value') else eid.IntegerValue)
-    return "Empty"
-
-# =====================================================
 # ฟังก์ชันตรวจสอบและสร้าง Shared Parameter อัตโนมัติ
 # =====================================================
 def setup_parameter(doc, app, param_name, param_type, all_cat_names):
@@ -310,7 +284,10 @@ class ElementStatusForm(Form):
             val = "Not Found"
             if "READY" in self.lbl_status.Text:
                 p = el.LookupParameter(PARAM_NAME)
-                val = get_param_value(p)
+                val = "Empty"
+                if p and p.HasValue:
+                    val = p.AsValueString() or str(p.AsDouble()) if p.StorageType == DB.StorageType.Double else str(p.AsInteger())
+                    val = val.replace(".0","")
             if val not in gs: gs[val] = []
             gs[val].append(el)
         return gs
@@ -332,25 +309,10 @@ def main():
     # 2. ค้นหาชิ้นส่วน
     target_cats = get_target_categories()
     cats = List[DB.ElementId]([DB.ElementId(c) for c in target_cats])
-    raw_elems = DB.FilteredElementCollector(doc, doc.ActiveView.Id).WherePasses(DB.ElementMulticategoryFilter(cats)).WhereElementIsNotElementType().ToElements()
+    elems = DB.FilteredElementCollector(doc, doc.ActiveView.Id).WherePasses(DB.ElementMulticategoryFilter(cats)).WhereElementIsNotElementType().ToElements()
     
-    # กรองเอาเฉพาะ Element จริงๆ ไม่นับ Revit Link หรือไฟล์ Import
-    elems = []
-    for el in raw_elems:
-        if isinstance(el, DB.RevitLinkInstance) or isinstance(el, DB.ImportInstance):
-            continue
-        
-        # ปรับแก้การเช็ค Category ID ให้รองรับทั้ง Revit 2026 (.Value) และเวอร์ชันเก่า
-        if el.Category:
-            cat_id = el.Category.Id
-            cat_val = cat_id.Value if hasattr(cat_id, 'Value') else cat_id.IntegerValue
-            if cat_val == int(DB.BuiltInCategory.OST_RvtLinks):
-                continue
-                
-        elems.append(el)
-
     if not elems: 
-        UI.TaskDialog.Show("G-Status", "ไม่พบชิ้นส่วนใน View ปัจจุบัน (ไม่รวม Revit Link)")
+        UI.TaskDialog.Show("G-Status", "ไม่พบชิ้นส่วนใน View ปัจจุบัน")
         return
     
     grouped = {}
@@ -390,7 +352,10 @@ def main():
 
                     p = el.LookupParameter(PARAM_NAME)
                     if p and not p.IsReadOnly:
-                        cur = get_param_value(p)
+                        cur = "Empty"
+                        if p.HasValue:
+                            cur = p.AsValueString() or str(p.AsDouble()) if p.StorageType == DB.StorageType.Double else str(p.AsInteger())
+                            cur = cur.replace(".0","")
                         
                         if cur == task["Old"]:
                             new_val = task["New"]
