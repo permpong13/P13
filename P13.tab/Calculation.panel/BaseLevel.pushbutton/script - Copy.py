@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Set Base Level - Length Parameter (Optimized for Revit 2024+)"""
+"""Set Base Level - Text Parameter (Optimized for Revit 2024+)"""
 
 __title__ = "Base_Level\nParameter"
 
@@ -67,7 +67,7 @@ arch_cat_ids = get_category_ids(architectural_categories)
 mep_cat_ids = get_category_ids(MEP_categories)
 
 # =====================================================
-# จัดการ/สร้าง/อัปเดต Shared Parameter (ชนิด LENGTH)
+# จัดการ/สร้าง/อัปเดต Shared Parameter (ชนิด TEXT)
 # =====================================================
 def setup_base_level_parameter(doc, app, all_cat_names):
     param_name = "Base_Level"
@@ -135,12 +135,10 @@ def setup_base_level_parameter(doc, app, all_cat_names):
         group = sp_file.Groups.get_Item(group_name)
         if not group: group = sp_file.Groups.Create(group_name)
         try:
-            # ⭐️ ปรับเปลี่ยน SpecTypeId เป็น Length สำหรับ Revit รุ่นใหม่
-            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.Length)
+            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.String.Text)
             target_def = group.Definitions.Create(opt)
         except AttributeError:
-            # ⭐️ ปรับเปลี่ยน ParameterType เป็น Length สำหรับ Revit 2021 ลงไป
-            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Length)
+            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Text)
             target_def = group.Definitions.Create(opt)
             
     if original_sp and app.SharedParametersFilename != original_sp:
@@ -174,7 +172,7 @@ def setup_base_level_parameter(doc, app, all_cat_names):
 
 output.print_md("### **ตรวจสอบ Parameter**")
 param_status = setup_base_level_parameter(doc, app, all_categories)
-if param_status == "created": output.print_md("✅ **ระบบได้สร้างพารามิเตอร์ 'Base_Level' เป็นชนิด LENGTH สำเร็จ**")
+if param_status == "created": output.print_md("✅ **ระบบได้สร้างพารามิเตอร์ 'Base_Level' เป็นชนิด TEXT สำเร็จ**")
 elif param_status == "updated": output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' และอัปเดต Category เพิ่มเติมแล้ว**")
 elif param_status == "exists": output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' พร้อมใช้งาน**")
 else: output.print_md("⚠️ **ไม่สามารถสร้างพารามิเตอร์อัตโนมัติได้ (Status: {})**".format(param_status))
@@ -319,7 +317,7 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
                 if isinstance(lvl_elem, DB.Level):
                     level_cache[lvl_id] = {
                         "elev_m": lvl_elem.Elevation * 0.3048,
-                        "raw_elev": lvl_elem.Elevation, # ค่าในหน่วย Feet
+                        "raw_elev": lvl_elem.Elevation,
                         "name": lvl_elem.Name
                     }
                 else:
@@ -335,8 +333,10 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
             if not p.IsReadOnly:
                 cat_val = get_id_value(e.Category.Id) if e.Category else None
                 
-                # ⭐️ ปรับให้เขียนค่าประเภท Double (ตัวเลข) ลง Parameter ทันทีเนื่องจากเป็นชนิด Length แล้ว
-                if p.StorageType == DB.StorageType.Double:
+                if p.StorageType == DB.StorageType.String:
+                    p.Set("{:.3f}".format(lvl_data["elev_m"]))
+                    success_count += 1
+                elif p.StorageType == DB.StorageType.Double:
                     p.Set(lvl_data["raw_elev"])
                     success_count += 1
                     
@@ -387,11 +387,9 @@ for e in unique_elements:
 
     lvl_data = level_cache[lvl_id]
     
-    # ⭐️ อ่านค่ากลับมาเป็น Double และแปลงหน่วยให้เป็นเมตรเพื่อใช้ Print สรุปผล
-    if p.StorageType == DB.StorageType.Double: 
-        base_val = "{:.3f}".format(p.AsDouble() * 0.3048)
-    else: 
-        base_val = "N/A"
+    if p.StorageType == DB.StorageType.String: base_val = p.AsString()
+    elif p.StorageType == DB.StorageType.Double: base_val = "{:.3f}".format(p.AsDouble() * 0.3048)
+    else: base_val = "N/A"
 
     output.print_md("{}. **{}**".format(shown+1, e.Category.Name))
     output.print_md("   - Level: {}".format(lvl_data["name"]))
