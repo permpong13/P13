@@ -1,0 +1,23 @@
+title: "Lighting Top Cal"
+
+tooltip: |
+  🇬🇧 [EN] Batch calculate and update elevation parameters for Lighting Fixtures and Devices.
+  Key Features:
+  • Automatically extracts the exact Z-coordinate elevation from the element's insertion point.
+  • Compatible with Revit 2024-2026+ (Fully supports 64-bit Element IDs).
+  • Auto-generates missing Shared Parameters (Top of Lighting_Fixtures, Base_Level, etc.).
+  • Safely processes elements within Model Groups without breaking functionality.
+  • Displays a real-time progress bar during model-wide updates.
+  • Covers both Lighting Fixtures and Lighting Devices categories.
+
+  🇹🇭 [TH] คำนวณและอัปเดตพารามิเตอร์ระดับความสูงของดวงโคมและอุปกรณ์แสงสว่างทั้งหมดในโมเดล
+  ฟังก์ชันหลัก:
+  • ดึงค่าระดับความสูงจริง (พิกัด Z) จากจุดแทรก (Insertion Point) ของชิ้นงานโดยอัตโนมัติ
+  • รองรับ Revit 2024-2026+ (ทำงานร่วมกับระบบ ID 64-bit ได้อย่างสมบูรณ์)
+  • สร้าง Shared Parameter ที่ขาดหายให้เองอัตโนมัติ (เช่น Top of Lighting_Fixtures, Base_Level)
+  • จัดการชิ้นงานที่อยู่ใน Model Group ได้อย่างปลอดภัยโดยไม่ติดแจ้งเตือน Error
+  • มีแถบแสดงสถานะ (Progress Bar) แบบเรียลไทม์ขณะอัปเดตข้อมูลทั้งโมเดล
+  • ครอบคลุมการทำงานทั้งหมวดหมู่ Lighting Fixtures และ Lighting Devices
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Batch calculate and update Top Elevation parameters for Lighting Fixtures and Devices. / คำนวณและอัปเดตค่าพารามิเตอร์ระดับความสูงของดวงโคมและอุปกรณ์แสงสว่าง"
