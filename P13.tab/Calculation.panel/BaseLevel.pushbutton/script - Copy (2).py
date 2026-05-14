@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Set Base Level - Length Parameter (Optimized for Revit 2024-2026+)"""
+"""Set Base Level - Length Parameter (Optimized for Revit 2024+)"""
 
 __title__ = "Base_Level\nParameter"
 
@@ -67,14 +67,13 @@ arch_cat_ids = get_category_ids(architectural_categories)
 mep_cat_ids = get_category_ids(MEP_categories)
 
 # =====================================================
-# จัดการ/สร้าง/อัปเดต/ตรวจสอบ Shared Parameter (ชนิด LENGTH)
+# จัดการ/สร้าง/อัปเดต Shared Parameter (ชนิด LENGTH)
 # =====================================================
 def setup_base_level_parameter(doc, app, all_cat_names):
     param_name = "Base_Level"
     existing_def = None
     existing_binding = None
     
-    # 1. ตรวจสอบพารามิเตอร์ใน Document
     iterator = doc.ParameterBindings.ForwardIterator()
     while iterator.MoveNext():
         if iterator.Key.Name == param_name:
@@ -83,88 +82,39 @@ def setup_base_level_parameter(doc, app, all_cat_names):
             break
             
     if existing_def and existing_binding:
-        # ใช้ GetSpecTypeId() สำหรับ Revit 2024-2026+ โดยเฉพาะ (ตัด ParameterType ทิ้งเพื่อเลี่ยง AttributeError)
-        is_length_type = False
-        try:
-            is_length_type = (existing_def.GetSpecTypeId() == DB.SpecTypeId.Length)
-        except Exception:
-            is_length_type = False
-            
-        if is_length_type:
-            cat_set = existing_binding.Categories
-            needs_update = False
-            
-            for c in all_cat_names:
-                try:
-                    b_cat = getattr(DB.BuiltInCategory, c)
-                    cat = doc.Settings.Categories.get_Item(b_cat)
-                    if cat and cat.AllowsBoundParameters and not cat_set.Contains(cat):
-                        cat_set.Insert(cat)
-                        needs_update = True
-                except: pass
-                
-            if needs_update:
-                t_rebind = DB.Transaction(doc, "Update Base_Level Categories")
-                t_rebind.Start()
-                try:
-                    new_binding = app.Create.NewInstanceBinding(cat_set)
-                    doc.ParameterBindings.ReInsert(existing_def, new_binding)
-                    t_rebind.Commit()
-                    return "updated"
-                except:
-                    t_rebind.RollBack()
-                    return "exists"
-            return "exists"
-        else:
-            # ลบพารามิเตอร์เดิมที่ผิดประเภทออก (ทำนอก ForwardIterator เพื่อความปลอดภัย)
-            output.print_md("⚠️ **พบพารามิเตอร์ 'Base_Level' เดิมแต่ Data Type ไม่ใช่ LENGTH ระบบกำลังลบเพื่อสร้างใหม่...**")
-            t_remove = DB.Transaction(doc, "Remove Incorrect Base_Level Parameter")
-            t_remove.Start()
+        cat_set = existing_binding.Categories
+        needs_update = False
+        
+        for c in all_cat_names:
             try:
-                sp_collector = DB.FilteredElementCollector(doc).OfClass(DB.SharedParameterElement)
-                sp_elem_id = None
-                for sp_elem in sp_collector:
-                    if sp_elem.Name == param_name:
-                        sp_elem_id = sp_elem.Id
-                        break
-                
-                if sp_elem_id:
-                    doc.Delete(sp_elem_id)
-                else:
-                    doc.ParameterBindings.Remove(existing_def)
-                    
-                t_remove.Commit()
-                existing_def = None
-                existing_binding = None
-                output.print_md("♻️ **ลบพารามิเตอร์เดิมที่ผิดประเภทสำเร็จ เตรียมสร้างใหม่เป็นชนิด LENGTH**")
-            except Exception:
-                t_remove.RollBack()
-                return "remove_old_failed"
+                b_cat = getattr(DB.BuiltInCategory, c)
+                cat = doc.Settings.Categories.get_Item(b_cat)
+                if cat and cat.AllowsBoundParameters and not cat_set.Contains(cat):
+                    cat_set.Insert(cat)
+                    needs_update = True
+            except: pass
             
-    # 2. ตรวจสอบและจัดการไฟล์ Shared Parameter
+        if needs_update:
+            t_rebind = DB.Transaction(doc, "Update Base_Level Categories")
+            t_rebind.Start()
+            try:
+                new_binding = app.Create.NewInstanceBinding(cat_set)
+                doc.ParameterBindings.ReInsert(existing_def, new_binding)
+                t_rebind.Commit()
+                return "updated"
+            except:
+                t_rebind.RollBack()
+                return "exists"
+        return "exists"
+            
     sp_file = app.OpenSharedParameterFile()
     original_sp = app.SharedParametersFilename
     
-    target_def = None
-    if sp_file:
-        for group in sp_file.Groups:
-            found_in_group = False
-            for definition in group.Definitions:
-                if definition.Name == param_name:
-                    found_in_group = True
-                    try:
-                        if definition.GetSpecTypeId() == DB.SpecTypeId.Length:
-                            target_def = definition
-                    except Exception:
-                        pass
-                    break
-            if found_in_group:
-                break
-                
-    if not sp_file or (sp_file and not target_def):
+    if not sp_file:
         temp_dir = tempfile.gettempdir()
         temp_sp_path = os.path.join(temp_dir, "Auto_SharedParams_Revit.txt")
-        with open(temp_sp_path, "w") as f: f.write("") 
+        if not os.path.exists(temp_sp_path):
+            with open(temp_sp_path, "w") as f: f.write("") 
         try:
             app.SharedParametersFilename = temp_sp_path
             sp_file = app.OpenSharedParameterFile()
@@ -176,11 +126,7 @@ def setup_base_level_parameter(doc, app, all_cat_names):
     for group in sp_file.Groups:
         for definition in group.Definitions:
             if definition.Name == param_name:
-                try:
-                    if definition.GetSpecTypeId() == DB.SpecTypeId.Length: 
-                        target_def = definition
-                except Exception:
-                    pass
+                target_def = definition
                 break
         if target_def: break
             
@@ -189,10 +135,13 @@ def setup_base_level_parameter(doc, app, all_cat_names):
         group = sp_file.Groups.get_Item(group_name)
         if not group: group = sp_file.Groups.Create(group_name)
         try:
+            # ⭐️ ปรับเปลี่ยน SpecTypeId เป็น Length สำหรับ Revit รุ่นใหม่
             opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.Length)
             target_def = group.Definitions.Create(opt)
-        except Exception:
-            return "create_def_failed"
+        except AttributeError:
+            # ⭐️ ปรับเปลี่ยน ParameterType เป็น Length สำหรับ Revit 2021 ลงไป
+            opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Length)
+            target_def = group.Definitions.Create(opt)
             
     if original_sp and app.SharedParametersFilename != original_sp:
         try: app.SharedParametersFilename = original_sp
@@ -215,7 +164,8 @@ def setup_base_level_parameter(doc, app, all_cat_names):
     t_param = DB.Transaction(doc, "Setup Parameter: Base_Level")
     t_param.Start()
     try:
-        doc.ParameterBindings.Insert(target_def, binding, DB.GroupTypeId.Data)
+        try: doc.ParameterBindings.Insert(target_def, binding, DB.GroupTypeId.Data)
+        except AttributeError: doc.ParameterBindings.Insert(target_def, binding, DB.BuiltInParameterGroup.PG_DATA)
         t_param.Commit()
         return "created"
     except:
@@ -224,10 +174,10 @@ def setup_base_level_parameter(doc, app, all_cat_names):
 
 output.print_md("### **ตรวจสอบ Parameter**")
 param_status = setup_base_level_parameter(doc, app, all_categories)
-if param_status == "created": output.print_md("✅ **ระบบได้สร้าง/แก้ไขพารามิเตอร์ 'Base_Level' เป็นชนิด LENGTH สำเร็จ**")
+if param_status == "created": output.print_md("✅ **ระบบได้สร้างพารามิเตอร์ 'Base_Level' เป็นชนิด LENGTH สำเร็จ**")
 elif param_status == "updated": output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' และอัปเดต Category เพิ่มเติมแล้ว**")
 elif param_status == "exists": output.print_md("✅ **พบพารามิเตอร์ 'Base_Level' พร้อมใช้งาน**")
-else: output.print_md("⚠️ **ไม่สามารถสร้าง/แก้ไขพารามิเตอร์อัตโนมัติได้ (Status: {})**".format(param_status))
+else: output.print_md("⚠️ **ไม่สามารถสร้างพารามิเตอร์อัตโนมัติได้ (Status: {})**".format(param_status))
 
 # =====================================================
 # ค้นหาและเตรียมข้อมูล (Fast Filter)
@@ -294,7 +244,7 @@ def get_element_level_id(element):
 # =====================================================
 output.print_md("### **กำลังตั้งค่า Base_Level ให้ทุกรายการ...**")
 
-# ⭐️ OPTIMIZATION 4: ทำการ Check out Worksets ล่วงหน้าเพื่อป้องกัน Error
+# ⭐️ OPTIMIZATION 4: ทำการ Check out Worksets ล่วงหน้าเพื่อป้องกัน Error "You are trying to checkout a large number of elements"
 if doc.IsWorkshared:
     try:
         output.print_md("⏳ **กำลัง Check out Worksets ที่เกี่ยวข้องอัตโนมัติจาก Central Model...**")
@@ -340,13 +290,14 @@ MEP_success = 0
 total_elements = len(unique_elements)
 is_cancelled = False
 
-# ⭐️ OPTIMIZATION 3: Caching ข้อมูล Level เพื่อลดการอ่านซ้ำ
+# ⭐️ OPTIMIZATION 3: Caching ข้อมูล Level เพื่อลดการอ่านซ้ำ (ช่วยลด RAM และเวลา)
 level_cache = {} 
-update_step = max(1, total_elements // 100)
+update_step = max(1, total_elements // 100) # อัปเดต Progress ทุกๆ 1% แทนที่จะอัปเดตทุกชิ้น
 
 with forms.ProgressBar(title='กำลังตั้งค่า Base_Level... ({value} จาก {max_value})', cancellable=True) as pb:
     for index, e in enumerate(unique_elements):
         
+        # อัปเดต Progress Bar เป็นระยะๆ เพื่อป้องกัน UI ค้าง
         if index % update_step == 0:
             if pb.cancelled:
                 is_cancelled = True
@@ -362,12 +313,13 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
             lvl_id = get_element_level_id(e)
             if not lvl_id: continue
 
+            # ดึงข้อมูล Level จาก Cache ถ้ามีอยู่แล้ว
             if lvl_id not in level_cache:
                 lvl_elem = doc.GetElement(lvl_id)
                 if isinstance(lvl_elem, DB.Level):
                     level_cache[lvl_id] = {
                         "elev_m": lvl_elem.Elevation * 0.3048,
-                        "raw_elev": lvl_elem.Elevation, 
+                        "raw_elev": lvl_elem.Elevation, # ค่าในหน่วย Feet
                         "name": lvl_elem.Name
                     }
                 else:
@@ -383,7 +335,7 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
             if not p.IsReadOnly:
                 cat_val = get_id_value(e.Category.Id) if e.Category else None
                 
-                # ⭐️ เขียนค่าประเภท Double ลง Parameter ทันทีเนื่องจากเป็นชนิด Length แล้ว
+                # ⭐️ ปรับให้เขียนค่าประเภท Double (ตัวเลข) ลง Parameter ทันทีเนื่องจากเป็นชนิด Length แล้ว
                 if p.StorageType == DB.StorageType.Double:
                     p.Set(lvl_data["raw_elev"])
                     success_count += 1
@@ -397,7 +349,7 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
         except:
             continue
             
-    pb.update_progress(total_elements, total_elements)
+    pb.update_progress(total_elements, total_elements) # อัปเดตครั้งสุดท้ายให้เต็ม 100%
 
 t.Commit()
 
@@ -435,6 +387,7 @@ for e in unique_elements:
 
     lvl_data = level_cache[lvl_id]
     
+    # ⭐️ อ่านค่ากลับมาเป็น Double และแปลงหน่วยให้เป็นเมตรเพื่อใช้ Print สรุปผล
     if p.StorageType == DB.StorageType.Double: 
         base_val = "{:.3f}".format(p.AsDouble() * 0.3048)
     else: 
