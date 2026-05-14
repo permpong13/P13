@@ -2,7 +2,7 @@
 """
 pyRevit - Ultimate Family Rescue Mode
 """
-__title__ = "Family Rescue\nMode"
+__title__ = "Families"
 __author__ = "เพิ่มพงษ์"
 
 import os
