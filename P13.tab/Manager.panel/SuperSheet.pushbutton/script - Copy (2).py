@@ -286,7 +286,7 @@ class SuperSheetsUltimate(Window):
                            Background=BG_APP, RowBackground=BG_CARD, AlternatingRowBackground=hex_brush("#f8fafc"),
                            BorderBrush=BORDER_LINE, Foreground=TEXT_MAIN)
         
-        # --- Template Column สำหรับ Sync Checkbox + Spacebar ---
+        # --- NEW: Template Column สำหรับ Sync Checkbox + Spacebar ---
         chk_factory = FrameworkElementFactory(CheckBox)
         chk_factory.SetBinding(ToggleButton.IsCheckedProperty, Binding("Include", UpdateSourceTrigger=UpdateSourceTrigger.PropertyChanged))
         chk_factory.AddHandler(ToggleButton.ClickEvent, RoutedEventHandler(self._on_check_click))
@@ -328,10 +328,12 @@ class SuperSheetsUltimate(Window):
         self._load_last_settings() 
         self._update_all_previews()
         
+    # --- ฟังก์ชันใหม่: จัดการการคลิก Checkbox รวดเดียว ---
     def _on_check_click(self, sender, e):
         try:
             if self._ignore_events: return
             item = sender.DataContext
+            # ถ้าไอเทมที่กดเป็น 1 ในหลายๆ แถวที่ไฮไลต์ไว้
             if item in self.dg.SelectedItems and self.dg.SelectedItems.Count > 1:
                 is_checked = sender.IsChecked
                 self._ignore_events = True
@@ -341,6 +343,7 @@ class SuperSheetsUltimate(Window):
                 self._ignore_events = False
         except: pass
 
+    # --- ฟังก์ชันใหม่: จัดการการกดปุ่ม Spacebar รวดเดียว ---
     def _on_dg_keydown(self, sender, e):
         try:
             if e.Key == Key.Space and self.dg.SelectedItems.Count > 0:
@@ -600,7 +603,6 @@ class SuperSheetsUltimate(Window):
     def _sanitize(self, name):
         return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
-    # --- ฟังก์ชันนี้ถูกปรับเปลี่ยนให้ใช้ชื่อไฟล์เดิมเพื่อทำการเขียนทับแทนการเพิ่ม _01, _02 ---
     def _get_safe_filename(self, folder, base_name, ext):
         max_len = 250 - len(folder) - len(ext)
         if max_len <= 0: return base_name 
@@ -608,7 +610,18 @@ class SuperSheetsUltimate(Window):
         if len(base_name) > max_len:
             base_name = base_name[:max_len].strip()
             
-        return base_name
+        final_name = base_name
+        counter = 1
+        
+        while os.path.exists(os.path.join(folder, final_name + ext)):
+            suffix = "_{:02d}".format(counter)
+            if len(base_name) + len(suffix) > max_len:
+                final_name = base_name[:max_len-len(suffix)].strip() + suffix
+            else:
+                final_name = base_name + suffix
+            counter += 1
+            
+        return final_name
 
     def _create_excel(self, items, folder):
         try:
@@ -641,6 +654,7 @@ class SuperSheetsUltimate(Window):
             if self.chkRegionEdgesMask.IsChecked: opt.RegionEdgesMaskCoincidentLines = True
         except: pass
 
+    # --- ฟังก์ชันใหม่: ดักจับเฉพาะหน้าต่าง Update Resources (ปลอดภัยต่อ PDF) ---
     def _safe_dialog_handler(self, sender, args):
         try:
             is_update_dialog = False
@@ -655,7 +669,7 @@ class SuperSheetsUltimate(Window):
                     is_update_dialog = True
                     
             if is_update_dialog:
-                args.OverrideResult(1001) 
+                args.OverrideResult(1001) # สั่งกด Continue ให้อัตโนมัติ
         except:
             pass
 
@@ -693,6 +707,7 @@ class SuperSheetsUltimate(Window):
                 forms.alert("ไม่สามารถสร้างโฟลเดอร์ย่อยในตำแหน่งที่เลือกได้ กรุณาตรวจสอบสิทธิ์การเข้าถึง:\n" + str(ex), title="Folder Error")
                 return
 
+        # --- เปิดระบบดักหน้าต่าง Update Resources ---
         uiapp = HOST_APP.uiapp
         try: uiapp.DialogBoxShowing += self._safe_dialog_handler
         except: pass
@@ -811,6 +826,7 @@ class SuperSheetsUltimate(Window):
             import traceback
             traceback.print_exc()
         finally:
+            # --- ปิดระบบดักหน้าต่างเมื่อทำงานเสร็จ ---
             try: uiapp.DialogBoxShowing -= self._safe_dialog_handler
             except: pass
 
