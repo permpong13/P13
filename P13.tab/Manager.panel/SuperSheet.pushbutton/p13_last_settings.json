@@ -1,1 +1,1 @@
-{"auto_folder": false, "region_edges_mask": false, "replace_halftone": true, "last_profile": "Tee", "hide_scope_boxes": true, "prefix": "P13-", "view_links": true, "color": 0, "hide_unref_view_tags": true, "pdf": true, "ifc": false, "excel": false, "path": "F:\\Work", "combine_name": "Combined_Set", "pattern": "{Sheet Number} - {Sheet Name}", "nwc": false, "dwg": false, "suffix": "", "hide_crop_boundaries": true, "combine": false, "hide_ref_worksets": false}
+{"pattern": "{SheetNumber}_{SheetName}-R{Current Revision}", "path": "C:\\Users\\permpong13\\Downloads\\xxx"}

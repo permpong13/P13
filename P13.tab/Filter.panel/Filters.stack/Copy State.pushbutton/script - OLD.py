@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=import-error,invalid-name,broad-except
-"""Advanced Copy State: Save Filter States with Named Presets (English UI)"""
+"""Advanced Copy State: บันทึก Filters ครบทุกช่อง (Foreground & Background) รองรับ Revit 2024-2026"""
 import os
 import json
 import System
@@ -22,23 +22,20 @@ class FilterCopyAction:
         view = revit.active_view
         doc = revit.doc
         
-        # 1. Name the Preset
-        preset_name = forms.ask_for_string(default="Filter_Preset_01", prompt="Enter a name for the Filter preset:", title="Save Filter Preset")
+        preset_name = forms.ask_for_string(default="QuickCopy_State", prompt="ตั้งชื่อชุดข้อมูล Filters:\n(กด Enter เพื่อใช้ชื่อเดิมเขียนทับได้เลย)", title="Save Filter Preset")
         if not preset_name: return
 
-        # 2. Select Filters to save
         filter_ids = view.GetFilters()
         if not filter_ids:
-            forms.alert("No Filters found in the active view.")
+            forms.alert("ไม่พบ Filters ในมุมมองนี้")
             return
 
         selected_filters = forms.SelectFromList.show(
             [doc.GetElement(fid).Name for fid in filter_ids],
-            title="Select Filters to save", multiselect=True
+            title="เลือก Filters ที่จะบันทึก", multiselect=True
         )
         if not selected_filters: return
 
-        # 3. Collect ordered data
         export_data = []
         for fid in filter_ids:
             f_elem = doc.GetElement(fid)
@@ -46,7 +43,8 @@ class FilterCopyAction:
                 ovr = view.GetFilterOverrides(fid)
                 transparency = ovr.SurfaceTransparency if hasattr(ovr, 'SurfaceTransparency') else ovr.Transparency
                 
-                filter_data = {
+                # เก็บข้อมูลครอบคลุมทั้ง FG และ BG
+                export_data.append({
                     "name": f_elem.Name,
                     "is_visible": view.GetFilterVisibility(fid),
                     "is_enabled": view.GetIsFilterEnabled(fid) if hasattr(view, 'GetIsFilterEnabled') else True,
@@ -72,20 +70,15 @@ class FilterCopyAction:
                         "cut_bg_pattern_id": get_id_val(ovr.CutBackgroundPatternId) if hasattr(ovr, 'CutBackgroundPatternId') else -1,
                         "cut_bg_pattern_color": get_rgb(ovr.CutBackgroundPatternColor) if hasattr(ovr, 'CutBackgroundPatternColor') else None
                     }
-                }
-                export_data.append(filter_data)
+                })
 
-        # 4. Save to JSON
         if not os.path.exists(export_path):
             os.makedirs(export_path)
             
         file_path = os.path.join(export_path, "{}.json".format(preset_name))
-        try:
-            with open(file_path, 'w') as f:
-                json.dump(export_data, f, indent=4)
-            forms.toast("Successfully saved preset: {}".format(preset_name), title="Copy Complete")
-        except Exception as e:
-            forms.alert("Error saving file: {}".format(e))
+        with open(file_path, 'w') as f:
+            json.dump(export_data, f, indent=4)
+        forms.toast("บันทึก Filter Preset: {} เรียบร้อย".format(preset_name))
 
 if __name__ == "__main__":
     FilterCopyAction().copy()
