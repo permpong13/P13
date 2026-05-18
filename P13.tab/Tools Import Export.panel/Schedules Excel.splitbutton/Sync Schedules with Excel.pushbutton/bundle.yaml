@@ -1,0 +1,12 @@
+title: "Sync Schedules\nwith Excel"
+tooltip: |
+  Sync an existing P13 schedule XLSX or CSV file with the current Revit model.
+
+  Modes:
+  - Excel -> Revit: preview and apply writable Excel changes to existing Revit elements.
+  - Revit -> Excel: refresh the selected workbook or CSV from current Revit schedule values.
+
+  This is directional sync to avoid unsafe two-way conflicts.
+author: "P13"
+description: "Directional schedule sync between Revit and an existing P13 Excel or CSV export."
+

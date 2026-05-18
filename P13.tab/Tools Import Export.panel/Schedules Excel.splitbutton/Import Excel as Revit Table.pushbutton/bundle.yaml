@@ -1,0 +1,9 @@
+title: "Import Excel\nas Revit Table"
+tooltip: |
+  Import an XLSX or CSV sheet as a text-based table in a new Drafting View.
+
+  This creates TextNote and DetailLine elements for notes, legends, and non-parametric tables.
+  Text notes are created with column-aware widths to reduce overlapping text.
+  It does not create a native Revit schedule.
+author: "P13"
+description: "Create a drafting view table from Excel or CSV data."

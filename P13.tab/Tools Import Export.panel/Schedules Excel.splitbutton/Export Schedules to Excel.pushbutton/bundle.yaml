@@ -1,0 +1,10 @@
+title: "Export Schedules\nto Excel"
+tooltip: |
+  Export selected Revit schedules to XLSX or CSV.
+
+  XLSX exports include hidden P13 metadata columns and a hidden metadata sheet for safe schedule round-trip import.
+  CSV exports also create a .p13meta.csv sidecar file for safer import.
+  Values are exported from the displayed schedule cells first, so calculated, combined, count, and display fields match Revit output.
+  Grouped or non-itemized schedules can be exported, but they are treated as export-only during import.
+author: "P13"
+description: "Export selected schedules to Excel with hidden metadata for update-only import."

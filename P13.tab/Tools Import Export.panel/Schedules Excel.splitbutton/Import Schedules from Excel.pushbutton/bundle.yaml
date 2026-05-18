@@ -1,0 +1,9 @@
+title: "Import Schedules\nfrom Excel"
+tooltip: |
+  Import a P13 schedule XLSX or CSV export and update existing Revit elements.
+
+  The importer uses hidden ElementId, UniqueId, and parameter metadata when available.
+  It writes only metadata-approved writable parameters and skips export-only columns such as Count, calculated fields, and ElementId fields.
+  It previews all changes before writing and skips grouped/non-itemized schedule rows.
+author: "P13"
+description: "Update existing Revit element parameters from a P13 schedule Excel export."
