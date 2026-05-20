@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Set Column Levels Parameters"""
 
-__title__ = "Column Levels\nParameters"
+__title__ = "Columns\nCal"
 
 import os
 import tempfile
