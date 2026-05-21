@@ -1,0 +1,25 @@
+title: "Door\nCal"
+
+tooltip: |
+  🇬🇧 [EN] Calculate and update door elevation parameters (Fixed for Revit 2026).
+  Calculation Formulas:
+  • Top of Door    = Base Elevation + Sill Height + Door Height
+  • Bottom of Door = Base Elevation + Sill Height
+
+  Updated Parameters:
+  1. Top of Door
+  2. Bottom of Door
+  3. Base_Level (Auto-generates Shared Parameters if missing)
+
+  🇹🇭 [TH] คำนวณและอัปเดตพารามิเตอร์ระดับความสูงของประตู (Fixed Version สำหรับ Revit 2026)
+  สูตรการคำนวณ:
+  • Top of Door    = Base Elevation + Sill Height + Door Height
+  • Bottom of Door = Base Elevation + Sill Height
+
+  พารามิเตอร์ที่อัปเดต:
+  1. Top of Door
+  2. Bottom of Door
+  3. Base_Level (ตรวจสอบและสร้าง Shared Parameter อัตโนมัติหากไม่มี)
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Calculate door elevations and update parameters based on Level, Sill Height and Door Height. / รวบรวมประตูทั้งหมดเพื่อคำนวณและเขียนค่าระดับความสูงลงใน Parameter"
