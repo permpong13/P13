@@ -14,7 +14,7 @@ from pyrevit import DB, coreutils, revit
 import clr
 
 # =======================================================
-# 🌟 ระบบโหลด EPPlus.dll แบบหุ้มเกราะ (Dual-Engine)
+# EPPlus loader with a native XLSX fallback.
 # =======================================================
 LIB_DIR = os.path.dirname(__file__)
 BIN_DIR = os.path.join(LIB_DIR, "bin")
@@ -29,8 +29,8 @@ if os.path.exists(EPPLUS_PATH):
             OfficeOpenXml.ExcelPackage.LicenseContext = OfficeOpenXml.LicenseContext.NonCommercial
         except Exception: pass
         excel_lib = OfficeOpenXml
-    except Exception as e:
-        print("⚠️ Warning: EPPlus.dll load failed. Falling back to Native Engine.")
+    except Exception:
+        print("Warning: EPPlus.dll load failed. Falling back to the native XLSX engine.")
         excel_lib = None
 
 def to_text(value):
@@ -45,6 +45,13 @@ def get_id_value(element_id):
     if hasattr(element_id, "IntegerValue"): return element_id.IntegerValue
     try: return int(element_id)
     except Exception: return None
+
+def make_element_id(value):
+    try:
+        import System
+        return DB.ElementId(System.Int64(int(value)))
+    except Exception:
+        return DB.ElementId(int(value))
 
 def safe_filename(value):
     value = re.sub(r'[\\/:*?"<>|]+', "_", value or "Schedule")
@@ -68,7 +75,7 @@ def parameter_to_text(parameter, doc=None):
     if parameter is None or not parameter.HasValue: return ""
     try:
         if parameter.StorageType == DB.StorageType.String:
-            return parameter.Annotations if hasattr(parameter, "Annotations") else parameter.AsString() or ""
+            return parameter.AsString() or ""
         if parameter.StorageType == DB.StorageType.Integer:
             return str(parameter.AsInteger())
         if parameter.StorageType == DB.StorageType.Double:
@@ -121,7 +128,7 @@ def find_parameter(element, parameter_id, parameter_name, doc):
                     parameter = element.get_Parameter(builtin_param)
                 except Exception: parameter = None
             if parameter is None:
-                pid = DB.ElementId(pid_int)
+                pid = make_element_id(pid_int)
                 try: parameter = element.get_Parameter(pid)
                 except Exception: parameter = None
         except Exception: parameter = None
@@ -140,7 +147,6 @@ def find_parameter(element, parameter_id, parameter_name, doc):
         except Exception: parameter = None
     return parameter
 
-# 🌟 [CRITICAL FIX]: ดักตรวจสอบค่า Boolean จากการสั่ง Set() จริง ป้องกัน Revit ปฏิเสธค่าเงียบ
 def set_parameter_from_text(parameter, text_value, meta=None):
     if parameter is None: return False, "Parameter not found"
     if parameter.IsReadOnly: return False, "Read-only parameter"
@@ -153,6 +159,13 @@ def set_parameter_from_text(parameter, text_value, meta=None):
             
         if parameter.StorageType == DB.StorageType.Integer:
             if value == "": return False, "Blank integer value"
+            bool_text = value.lower()
+            if bool_text in ("yes", "true", "on"):
+                if parameter.Set(1): return True, ""
+                return False, "Revit rejected Yes/True update"
+            if bool_text in ("no", "false", "off"):
+                if parameter.Set(0): return True, ""
+                return False, "Revit rejected No/False update"
             clean_val = value.replace(",", "").split(".")[0]
             if parameter.Set(int(clean_val)): return True, ""
             return False, "Revit rejected integer update"
@@ -568,7 +581,7 @@ def write_xlsx(path, sheets):
                 package.Save()
             return
         except Exception as e:
-            print("⚠️ EPPlus write failed, falling back to Native XML:", e)
+            print("Warning: EPPlus write failed. Falling back to the native XLSX engine: {}".format(e))
     native_write_xlsx(path, sheets)
 
 def read_xlsx(path):
@@ -593,5 +606,5 @@ def read_xlsx(path):
                     sheets[sheet_name] = rows
             return sheets
         except Exception as e:
-            print("⚠️ EPPlus read failed, falling back to Native XML:", e)
+            print("Warning: EPPlus read failed. Falling back to the native XLSX engine: {}".format(e))
     return native_read_xlsx(path)

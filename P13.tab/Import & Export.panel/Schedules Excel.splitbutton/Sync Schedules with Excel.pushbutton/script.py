@@ -1,595 +1,491 @@
 # -*- coding: utf-8 -*-
-"""
-P13 Sync Schedules with Excel  |  v3.1  |  Revit 2026 Compatible
-=================================================================
-ใช้ openpyxl_loader.py สำหรับโหลด openpyxl ผ่าน CPython อัตโนมัติ
-
-วิธีติดตั้ง:
-  1. วาง openpyxl_loader.py ไว้ใน _schedule_excel_lib/
-  2. ติดตั้ง Python (CPython) จาก https://python.org
-  3. script จะติดตั้ง openpyxl ให้อัตโนมัติครั้งแรก
-"""
 from __future__ import print_function
 
-__title__  = "Sync Schedules\nwith Excel"
-__doc__    = "Sync P13/MLABS schedule Excel files with the current Revit model."
+__title__ = "Sync Schedules\nwith Excel"
+__doc__ = "Sync P13/MLABS schedule Excel or CSV files with the current Revit model."
 __author__ = "P13"
 
-import os
-import sys
-import shutil
 import datetime
-import traceback
+import os
+import shutil
+import sys
 
 import clr
 clr.AddReference("System.Windows.Forms")
-clr.AddReference("System")
 from System.Windows.Forms import OpenFileDialog, DialogResult
-import System
 
 from pyrevit import revit, DB, forms, script
 
-doc = revit.doc
-
-# ─────────────────────────────────────────────────────────────
-# โหลด openpyxl ผ่าน loader (รองรับ CPython fallback)
-# ─────────────────────────────────────────────────────────────
 LIB_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "_schedule_excel_lib")
 if LIB_DIR not in sys.path:
     sys.path.insert(0, LIB_DIR)
 
-# โหลด loader และ openpyxl
-_bridge = None  # ใช้ถ้า Approach A ล้มเหลว
+import p13_excel_v2 as sx
 
-try:
-    from openpyxl_loader import load_openpyxl, get_subprocess_bridge
-    try:
-        openpyxl = load_openpyxl(auto_install=True)
-        _USE_BRIDGE = False
-        print("[script] โหลด openpyxl สำเร็จ (direct import)")
-    except RuntimeError:
-        # Approach A ล้มเหลว ใช้ subprocess bridge
-        _bridge = get_subprocess_bridge(auto_install=True)
-        _USE_BRIDGE = True
-        print("[script] ใช้ Subprocess Bridge สำหรับ Excel")
-except ImportError:
-    forms.alert(
-        "ไม่พบ openpyxl_loader.py\n\n"
-        "กรุณาวาง openpyxl_loader.py ใน:\n{}".format(LIB_DIR),
-        title="Missing Loader",
-        exitscript=True,
-    )
+doc = revit.doc
 
 
-# ─────────────────────────────────────────────────────────────
-# EXCEL READ / WRITE  (unified API รองรับทั้ง 2 mode)
-# ─────────────────────────────────────────────────────────────
-def read_xlsx(path):
-    """อ่าน xlsx คืน dict{ sheet_name: [[values]] }"""
-    if _USE_BRIDGE:
-        return _bridge.read_xlsx(path)
-    wb = openpyxl.load_workbook(path, data_only=True)
-    result = {}
-    for name in wb.sheetnames:
-        ws = wb[name]
-        result[name] = [list(row) for row in ws.iter_rows(values_only=True)]
-    wb.close()
-    return result
+class SilentWarningPreprocessor(DB.IFailuresPreprocessor):
+    def PreprocessFailures(self, failures_accessor):
+        for failure in failures_accessor.GetFailureMessages():
+            if failure.GetSeverity() == DB.FailureSeverity.Warning:
+                failures_accessor.DeleteWarning(failure)
+        return DB.FailureProcessingResult.Continue
 
 
-def write_xlsx(path, sheets_data):
-    """เขียน xlsx โดย preserve formatting"""
-    if _USE_BRIDGE:
-        _bridge.write_xlsx(path, sheets_data)
-        return
-    wb = openpyxl.load_workbook(path)
-    for sheet_info in sheets_data:
-        name = sheet_info["name"]
-        rows = sheet_info["rows"]
-        if name not in wb.sheetnames:
-            continue
-        ws = wb[name]
-        for r_idx, row_data in enumerate(rows):
-            for c_idx, value in enumerate(row_data):
-                ws.cell(row=r_idx + 1, column=c_idx + 1).value = (
-                    value if value != "" else None
-                )
-    wb.save(path)
-    wb.close()
+class ExcelIO(object):
+    def __init__(self):
+        self.openpyxl = None
+        self.bridge = None
+        self.use_bridge = False
+
+        try:
+            from openpyxl_loader import load_openpyxl, get_subprocess_bridge
+            try:
+                self.openpyxl = load_openpyxl(auto_install=True)
+                print("[sync] Loaded openpyxl directly.")
+            except RuntimeError:
+                self.bridge = get_subprocess_bridge(auto_install=True)
+                self.use_bridge = True
+                print("[sync] Using the CPython Excel bridge.")
+        except Exception:
+            print("[sync] Using the native XLSX engine.")
+
+    def read_xlsx(self, path):
+        if self.use_bridge and self.bridge:
+            return self.bridge.read_xlsx(path)
+        if self.openpyxl:
+            workbook = self.openpyxl.load_workbook(path, data_only=True)
+            data = {}
+            for sheet_name in workbook.sheetnames:
+                worksheet = workbook[sheet_name]
+                data[sheet_name] = [list(row) for row in worksheet.iter_rows(values_only=True)]
+            workbook.close()
+            return data
+        return sx.read_xlsx(path)
+
+    def write_xlsx(self, path, sheets_data):
+        if self.use_bridge and self.bridge:
+            self.bridge.write_xlsx(path, sheets_data)
+            return
+        if self.openpyxl:
+            workbook = self.openpyxl.load_workbook(path)
+            for sheet_info in sheets_data:
+                sheet_name = sheet_info["name"]
+                if sheet_name not in workbook.sheetnames:
+                    continue
+                worksheet = workbook[sheet_name]
+                for row_idx, row_data in enumerate(sheet_info["rows"]):
+                    for col_idx, value in enumerate(row_data):
+                        worksheet.cell(row=row_idx + 1, column=col_idx + 1).value = value if value != "" else None
+            workbook.save(path)
+            workbook.close()
+            return
+        sx.write_xlsx(path, sheets_data)
+
+    def cleanup(self):
+        if self.bridge:
+            self.bridge.cleanup()
 
 
-# ─────────────────────────────────────────────────────────────
-# HELPER UTILITIES
-# ─────────────────────────────────────────────────────────────
 def to_text(value):
-    if value is None:
-        return ""
-    text = str(value).strip()
+    text = sx.to_text(value).strip()
     if text.endswith(".0") and text[:-2].lstrip("-").isdigit():
         return text[:-2]
     return text
 
 
-def get_element_id_value(eid):
-    try:
-        return eid.Value
-    except AttributeError:
-        return eid.IntegerValue
-
-
-def make_element_id(int_val):
-    try:
-        return DB.ElementId(System.Int64(int_val))
-    except Exception:
-        return DB.ElementId(int(int_val))
-
-
 def normalize_row(row, size):
-    row = list(row)
-    while len(row) < size:
-        row.append("")
-    return row
+    values = list(row)
+    while len(values) < size:
+        values.append("")
+    return values
+
+
+def pick_schedule_file():
+    dialog = OpenFileDialog()
+    dialog.Title = "Select P13 Schedule Excel or CSV File"
+    dialog.Filter = "Excel or CSV Files (*.xlsx;*.csv)|*.xlsx;*.csv|Excel Files (*.xlsx)|*.xlsx|CSV Files (*.csv)|*.csv"
+    if dialog.ShowDialog() == DialogResult.OK:
+        return dialog.FileName
+    return None
+
+
+def backup_file(path):
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    root, ext = os.path.splitext(path)
+    backup_path = "{}_backup_{}{}".format(root, timestamp, ext)
+    shutil.copy2(path, backup_path)
+    return backup_path
+
+
+def read_source(path, excel_io):
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".xlsx":
+        return excel_io.read_xlsx(path)
+    if ext == ".csv":
+        sheet_name = os.path.splitext(os.path.basename(path))[0]
+        return {sheet_name: sx.read_csv(path)}
+    raise Exception("Unsupported file type: {}".format(ext))
+
+
+def write_source(path, sheets_data, excel_io):
+    ext = os.path.splitext(path)[1].lower()
+    if ext == ".xlsx":
+        excel_io.write_xlsx(path, sheets_data)
+        return
+    if ext == ".csv":
+        if not sheets_data:
+            return
+        sx.write_csv(path, sheets_data[0]["rows"])
+        return
+    raise Exception("Unsupported file type: {}".format(ext))
+
+
+def parse_mlabs_metadata(rows):
+    if len(rows) < 8:
+        return {}
+
+    headers = [to_text(header) for header in rows[7]]
+    metadata = {}
+    for col_idx in range(1, len(headers)):
+        parameter_name = to_text(rows[0][col_idx]) if col_idx < len(rows[0]) else ""
+        if not parameter_name or parameter_name.lower() == "mlabs":
+            continue
+
+        parameter_id = to_text(rows[1][col_idx]) if len(rows[1]) > col_idx else ""
+        if parameter_id.endswith(".0"):
+            parameter_id = parameter_id[:-2]
+
+        storage = to_text(rows[4][col_idx]) if len(rows[4]) > col_idx else "String"
+        modifiable = to_text(rows[5][col_idx]) if len(rows[5]) > col_idx else ""
+        metadata[col_idx] = {
+            "header": headers[col_idx],
+            "parameter_id": parameter_id,
+            "parameter_name": parameter_name,
+            "writable": "1" if "Modifiable" in modifiable else "0",
+            "storage": storage,
+        }
+    return metadata
+
+
+def get_revit_element(element_id_text):
+    try:
+        clean_id = to_text(element_id_text)
+        if clean_id.endswith(".0"):
+            clean_id = clean_id[:-2]
+        if not clean_id or not clean_id.lstrip("-").isdigit():
+            return None
+        return doc.GetElement(sx.make_element_id(int(clean_id)))
+    except Exception:
+        return None
 
 
 def safe_float(text):
-    digits = "".join(c for c in text if c.isdigit() or c in ".-")
+    digits = "".join(c for c in to_text(text) if c.isdigit() or c in ".-")
     try:
         return float(digits) if digits else None
     except ValueError:
         return None
 
 
-def backup_excel(path):
-    ts   = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    dest = os.path.splitext(path)[0] + "_backup_{}.xlsx".format(ts)
-    shutil.copy2(path, dest)
-    return dest
-
-
-# ─────────────────────────────────────────────────────────────
-# MLABS FORMAT PARSER
-# ─────────────────────────────────────────────────────────────
-def parse_mlabs_metadata(rows):
-    if len(rows) < 8:
-        return {}
-    row0, row1, row4, row5, row7 = rows[0], rows[1], rows[4], rows[5], rows[7]
-    headers = [to_text(h) for h in row7]
-    meta = {}
-    for col in range(1, len(headers)):
-        pname = to_text(row0[col]) if col < len(row0) else ""
-        if not pname or pname.lower() in ("", "mlabs"):
-            continue
-        pid     = to_text(row1[col]) if col < len(row1) else ""
-        storage = to_text(row4[col]) if col < len(row4) else "String"
-        mod     = to_text(row5[col]) if col < len(row5) else ""
-        meta[col] = {
-            "header"         : headers[col],
-            "parameter_id"   : pid,
-            "parameter_name" : pname,
-            "writable"       : "1" if "Modifiable" in mod else "0",
-            "storage"        : storage,
-        }
-    return meta
-
-
-# ─────────────────────────────────────────────────────────────
-# REVIT PARAMETER UTILITIES
-# ─────────────────────────────────────────────────────────────
-def get_revit_element(id_text):
-    try:
-        clean = to_text(id_text)
-        if not clean or not clean.lstrip("-").isdigit():
-            return None
-        return doc.GetElement(make_element_id(int(clean)))
-    except Exception:
-        return None
-
-
-def find_parameter(element, pid, pname):
-    if element is None:
-        return None
-    if pid and len(pid) == 36:
-        try:
-            param = element.get_Parameter(System.Guid(pid))
-            if param is not None:
-                return param
-        except Exception:
-            pass
-    if pid:
-        try:
-            bip = getattr(DB.BuiltInParameter, pid.upper(), None)
-            if bip is not None:
-                param = element.get_Parameter(bip)
-                if param is not None:
-                    return param
-        except Exception:
-            pass
-    if pname:
-        param = element.LookupParameter(pname)
-        if param is not None:
-            return param
-    if pname:
-        for p in element.Parameters:
-            if p.Definition and p.Definition.Name == pname:
-                return p
-    return None
-
-
-def parameter_to_text(param):
-    if param is None or not param.HasValue:
-        return ""
-    storage = param.StorageType
-    if storage == DB.StorageType.String:
-        return param.AsString() or ""
-    if storage == DB.StorageType.Integer:
-        try:
-            if param.Definition.GetDataType() == DB.SpecTypeId.Boolean.YesNo:
-                return "Yes" if param.AsInteger() == 1 else "No"
-        except Exception:
-            pass
-        return str(param.AsInteger())
-    if storage == DB.StorageType.Double:
-        try:
-            unit_id   = param.GetUnitTypeId()
-            converted = DB.UnitUtils.ConvertFromInternalUnits(param.AsDouble(), unit_id)
-            return "{:.6f}".format(converted).rstrip("0").rstrip(".")
-        except Exception:
-            return "{:.6f}".format(param.AsDouble()).rstrip("0").rstrip(".")
-    if storage == DB.StorageType.ElementId:
-        eid = param.AsElementId()
-        if eid == DB.ElementId.InvalidElementId:
-            return ""
-        linked = doc.GetElement(eid)
-        if linked:
-            try:
-                return linked.Name
-            except Exception:
-                return str(get_element_id_value(eid))
-        return str(get_element_id_value(eid))
-    return param.AsValueString() or ""
-
-
-def set_parameter_from_text(param, value_text, meta=None):
-    if param is None:
-        return False, "Parameter is None"
-    if param.IsReadOnly:
-        return False, "Parameter is read-only"
-    storage    = param.StorageType
-    value_text = (value_text or "").strip()
-    try:
-        if storage == DB.StorageType.String:
-            param.Set(value_text)
-            return True, "OK"
-        if storage == DB.StorageType.Integer:
-            lo = value_text.lower()
-            if lo in ("yes", "true", "1"):
-                param.Set(1)
-            elif lo in ("no", "false", "0", ""):
-                param.Set(0)
-            else:
-                num = safe_float(value_text)
-                if num is None:
-                    return False, "Cannot parse integer: '{}'".format(value_text)
-                param.Set(int(num))
-            return True, "OK"
-        if storage == DB.StorageType.Double:
-            num = safe_float(value_text)
-            if num is None:
-                return False, "Cannot parse number: '{}'".format(value_text)
-            try:
-                unit_id = param.GetUnitTypeId()
-                param.Set(DB.UnitUtils.ConvertToInternalUnits(num, unit_id))
-            except Exception:
-                param.Set(num)
-            return True, "OK"
-        if storage == DB.StorageType.ElementId:
-            if not value_text or value_text.lower() in ("none", "invalid", "-1", ""):
-                param.Set(DB.ElementId.InvalidElementId)
-            else:
-                num = safe_float(value_text)
-                if num is None:
-                    return False, "Cannot parse ElementId: '{}'".format(value_text)
-                param.Set(make_element_id(int(num)))
-            return True, "OK"
-        return False, "Unsupported StorageType: {}".format(storage)
-    except Exception as exc:
-        return False, str(exc)
-
-
-def values_match(cur, new, storage_type):
-    if cur.strip() == new.strip():
+def values_match(current_value, new_value, storage_type):
+    current_clean = to_text(current_value).split(" ")[0].strip()
+    new_clean = to_text(new_value).split(" ")[0].strip()
+    if current_clean == new_clean:
         return True
+
     if storage_type in (DB.StorageType.Double, DB.StorageType.Integer):
-        a, b = safe_float(cur), safe_float(new)
-        if a is not None and b is not None:
-            return abs(a - b) < 0.001
+        current_num = safe_float(current_clean)
+        new_num = safe_float(new_clean)
+        if current_num is not None and new_num is not None:
+            return abs(current_num - new_num) < 0.001
+
     return False
 
 
-# ─────────────────────────────────────────────────────────────
-# FAILURE PREPROCESSOR
-# ─────────────────────────────────────────────────────────────
-class SilentWarningPreprocessor(DB.IFailuresPreprocessor):
-    def PreprocessFailures(self, accessor):
-        for msg in accessor.GetFailureMessages():
-            if msg.GetSeverity() == DB.FailureSeverity.Warning:
-                accessor.DeleteWarning(msg)
-        return DB.PreprocessorResult.Continue
-
-
-# ─────────────────────────────────────────────────────────────
-# FILE PICKER
-# ─────────────────────────────────────────────────────────────
-def pick_excel_file():
-    dlg        = OpenFileDialog()
-    dlg.Title  = "เลือกไฟล์ Excel (MLABS/P13 Format)"
-    dlg.Filter = "Excel Files (*.xlsx)|*.xlsx"
-    if dlg.ShowDialog() == DialogResult.OK:
-        return dlg.FileName
-    return None
-
-
-# ─────────────────────────────────────────────────────────────
-# EXCEL -> REVIT
-# ─────────────────────────────────────────────────────────────
 def build_preview(data_sheets):
-    changes, errors = [], []
+    changes = []
+    errors = []
     stats = {
-        "total_rows": 0, "changed": 0, "unchanged": 0,
-        "missing_elem": 0, "readonly": 0,
-        "export_only": 0, "invalid_param": 0,
+        "sheets_read": len(data_sheets),
+        "sheets_with_metadata": 0,
+        "total_rows": 0,
+        "changed": 0,
+        "unchanged": 0,
+        "missing_elem": 0,
+        "readonly": 0,
+        "export_only": 0,
+        "invalid_param": 0,
     }
+
     for sheet_name, rows in data_sheets.items():
         if len(rows) < 9:
             continue
-        meta = parse_mlabs_metadata(rows)
-        if not meta:
+
+        metadata = parse_mlabs_metadata(rows)
+        if not metadata:
             continue
-        headers = [to_text(h) for h in rows[7]]
-        id_col  = headers.index("ElementId") if "ElementId" in headers else 0
+        stats["sheets_with_metadata"] += 1
+
+        headers = [to_text(header) for header in rows[7]]
+        id_col_idx = headers.index("ElementId") if "ElementId" in headers else 0
         for raw_row in rows[8:]:
-            row     = normalize_row(raw_row, len(headers))
-            id_text = to_text(row[id_col])
-            if not id_text or not id_text.lstrip("-").isdigit():
+            row = normalize_row(raw_row, len(headers))
+            element_id_text = to_text(row[id_col_idx])
+            if not element_id_text or not element_id_text.lstrip("-").isdigit():
                 continue
+
             stats["total_rows"] += 1
-            element = get_revit_element(id_text)
+            element = get_revit_element(element_id_text)
             if element is None:
                 stats["missing_elem"] += 1
-                errors.append([sheet_name, id_text, "-", "Element not found"])
+                errors.append([sheet_name, element_id_text, "-", "Element not found"])
                 continue
-            eid_str = str(get_element_id_value(element.Id))
-            for col, m in meta.items():
-                if col >= len(row):
+
+            element_id = str(sx.get_id_value(element.Id))
+            for col_idx, meta in metadata.items():
+                if col_idx >= len(row):
                     continue
-                if m["writable"] != "1":
+                if meta["writable"] != "1":
                     stats["export_only"] += 1
                     continue
-                new_val = to_text(row[col])
-                param   = find_parameter(element, m["parameter_id"], m["parameter_name"])
-                if param is None:
+
+                new_value = to_text(row[col_idx])
+                parameter = sx.find_parameter(element, meta["parameter_id"], meta["parameter_name"], doc)
+                if parameter is None:
                     stats["invalid_param"] += 1
-                    errors.append([sheet_name, eid_str, m["parameter_name"], "Parameter not found"])
+                    errors.append([sheet_name, element_id, meta["parameter_name"], "Parameter not found"])
                     continue
-                if param.IsReadOnly:
+                if parameter.IsReadOnly:
                     stats["readonly"] += 1
                     continue
-                cur_val = parameter_to_text(param)
-                if values_match(cur_val, new_val, param.StorageType):
+
+                current_value = sx.parameter_to_text(parameter, doc)
+                if values_match(current_value, new_value, parameter.StorageType):
                     stats["unchanged"] += 1
                     continue
+
                 changes.append({
-                    "sheet"          : sheet_name,
-                    "element"        : element,
-                    "element_id"     : eid_str,
-                    "parameter"      : param,
-                    "parameter_name" : m["parameter_name"],
-                    "old_value"      : cur_val,
-                    "new_value"      : new_val,
-                    "meta"           : m,
+                    "sheet": sheet_name,
+                    "element": element,
+                    "element_id": element_id,
+                    "parameter": parameter,
+                    "parameter_name": meta["parameter_name"],
+                    "old_value": current_value,
+                    "new_value": new_value,
+                    "meta": meta,
                 })
                 stats["changed"] += 1
+
     return changes, stats, errors
 
 
 def print_preview(changes, stats, errors):
-    out = script.get_output()
-    out.print_md("# 📊 Excel → Revit  |  Preview")
-    out.print_table(
+    output = script.get_output()
+    output.print_md("# Excel to Revit Preview")
+    output.print_table(
         table_data=[
-            ["🔍 แถวที่สแกน",              stats["total_rows"]],
-            ["✅ ค่าที่จะอัปเดต",           stats["changed"]],
-            ["⏭️  ตรงกันแล้ว (ข้าม)",       stats["unchanged"]],
-            ["❓ ไม่พบ Element",             stats["missing_elem"]],
-            ["🔒 Read-only (ข้าม)",         stats["readonly"]],
-            ["⬆️  Export-only (ข้าม)",      stats["export_only"]],
-            ["⚠️  ไม่พบ Parameter",          stats["invalid_param"]],
+            ["Sheets read", stats["sheets_read"]],
+            ["Sheets with P13 metadata", stats["sheets_with_metadata"]],
+            ["Rows checked", stats["total_rows"]],
+            ["Values to update", stats["changed"]],
+            ["Unchanged values", stats["unchanged"]],
+            ["Missing elements", stats["missing_elem"]],
+            ["Read-only parameters", stats["readonly"]],
+            ["Export-only columns skipped", stats["export_only"]],
+            ["Missing parameters", stats["invalid_param"]],
         ],
-        columns=["สถานะ", "จำนวน"],
+        columns=["Status", "Count"]
     )
+
     if changes:
-        out.print_md("## 🔄 รายการที่จะเปลี่ยน (แสดง 50 จาก {})".format(len(changes)))
-        out.print_table(
-            [[c["sheet"], c["element_id"], c["parameter_name"], c["old_value"], c["new_value"]]
-             for c in changes[:50]],
-            columns=["Sheet", "ElementId", "Parameter", "ค่าปัจจุบัน", "ค่าใหม่"],
+        output.print_md("## First 50 Changes")
+        output.print_table(
+            [[item["sheet"], item["element_id"], item["parameter_name"], item["old_value"], item["new_value"]] for item in changes[:50]],
+            columns=["Sheet", "ElementId", "Parameter", "Current Value", "New Value"]
         )
+
     if errors:
-        out.print_md("## ⚠️ ปัญหาที่พบ (แสดง 20 รายการ)")
-        out.print_table(errors[:20], columns=["Sheet", "ElementId", "Parameter", "ปัญหา"])
+        output.print_md("## First 20 Issues")
+        output.print_table(errors[:20], columns=["Sheet", "ElementId", "Parameter", "Issue"])
 
 
 def apply_to_revit(changes):
-    result      = {"success": 0, "failed": 0}
+    result = {"success": 0, "failed": 0}
     failed_rows = []
-    tx = DB.Transaction(doc, "P13 Sync: Excel -> Revit")
+
+    tx = DB.Transaction(doc, "P13 Sync: Excel to Revit")
     try:
         tx.Start()
-        fail_opts = tx.GetFailureHandlingOptions()
-        fail_opts.SetFailuresPreprocessor(SilentWarningPreprocessor())
-        tx.SetFailureHandlingOptions(fail_opts)
+        options = tx.GetFailureHandlingOptions()
+        options.SetFailuresPreprocessor(SilentWarningPreprocessor())
+        tx.SetFailureHandlingOptions(options)
+
         for item in changes:
             try:
-                ok, msg = set_parameter_from_text(item["parameter"], item["new_value"], item["meta"])
+                ok, message = sx.set_parameter_from_text(item["parameter"], item["new_value"], item["meta"])
                 if ok:
                     result["success"] += 1
                 else:
                     result["failed"] += 1
-                    failed_rows.append([item["element_id"], item["parameter_name"], msg])
+                    failed_rows.append([item["element_id"], item["parameter_name"], message])
             except Exception as exc:
                 result["failed"] += 1
                 failed_rows.append([item["element_id"], item["parameter_name"], str(exc)])
+
         tx.Commit()
     except Exception as tx_exc:
-        try:
-            if tx.IsValidObject and tx.HasStarted() and not tx.HasEnded():
-                tx.RollBack()
-        except Exception:
-            pass
-        forms.alert("❌ Transaction ล้มเหลว:\n{}".format(tx_exc), title="Sync Error")
+        if tx.HasStarted() and not tx.HasEnded():
+            tx.RollBack()
+        forms.alert("Transaction failed:\n{}".format(tx_exc), title="Sync Error")
+
     return result, failed_rows
 
 
 def print_result(result, failed_rows):
-    out = script.get_output()
-    out.print_md("# ✅ ผลลัพธ์ Excel → Revit")
-    out.print_table(
-        [["✅ สำเร็จ", result["success"]], ["❌ ล้มเหลว", result["failed"]]],
-        columns=["สถานะ", "จำนวน"],
+    output = script.get_output()
+    output.print_md("# Excel to Revit Result")
+    output.print_table(
+        [["Updated", result["success"]], ["Failed", result["failed"]]],
+        columns=["Status", "Count"]
     )
     if failed_rows:
-        out.print_md("## ❌ รายการที่ล้มเหลว")
-        out.print_table(failed_rows[:50], columns=["ElementId", "Parameter", "สาเหตุ"])
+        output.print_md("## Failed Updates")
+        output.print_table(failed_rows[:50], columns=["ElementId", "Parameter", "Issue"])
 
 
-# ─────────────────────────────────────────────────────────────
-# REVIT -> EXCEL
-# ─────────────────────────────────────────────────────────────
-def sync_to_excel(path, data_sheets):
-    changes_count  = 0
+def sync_to_file(path, data_sheets, excel_io):
+    changes_count = 0
     updated_sheets = []
+
     for sheet_name, rows in data_sheets.items():
         if len(rows) < 9:
             updated_sheets.append({"name": sheet_name, "rows": rows})
             continue
-        meta     = parse_mlabs_metadata(rows)
-        headers  = [to_text(h) for h in rows[7]]
-        id_col   = headers.index("ElementId") if "ElementId" in headers else 0
-        new_rows = [list(r) for r in rows[:8]]
+
+        metadata = parse_mlabs_metadata(rows)
+        headers = [to_text(header) for header in rows[7]]
+        id_col_idx = headers.index("ElementId") if "ElementId" in headers else 0
+        new_rows = [list(row) for row in rows[:8]]
+
         for raw_row in rows[8:]:
-            row     = normalize_row(raw_row, len(headers))
-            id_text = to_text(row[id_col])
-            element = get_revit_element(id_text) if id_text.lstrip("-").isdigit() else None
+            row = normalize_row(raw_row, len(headers))
+            element_id_text = to_text(row[id_col_idx])
+            element = get_revit_element(element_id_text) if element_id_text.lstrip("-").isdigit() else None
             if element:
-                for col, m in meta.items():
-                    if col >= len(row):
+                for col_idx, meta in metadata.items():
+                    if col_idx >= len(row):
                         continue
-                    param = find_parameter(element, m["parameter_id"], m["parameter_name"])
-                    if param:
-                        new_val = parameter_to_text(param)
-                        if to_text(row[col]) != new_val:
-                            row[col] = new_val
+                    parameter = sx.find_parameter(element, meta["parameter_id"], meta["parameter_name"], doc)
+                    if parameter:
+                        new_value = sx.parameter_to_text(parameter, doc)
+                        if to_text(row[col_idx]) != new_value:
+                            row[col_idx] = new_value
                             changes_count += 1
             new_rows.append(row)
+
         updated_sheets.append({"name": sheet_name, "rows": new_rows})
 
+    backup_path = None
     try:
-        backup_path = backup_excel(path)
+        backup_path = backup_file(path)
     except Exception:
-        backup_path = None
+        pass
 
-    try:
-        write_xlsx(path, updated_sheets)
-        msg = "✅ Revit → Excel sync สำเร็จ!\n\nอัปเดต {} ค่า\nไฟล์: {}".format(
-            changes_count, os.path.basename(path)
-        )
-        if backup_path:
-            msg += "\n\nBackup: {}".format(os.path.basename(backup_path))
-        forms.alert(msg, title="Sync Complete")
-    except Exception as exc:
-        forms.alert(
-            "❌ เขียนไฟล์ Excel ไม่ได้\nปิดไฟล์ใน Excel ก่อนแล้วลองใหม่\n\nError: {}".format(exc),
-            title="Write Error",
-        )
+    write_source(path, updated_sheets, excel_io)
+    return changes_count, backup_path
 
 
-# ─────────────────────────────────────────────────────────────
-# MAIN
-# ─────────────────────────────────────────────────────────────
 def main():
-    path = pick_excel_file()
+    path = pick_schedule_file()
     if not path:
         script.exit()
 
-    direction = forms.CommandSwitchWindow.show(
-        [
-            "Excel  ->  Revit   (นำ Excel มาอัปเดตโมเดล)",
-            "Revit  ->  Excel   (ส่งข้อมูลโมเดลกลับ Excel)",
-        ],
-        message="เลือกทิศทางการ Sync ข้อมูล",
-    )
-    if not direction:
-        script.exit()
-
+    excel_io = ExcelIO()
     try:
-        data_sheets = read_xlsx(path)
-    except Exception as exc:
-        forms.alert(
-            "❌ อ่านไฟล์ไม่ได้:\n{}\n\nError: {}".format(os.path.basename(path), exc),
-            title="File Error",
-            exitscript=True,
+        direction = forms.CommandSwitchWindow.show(
+            ["Excel to Revit", "Revit to Excel"],
+            message="Choose sync direction"
         )
-        return
+        if not direction:
+            script.exit()
 
-    # ══  REVIT -> EXCEL  ══════════════════════════════════
-    if "Revit" in direction and direction.index("Revit") < direction.index("Excel"):
-        confirm = forms.alert(
-            "จะเขียนทับ Excel ด้วยข้อมูลล่าสุดจากโมเดล\n\n"
-            "ไฟล์: {}\n\nระบบจะสำรอง backup อัตโนมัติ\nดำเนินการต่อ?".format(
-                os.path.basename(path)
-            ),
-            title="ยืนยัน Revit → Excel",
-            options=["ดำเนินการ", "ยกเลิก"],
-        )
-        if confirm != "ดำเนินการ":
+        try:
+            data_sheets = read_source(path, excel_io)
+        except Exception as exc:
+            forms.alert(
+                "Could not read file:\n{}\n\nError: {}".format(os.path.basename(path), exc),
+                title="File Error",
+                exitscript=True
+            )
+
+        if direction == "Revit to Excel":
+            confirm = forms.alert(
+                "This will overwrite the selected file with current model values.\n\n"
+                "File: {}\n\nA backup copy will be created first.".format(os.path.basename(path)),
+                title="Confirm Revit to Excel",
+                options=["Proceed", "Cancel"]
+            )
+            if confirm != "Proceed":
+                return
+
+            try:
+                changes_count, backup_path = sync_to_file(path, data_sheets, excel_io)
+            except Exception as exc:
+                forms.alert(
+                    "Could not write the selected file.\nClose it in Excel and try again.\n\nError: {}".format(exc),
+                    title="Write Error"
+                )
+                return
+
+            message = "Revit to Excel sync complete.\n\nUpdated values: {}\nFile: {}".format(changes_count, os.path.basename(path))
+            if backup_path:
+                message += "\nBackup: {}".format(os.path.basename(backup_path))
+            forms.alert(message, title="Sync Complete")
             return
-        sync_to_excel(path, data_sheets)
-        # cleanup bridge ถ้าใช้
-        if _USE_BRIDGE and _bridge:
-            _bridge.cleanup()
-        return
 
-    # ══  EXCEL -> REVIT  ══════════════════════════════════
-    changes, stats, errors = build_preview(data_sheets)
-    print_preview(changes, stats, errors)
+        changes, stats, errors = build_preview(data_sheets)
+        print_preview(changes, stats, errors)
 
-    if not changes:
-        forms.alert("✅ โมเดลตรงกับ Excel แล้ว ไม่มีอะไรต้องอัปเดต", title="Already in Sync")
-        return
+        if stats["sheets_with_metadata"] == 0:
+            forms.alert(
+                "The selected file was read, but no P13 schedule metadata was found.\n\n"
+                "Use a file created by 'Export Schedules to Excel', then try Sync again.",
+                title="No P13 Schedule Data"
+            )
+            return
 
-    confirm = forms.alert(
-        "พบ {} ค่าที่ต้องอัปเดต\n\n"
-        "ไม่พบ Element: {}\nปัญหา Parameter: {}\n\n"
-        "Apply การเปลี่ยนแปลงหรือไม่?".format(
-            stats["changed"], stats["missing_elem"], stats["invalid_param"]
-        ),
-        title="ยืนยัน Excel → Revit",
-        options=["Apply", "ยกเลิก"],
-    )
-    if confirm != "Apply":
-        return
+        if stats["total_rows"] == 0:
+            forms.alert(
+                "P13 metadata was found, but no ElementId data rows could be read.\n\n"
+                "Check that the ElementId column still exists and contains values from the original export.",
+                title="No Schedule Rows"
+            )
+            return
 
-    result, failed_rows = apply_to_revit(changes)
-    print_result(result, failed_rows)
-    forms.alert(
-        "✅ Sync เสร็จสิ้น!\n\nสำเร็จ: {}\nล้มเหลว: {}".format(
-            result["success"], result["failed"]
-        ),
-        title="Sync Done",
-    )
+        if not changes:
+            forms.alert("The model already matches the selected file. No updates are required.", title="Already in Sync")
+            return
 
-    if _USE_BRIDGE and _bridge:
-        _bridge.cleanup()
+        confirm = forms.alert(
+            "Found {} value(s) to update.\n\nMissing elements: {}\nMissing parameters: {}\n\nApply these changes?".format(
+                stats["changed"], stats["missing_elem"], stats["invalid_param"]
+            ),
+            title="Confirm Excel to Revit",
+            options=["Apply", "Cancel"]
+        )
+        if confirm != "Apply":
+            return
+
+        result, failed_rows = apply_to_revit(changes)
+        print_result(result, failed_rows)
+        forms.alert(
+            "Sync complete.\n\nUpdated: {}\nFailed: {}".format(result["success"], result["failed"]),
+            title="Sync Complete"
+        )
+    finally:
+        excel_io.cleanup()
 
 
 if __name__ == "__main__":
