@@ -61,23 +61,6 @@ MANHOLE_LENGTH_PARAMETER_NAMES = [
     "MH Length",
     "Box Length",
 ]
-CONDUIT_MIDDLE_ELEVATION_PARAMETER_NAMES = [
-    "Middle Elevation",
-    "Center Elevation",
-    "Centre Elevation",
-    "Centerline Elevation",
-    "Centreline Elevation",
-]
-CONDUIT_TOP_ELEVATION_PARAMETER_NAMES = [
-    "Upper End Top Elevation",
-    "Top Elevation",
-    "Upper Elevation",
-]
-CONDUIT_BOTTOM_ELEVATION_PARAMETER_NAMES = [
-    "Lower End Bottom Elevation",
-    "Bottom Elevation",
-    "Lower Elevation",
-]
 CONDUIT_SIDE_SEARCH_MM = 600.0
 CONDUIT_SIDE_OVERLAP_MM = 25.0
 CONDUIT_SIDE_AXIS_RATIO = 1.5
@@ -385,16 +368,6 @@ def get_parameter_by_names(element, param_names):
     return None
 
 
-def get_parameter_double_value(element, param_names):
-    param = get_parameter_by_names(element, param_names)
-    if not param:
-        return None
-    try:
-        return param.AsDouble()
-    except Exception:
-        return None
-
-
 def get_parameter_length_value(document, element, param_names):
     param = get_parameter_by_names(element, param_names)
     if param:
@@ -691,17 +664,16 @@ def read_connection_mm(manhole, param_name):
             return 0
 
 
-def get_conduit_centerline_z(conduit, fallback_point):
-    middle_z = get_parameter_double_value(conduit, CONDUIT_MIDDLE_ELEVATION_PARAMETER_NAMES)
-    if middle_z is not None:
-        return middle_z
+def get_original_depth_point(point_0, point_1, local_point_0, local_point_1, local_bounds, origin):
+    if local_bounds:
+        in_0 = endpoint_in_local_bounds(local_point_0, local_bounds)
+        in_1 = endpoint_in_local_bounds(local_point_1, local_bounds)
+        if in_0 or in_1:
+            return point_0 if in_0 else point_1
 
-    top_z = get_parameter_double_value(conduit, CONDUIT_TOP_ELEVATION_PARAMETER_NAMES)
-    bottom_z = get_parameter_double_value(conduit, CONDUIT_BOTTOM_ELEVATION_PARAMETER_NAMES)
-    if top_z is not None and bottom_z is not None:
-        return (top_z + bottom_z) / 2.0
-
-    return fallback_point.Z
+    dist_0 = point_0.DistanceTo(origin)
+    dist_1 = point_1.DistanceTo(origin)
+    return point_0 if dist_0 < dist_1 else point_1
 
 
 def scan_manholes(document, active_view_id, progress_callback=None):
@@ -776,13 +748,20 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     type_name = type_param.AsString().lower() if type_param else ""
                 conduit_name = conduit.Name.lower() if conduit.Name else ""
                 is_extra = "without duct" in type_name or "without duct" in conduit_name
+                depth_point = get_original_depth_point(
+                    point_0,
+                    point_1,
+                    local_point_0,
+                    local_point_1,
+                    local_bounds,
+                    origin,
+                )
+                depth = depth_point.Z - base_z
 
                 for candidate in connection_candidates:
-                    selected_point = candidate["world_point"]
                     side = candidate.get("side")
                     if side is None:
                         side = get_side_from_local_vector(candidate["local_direction"], candidate["local_point"])
-                    depth = get_conduit_centerline_z(conduit, selected_point) - base_z
                     if is_extra:
                         extra_depths[side].append(depth)
                     else:
