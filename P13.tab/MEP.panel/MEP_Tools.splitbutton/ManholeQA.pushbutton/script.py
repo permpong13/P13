@@ -14,14 +14,17 @@ clr.AddReference("WindowsBase")
 clr.AddReference("System.Windows.Forms")
 
 from Autodesk.Revit.DB import *  # noqa
+from Autodesk.Revit.UI import ExternalEvent, IExternalEventHandler
 from pyrevit import forms, revit, script
 from System.Collections.Generic import List
 from System.Collections.ObjectModel import ObservableCollection
-from System.Windows import TextDecorationCollection, TextDecorations, Visibility, Window
+from System.Windows import RoutedEventHandler, TextDecorationCollection, TextDecorations, Visibility
+from System.Windows.Controls import Button
+from System.Windows.Controls.Primitives import ButtonBase
 from System.Windows.Forms import DialogResult, SaveFileDialog
 from System.Windows.Interop import WindowInteropHelper
 from System.Windows.Markup import XamlReader
-from System.Windows.Media import Color, SolidColorBrush
+from System.Windows.Media import Color, SolidColorBrush, VisualTreeHelper
 
 
 __title__ = "MH Connection QA"
@@ -37,6 +40,7 @@ CLR_OK = SolidColorBrush(Color.FromRgb(46, 125, 50))
 CLR_CHANGED = SolidColorBrush(Color.FromRgb(230, 81, 0))
 CLR_WARN = SolidColorBrush(Color.FromRgb(183, 28, 28))
 CLR_MUTED = SolidColorBrush(Color.FromRgb(150, 150, 150))
+OPEN_FORMS = []
 
 XAML = r"""
 <Window
@@ -86,6 +90,9 @@ XAML = r"""
                 <ComboBoxItem Content="Review"/>
                 <ComboBoxItem Content="Unchanged"/>
             </ComboBox>
+
+            <TextBlock Text="Search" VerticalAlignment="Center" Margin="12,0,6,0" Foreground="#666"/>
+            <TextBox x:Name="TxtSearch" Width="170" Height="30" VerticalContentAlignment="Center"/>
 
             <Button x:Name="BtnScan" Content="Scan View" Margin="12,0,0,0" Width="110"/>
             <CheckBox x:Name="ChkDryRun" Content="Preview only" IsChecked="True"
@@ -231,6 +238,13 @@ XAML = r"""
                         <DataGridTemplateColumn Header="E2 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e2}" HorizontalAlignment="Center" Foreground="{Binding e2_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="E3 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e3}" HorizontalAlignment="Center" Foreground="{Binding e3_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="E4 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e4}" HorizontalAlignment="Center" Foreground="{Binding e4_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="" Width="66">
+                            <DataGridTemplateColumn.CellTemplate>
+                                <DataTemplate>
+                                    <Button Content="Focus" Width="54" Height="24" Padding="4,0"/>
+                                </DataTemplate>
+                            </DataGridTemplateColumn.CellTemplate>
+                        </DataGridTemplateColumn>
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
@@ -454,7 +468,7 @@ def scan_manholes(document, active_view_id, progress_callback=None):
             has_fitting = [False, False, False, False]
 
             if bbox:
-                buffer_ft = mm_to_ft(5.0)
+                buffer_ft = mm_to_ft(1.0)
                 limit_min = XYZ(bbox.Min.X - buffer_ft, bbox.Min.Y - buffer_ft, bbox.Min.Z - buffer_ft)
                 limit_max = XYZ(bbox.Max.X + buffer_ft, bbox.Max.Y + buffer_ft, bbox.Max.Z + buffer_ft)
             else:
@@ -696,6 +710,26 @@ class DetailRow(object):
         self.arrow_vis = Visibility.Visible if changed else Visibility.Collapsed
 
 
+class RevitActionHandler(IExternalEventHandler):
+    def __init__(self):
+        self.action = None
+        self.owner = None
+
+    def Execute(self, ui_application):
+        try:
+            if self.action:
+                self.action(ui_application)
+        except Exception:
+            forms.alert(traceback.format_exc(), title="Manhole QA")
+        finally:
+            self.action = None
+            if self.owner:
+                self.owner.set_busy(False)
+
+    def GetName(self):
+        return "Manhole QA Revit Action"
+
+
 class ManholeQAForm(object):
     def __init__(self, document, ui_document):
         self.doc = document
@@ -703,6 +737,9 @@ class ManholeQAForm(object):
         self.records = []
         self.rows = ObservableCollection[ManholeRow]()
         self.window = XamlReader.Parse(XAML)
+        self.revit_handler = RevitActionHandler()
+        self.revit_handler.owner = self
+        self.revit_event = ExternalEvent.Create(self.revit_handler)
 
         self.grid = self.window.FindName("ListRecords")
         self.btn_scan = self.window.FindName("BtnScan")
@@ -713,6 +750,7 @@ class ManholeQAForm(object):
         self.cb_dry = self.window.FindName("ChkDryRun")
         self.cb_ws = self.window.FindName("CbWorkset")
         self.cb_status = self.window.FindName("CbStatus")
+        self.txt_search = self.window.FindName("TxtSearch")
         self.lbl_status = self.window.FindName("LblStatus")
         self.pb = self.window.FindName("ScanProgress")
         self.stat_total = self.window.FindName("StatTotal")
@@ -730,7 +768,10 @@ class ManholeQAForm(object):
         self.btn_isolate.Click += self.on_isolate_elements
         self.cb_status.SelectionChanged += self.on_filter
         self.cb_ws.SelectionChanged += self.on_filter
+        self.txt_search.TextChanged += self.on_filter
         self.grid.SelectionChanged += self.on_select_row
+        self.grid.AddHandler(ButtonBase.ClickEvent, RoutedEventHandler(self.on_grid_button_click))
+        self.window.Closed += self.on_closed
 
         self.cb_ws.Items.Add("All")
         try:
@@ -746,10 +787,47 @@ class ManholeQAForm(object):
             pass
 
     def show(self):
-        return self.window.ShowDialog()
+        self.window.Show()
+
+    def on_closed(self, sender, args):
+        try:
+            self.revit_event.Dispose()
+        except Exception:
+            pass
+        if self in OPEN_FORMS:
+            OPEN_FORMS.remove(self)
+
+    def set_busy(self, is_busy):
+        try:
+            self.btn_scan.IsEnabled = not is_busy
+            self.btn_commit.IsEnabled = not is_busy
+            self.btn_select.IsEnabled = not is_busy
+            self.btn_isolate.IsEnabled = not is_busy
+            self.pb.Visibility = Visibility.Visible if is_busy else Visibility.Hidden
+        except Exception:
+            pass
+
+    def _update_revit_context(self, ui_application):
+        active_uidoc = ui_application.ActiveUIDocument
+        if active_uidoc:
+            self.uidoc = active_uidoc
+            self.doc = active_uidoc.Document
+
+    def _raise_revit_action(self, action, status_text):
+        if self.revit_handler.action:
+            forms.alert("Another Manhole QA action is still running.", title="Manhole QA")
+            return
+        self.revit_handler.action = action
+        self.lbl_status.Content = status_text
+        self.set_busy(True)
+        self.revit_event.Raise()
 
     def on_scan(self, sender, args):
+        self._raise_revit_action(self._scan_in_revit_context, "Scanning active view...")
+
+    def _scan_in_revit_context(self, ui_application):
         try:
+            self._update_revit_context(ui_application)
             self.pb.Visibility = Visibility.Visible
             self.pb.Value = 0
             self.lbl_status.Content = "Scanning active view..."
@@ -780,9 +858,28 @@ class ManholeQAForm(object):
         item = self.cb_ws.SelectedItem
         return str(item).strip() if item else "All"
 
+    def _search_filter(self):
+        try:
+            return str(self.txt_search.Text).strip().lower()
+        except Exception:
+            return ""
+
+    def _record_matches_search(self, record, search_text):
+        if not search_text:
+            return True
+        values = [
+            record.get("id", ""),
+            record.get("cnt_number", ""),
+            record.get("cnt_zone", ""),
+            record.get("ws", ""),
+            record.get("status", ""),
+        ]
+        return search_text in " ".join([str(value).lower() for value in values])
+
     def _refresh_rows(self):
         selected_status = self._selected_status_filter()
         selected_workset = self._selected_workset_filter()
+        search_text = self._search_filter()
 
         self.rows.Clear()
         filtered = []
@@ -790,6 +887,8 @@ class ManholeQAForm(object):
             if selected_status and record["status"] != selected_status:
                 continue
             if selected_workset != "All" and record["ws"] != selected_workset:
+                continue
+            if not self._record_matches_search(record, search_text):
                 continue
             filtered.append(record)
             self.rows.Add(ManholeRow(record))
@@ -826,6 +925,26 @@ class ManholeQAForm(object):
         except Exception:
             pass
 
+    def on_grid_button_click(self, sender, args):
+        button = self._find_button(args.OriginalSource)
+        if not button or str(button.Content) != "Focus":
+            return
+        row = button.DataContext
+        if isinstance(row, ManholeRow):
+            self.focus_rows([row])
+            args.Handled = True
+
+    def _find_button(self, source):
+        current = source
+        while current:
+            if isinstance(current, Button):
+                return current
+            try:
+                current = VisualTreeHelper.GetParent(current)
+            except Exception:
+                return None
+        return None
+
     def _checked_records(self):
         return [row._record for row in self.rows if row.checked]
 
@@ -843,18 +962,45 @@ class ManholeQAForm(object):
         if not rows:
             forms.alert("Select or check at least one manhole row.", title="Manhole QA")
             return
+        self._raise_revit_action(lambda uiapp: self._select_rows_in_revit_context(uiapp, rows), "Selecting manholes...")
+
+    def _select_rows_in_revit_context(self, ui_application, rows):
+        self._update_revit_context(ui_application)
         element_ids = List[ElementId]([row.element.Id for row in rows])
         self.uidoc.Selection.SetElementIds(element_ids)
         self.lbl_status.Content = "Selected {} manhole(s).".format(len(rows))
+
+    def focus_rows(self, rows):
+        self._raise_revit_action(lambda uiapp: self._focus_rows_in_revit_context(uiapp, rows), "Focusing manhole...")
+
+    def _focus_rows_in_revit_context(self, ui_application, rows):
+        self._select_rows_in_revit_context(ui_application, rows)
+        element_ids = List[ElementId]([row.element.Id for row in rows])
+        try:
+            self.uidoc.ShowElements(element_ids)
+        except Exception:
+            self.uidoc.ShowElements(element_ids[0])
+        self.lbl_status.Content = "Focused {} manhole(s).".format(len(rows))
 
     def on_isolate_elements(self, sender, args):
         rows = self._selected_or_checked_rows()
         if not rows:
             forms.alert("Select or check at least one manhole row.", title="Manhole QA")
             return
+        self._raise_revit_action(lambda uiapp: self._isolate_rows_in_revit_context(uiapp, rows), "Isolating manholes...")
+
+    def _isolate_rows_in_revit_context(self, ui_application, rows):
+        self._update_revit_context(ui_application)
         element_ids = List[ElementId]([row.element.Id for row in rows])
-        with revit.Transaction("Isolate Manholes"):
+        tx = Transaction(self.doc, "Isolate Manholes")
+        tx.Start()
+        try:
             self.doc.ActiveView.IsolateElementsTemporary(element_ids)
+            tx.Commit()
+        except Exception:
+            if tx.HasStarted() and not tx.HasEnded():
+                tx.RollBack()
+            raise
         self.uidoc.Selection.SetElementIds(element_ids)
         self.lbl_status.Content = "Isolated {} manhole(s).".format(len(rows))
 
@@ -868,10 +1014,14 @@ class ManholeQAForm(object):
             forms.alert("Check at least one manhole row before committing.", title="Manhole QA")
             return
 
+        self._raise_revit_action(lambda uiapp: self._commit_in_revit_context(uiapp, records), "Committing selected manholes...")
+
+    def _commit_in_revit_context(self, ui_application, records):
         try:
+            self._update_revit_context(ui_application)
             commit_manholes(self.doc, records)
             forms.alert("Committed {} manhole(s).".format(len(records)), title="Manhole QA")
-            self.on_scan(None, None)
+            self._scan_in_revit_context(ui_application)
         except Exception:
             forms.alert(traceback.format_exc(), title="Commit Error")
 
@@ -933,7 +1083,9 @@ def main():
 
     output.print_md("# Manhole QA")
     output.print_md("This command now runs fully from `script.py` and does not call external Dynamo graphs.")
-    ManholeQAForm(doc, uidoc).show()
+    form = ManholeQAForm(doc, uidoc)
+    OPEN_FORMS.append(form)
+    form.show()
 
 
 if __name__ == "__main__":

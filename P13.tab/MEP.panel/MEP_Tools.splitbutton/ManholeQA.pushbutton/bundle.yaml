@@ -1,21 +1,18 @@
 title: "MH Connection QA"
 
 tooltip: |
-  🇬🇧 [EN] Manhole QA and Connection Sync Tool.
-  Key Features:
-  • Smart Scanning: Analyzes electrical equipment (manholes) and intersecting conduits to calculate connection depths relative to the floor level.
-  • Directional Calculation: Automatically maps conduit connections to 4 sides based on entry angles.
-  • Duct Types: Differentiates between Main connections and Extra connections (conduit types containing "without duct").
-  • QA Interface: Provides an interactive UI with color-coded statuses (OK, Changed, Warn) to review old vs. new values before committing changes.
-  • CSV Export: Allows exporting the QA results to a spreadsheet for reporting.
+  Manhole QA and Connection Sync Tool.
 
-  🇹🇭 [TH] เครื่องมือสแกนและอัปเดตระยะท่อเข้าบ่อพักสายไฟพร้อมระบบ QA
-  ฟังก์ชันหลัก:
-  • Smart Scanning: สแกนบ่อพัก (Electrical Equipment) และท่อร้อยสาย (Conduit) ที่ตัดผ่านเพื่อคำนวณความลึกเทียบกับระดับพื้น
-  • Directional Calculation: คำนวณและแยกทิศทางของท่อที่เข้าบ่อทั้ง 4 ด้านโดยอัตโนมัติตามมุมองศาที่เข้าบ่อ
-  • Duct Types: แยกระยะของท่อหลัก (Main) และท่อเสริม (Extra - ประเภทที่มีคำว่า "without duct")
-  • QA Interface: หน้าต่าง UI แสดงสถานะแบบแยกสี (ไม่เปลี่ยน, เปลี่ยน, ตรวจสอบ) เพื่อเทียบค่าเก่า-ใหม่ ก่อนยืนยันการบันทึก (Commit)
-  • CSV Export: สามารถส่งออกข้อมูลผลการสแกนเป็นไฟล์ CSV เพื่อทำรีพอร์ตได้
+  Key features:
+  - Scans electrical equipment manholes and conduits in the active view.
+  - Calculates main and extra connection depths by side.
+  - Shows CNT_Number and CNT_Zone in the QA table and CSV export.
+  - Provides modeless review UI with search, select, focus, isolate, commit, and export.
+  - Runs fully from script.py without Dynamo graph dependencies.
 
 author: "OHM"
-description: "Scan, review, and sync manhole conduit connections via a QA UI. / สแกน ตรวจสอบ และอัปเดตระยะท่อเข้าบ่อพักผ่านหน้าต่าง QA"
+description: "Scan, review, and sync manhole conduit connections via a modeless QA UI."
+
+engine:
+  persistent: true
+  full_frame: true
