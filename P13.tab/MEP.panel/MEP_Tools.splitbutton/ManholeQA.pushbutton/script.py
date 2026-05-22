@@ -41,6 +41,26 @@ CLR_CHANGED = SolidColorBrush(Color.FromRgb(230, 81, 0))
 CLR_WARN = SolidColorBrush(Color.FromRgb(183, 28, 28))
 CLR_MUTED = SolidColorBrush(Color.FromRgb(150, 150, 150))
 OPEN_FORMS = []
+MANHOLE_WIDTH_PARAMETER_NAMES = [
+    "Width",
+    "W",
+    "CNT_Width",
+    "CNT_W",
+    "Manhole Width",
+    "MH Width",
+    "Box Width",
+]
+MANHOLE_LENGTH_PARAMETER_NAMES = [
+    "Length",
+    "L",
+    "H",
+    "CNT_Length",
+    "CNT_L",
+    "CNT_Height",
+    "Manhole Length",
+    "MH Length",
+    "Box Length",
+]
 
 XAML = r"""
 <Window
@@ -335,6 +355,77 @@ def get_parameter_text(element, param_name):
     return ""
 
 
+def get_parameter_by_names(element, param_names):
+    if not element:
+        return None
+    for param_name in param_names:
+        param = element.LookupParameter(param_name)
+        if param and param.HasValue:
+            return param
+    return None
+
+
+def get_parameter_length_value(document, element, param_names):
+    param = get_parameter_by_names(element, param_names)
+    if param:
+        try:
+            value = param.AsDouble()
+            if value > 0:
+                return value
+        except Exception:
+            pass
+
+    try:
+        element_type = document.GetElement(element.GetTypeId())
+    except Exception:
+        element_type = None
+
+    param = get_parameter_by_names(element_type, param_names)
+    if param:
+        try:
+            value = param.AsDouble()
+            if value > 0:
+                return value
+        except Exception:
+            pass
+
+    return None
+
+
+def get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft):
+    width = get_parameter_length_value(document, manhole, MANHOLE_WIDTH_PARAMETER_NAMES)
+    length = get_parameter_length_value(document, manhole, MANHOLE_LENGTH_PARAMETER_NAMES)
+    if width and length:
+        half_width = width / 2.0 + buffer_ft
+        half_length = length / 2.0 + buffer_ft
+        return (-half_width, -half_length, half_width, half_length)
+
+    if bbox:
+        corners = [
+            XYZ(bbox.Min.X, bbox.Min.Y, bbox.Min.Z),
+            XYZ(bbox.Min.X, bbox.Max.Y, bbox.Min.Z),
+            XYZ(bbox.Max.X, bbox.Min.Y, bbox.Min.Z),
+            XYZ(bbox.Max.X, bbox.Max.Y, bbox.Min.Z),
+            XYZ(bbox.Min.X, bbox.Min.Y, bbox.Max.Z),
+            XYZ(bbox.Min.X, bbox.Max.Y, bbox.Max.Z),
+            XYZ(bbox.Max.X, bbox.Min.Y, bbox.Max.Z),
+            XYZ(bbox.Max.X, bbox.Max.Y, bbox.Max.Z),
+        ]
+        local_points = [transform.Inverse.OfPoint(corner) for corner in corners]
+        min_x = min(point.X for point in local_points) - buffer_ft
+        max_x = max(point.X for point in local_points) + buffer_ft
+        min_y = min(point.Y for point in local_points) - buffer_ft
+        max_y = max(point.Y for point in local_points) + buffer_ft
+        return (min_x, min_y, max_x, max_y)
+
+    return None
+
+
+def endpoint_in_local_bounds(local_point, local_bounds):
+    min_x, min_y, max_x, max_y = local_bounds
+    return min_x <= local_point.X <= max_x and min_y <= local_point.Y <= max_y
+
+
 def get_workset_name(document, element):
     try:
         return document.GetWorksetTable().GetWorkset(element.WorksetId).Name
@@ -348,14 +439,6 @@ def mm_to_ft(value_mm):
 
 def ft_to_mm(value_ft):
     return int(round(float(value_ft) * 304.8))
-
-
-def endpoint_in_bbox(point, min_point, max_point):
-    return (
-        min_point.X <= point.X <= max_point.X
-        and min_point.Y <= point.Y <= max_point.Y
-        and min_point.Z <= point.Z <= max_point.Z
-    )
 
 
 def get_floor_z(manhole, origin):
@@ -475,12 +558,8 @@ def scan_manholes(document, active_view_id, progress_callback=None):
             extra_depths = [[], [], [], []]
             has_fitting = [False, False, False, False]
 
-            if bbox:
-                buffer_ft = mm_to_ft(1.0)
-                limit_min = XYZ(bbox.Min.X - buffer_ft, bbox.Min.Y - buffer_ft, bbox.Min.Z - buffer_ft)
-                limit_max = XYZ(bbox.Max.X + buffer_ft, bbox.Max.Y + buffer_ft, bbox.Max.Z + buffer_ft)
-            else:
-                limit_min = limit_max = None
+            buffer_ft = mm_to_ft(1.0)
+            local_bounds = get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft)
 
             for conduit in view_conduits:
                 if not hasattr(conduit.Location, "Curve"):
@@ -488,11 +567,13 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 curve = conduit.Location.Curve
                 point_0 = curve.GetEndPoint(0)
                 point_1 = curve.GetEndPoint(1)
+                local_point_0 = transform.Inverse.OfPoint(point_0)
+                local_point_1 = transform.Inverse.OfPoint(point_1)
 
                 selected_point = None
-                if limit_min and limit_max:
-                    in_0 = endpoint_in_bbox(point_0, limit_min, limit_max)
-                    in_1 = endpoint_in_bbox(point_1, limit_min, limit_max)
+                if local_bounds:
+                    in_0 = endpoint_in_local_bounds(local_point_0, local_bounds)
+                    in_1 = endpoint_in_local_bounds(local_point_1, local_bounds)
                     if in_0 or in_1:
                         selected_point = point_0 if in_0 else point_1
 
@@ -510,7 +591,7 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     selected_index = 1
 
                 other_point = point_1 if selected_index == 0 else point_0
-                local_point = transform.Inverse.OfPoint(selected_point)
+                local_point = local_point_0 if selected_index == 0 else local_point_1
                 world_direction = XYZ(
                     other_point.X - selected_point.X,
                     other_point.Y - selected_point.Y,
