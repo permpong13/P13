@@ -554,20 +554,20 @@ def get_conduit_connection_candidates(point_0, point_1, local_point_0, local_poi
     tolerance = mm_to_ft(1.0)
 
     if abs(dx) > 0.0000001:
-        for edge_x in (min_x, max_x):
+        for edge_x, side in ((min_x, 0), (max_x, 2)):
             ratio = (edge_x - local_point_0.X) / dx
             if -0.0005 <= ratio <= 1.0005:
                 hit_y = local_point_0.Y + dy * ratio
                 if min_y - tolerance <= hit_y <= max_y + tolerance:
-                    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds)
+                    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds, side)
 
     if abs(dy) > 0.0000001:
-        for edge_y in (min_y, max_y):
+        for edge_y, side in ((min_y, 1), (max_y, 3)):
             ratio = (edge_y - local_point_0.Y) / dy
             if -0.0005 <= ratio <= 1.0005:
                 hit_x = local_point_0.X + dx * ratio
                 if min_x - tolerance <= hit_x <= max_x + tolerance:
-                    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds)
+                    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds, side)
 
     if candidates:
         return candidates
