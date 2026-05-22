@@ -411,6 +411,14 @@ def get_side_from_local_point(local_point):
     return 3
 
 
+def get_side_from_local_vector(local_vector, fallback_local_point):
+    if local_vector and (abs(local_vector.X) > 0.0001 or abs(local_vector.Y) > 0.0001):
+        if abs(local_vector.X) >= abs(local_vector.Y):
+            return 2 if local_vector.X >= 0 else 0
+        return 3 if local_vector.Y >= 0 else 1
+    return get_side_from_local_point(fallback_local_point)
+
+
 def read_connection_mm(manhole, param_name):
     param = manhole.LookupParameter(param_name)
     if not param or not param.HasValue:
@@ -488,15 +496,28 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     if in_0 or in_1:
                         selected_point = point_0 if in_0 else point_1
 
+                selected_index = None
                 if not selected_point:
                     dist_0 = point_0.DistanceTo(origin)
                     dist_1 = point_1.DistanceTo(origin)
                     if min(dist_0, dist_1) > 10.0:
                         continue
-                    selected_point = point_0 if dist_0 < dist_1 else point_1
+                    selected_index = 0 if dist_0 < dist_1 else 1
+                    selected_point = point_0 if selected_index == 0 else point_1
+                elif selected_point.IsAlmostEqualTo(point_0):
+                    selected_index = 0
+                else:
+                    selected_index = 1
 
+                other_point = point_1 if selected_index == 0 else point_0
                 local_point = transform.Inverse.OfPoint(selected_point)
-                side = get_side_from_local_point(local_point)
+                world_direction = XYZ(
+                    other_point.X - selected_point.X,
+                    other_point.Y - selected_point.Y,
+                    other_point.Z - selected_point.Z,
+                )
+                local_direction = transform.Inverse.OfVector(world_direction)
+                side = get_side_from_local_vector(local_direction, local_point)
 
                 conduit_type = document.GetElement(conduit.GetTypeId())
                 type_name = ""
