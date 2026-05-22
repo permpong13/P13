@@ -78,6 +78,9 @@ CONDUIT_BOTTOM_ELEVATION_PARAMETER_NAMES = [
     "Bottom Elevation",
     "Lower Elevation",
 ]
+CONDUIT_SIDE_SEARCH_MM = 600.0
+CONDUIT_SIDE_OVERLAP_MM = 25.0
+CONDUIT_SIDE_AXIS_RATIO = 1.5
 
 XAML = r"""
 <Window
@@ -490,10 +493,10 @@ def get_local_connection_direction(local_point_0, local_point_1, local_bounds, r
     return segment_direction if ratio <= 0.5 else get_local_segment_direction(local_point_0, local_point_1, True)
 
 
-def add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds):
+def add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds, side=None):
     ratio = max(0.0, min(1.0, ratio))
     for candidate in candidates:
-        if abs(candidate["ratio"] - ratio) < 0.0005:
+        if candidate.get("side") == side and abs(candidate["ratio"] - ratio) < 0.0005:
             return
 
     local_point = interpolate_xyz(local_point_0, local_point_1, ratio)
@@ -504,8 +507,58 @@ def add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0,
             "local_point": local_point,
             "world_point": world_point,
             "local_direction": get_local_connection_direction(local_point_0, local_point_1, local_bounds, ratio),
+            "side": side,
         }
     )
+
+
+def get_closest_ratio_to_axis(local_point_0, local_point_1, axis, value):
+    start_value = local_point_0.X if axis == "x" else local_point_0.Y
+    end_value = local_point_1.X if axis == "x" else local_point_1.Y
+    delta = end_value - start_value
+    if abs(delta) > 0.0000001:
+        return (value - start_value) / delta
+    return 0.0 if abs(start_value - value) <= abs(end_value - value) else 1.0
+
+
+def ranges_overlap(start_value, end_value, min_value, max_value):
+    low_value = min(start_value, end_value)
+    high_value = max(start_value, end_value)
+    return high_value >= min_value and low_value <= max_value
+
+
+def add_near_side_candidate(candidates, side, axis, face_value, point_0, point_1, local_point_0, local_point_1, local_bounds):
+    ratio = get_closest_ratio_to_axis(local_point_0, local_point_1, axis, face_value)
+    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds, side)
+
+
+def get_near_side_connection_candidates(point_0, point_1, local_point_0, local_point_1, local_bounds):
+    min_x, min_y, max_x, max_y = local_bounds
+    search_ft = mm_to_ft(CONDUIT_SIDE_SEARCH_MM)
+    overlap_ft = mm_to_ft(CONDUIT_SIDE_OVERLAP_MM)
+    dx = local_point_1.X - local_point_0.X
+    dy = local_point_1.Y - local_point_0.Y
+    candidates = []
+
+    if abs(dx) >= max(abs(dy) * CONDUIT_SIDE_AXIS_RATIO, 0.0000001):
+        if ranges_overlap(local_point_0.Y, local_point_1.Y, min_y - overlap_ft, max_y + overlap_ft):
+            left_distance = min(abs(local_point_0.X - min_x), abs(local_point_1.X - min_x))
+            right_distance = min(abs(local_point_0.X - max_x), abs(local_point_1.X - max_x))
+            if left_distance <= search_ft and max(local_point_0.X, local_point_1.X) <= min_x + search_ft:
+                add_near_side_candidate(candidates, 0, "x", min_x, point_0, point_1, local_point_0, local_point_1, local_bounds)
+            if right_distance <= search_ft and min(local_point_0.X, local_point_1.X) >= max_x - search_ft:
+                add_near_side_candidate(candidates, 2, "x", max_x, point_0, point_1, local_point_0, local_point_1, local_bounds)
+
+    if abs(dy) >= max(abs(dx) * CONDUIT_SIDE_AXIS_RATIO, 0.0000001):
+        if ranges_overlap(local_point_0.X, local_point_1.X, min_x - overlap_ft, max_x + overlap_ft):
+            bottom_distance = min(abs(local_point_0.Y - min_y), abs(local_point_1.Y - min_y))
+            top_distance = min(abs(local_point_0.Y - max_y), abs(local_point_1.Y - max_y))
+            if bottom_distance <= search_ft and max(local_point_0.Y, local_point_1.Y) <= min_y + search_ft:
+                add_near_side_candidate(candidates, 1, "y", min_y, point_0, point_1, local_point_0, local_point_1, local_bounds)
+            if top_distance <= search_ft and min(local_point_0.Y, local_point_1.Y) >= max_y - search_ft:
+                add_near_side_candidate(candidates, 3, "y", max_y, point_0, point_1, local_point_0, local_point_1, local_bounds)
+
+    return candidates
 
 
 def get_conduit_connection_candidates(point_0, point_1, local_point_0, local_point_1, local_bounds):
@@ -543,7 +596,10 @@ def get_conduit_connection_candidates(point_0, point_1, local_point_0, local_poi
                 if min_x - tolerance <= hit_x <= max_x + tolerance:
                     add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds)
 
-    return candidates
+    if candidates:
+        return candidates
+
+    return get_near_side_connection_candidates(point_0, point_1, local_point_0, local_point_1, local_bounds)
 
 
 def get_workset_name(document, element):
@@ -723,7 +779,9 @@ def scan_manholes(document, active_view_id, progress_callback=None):
 
                 for candidate in connection_candidates:
                     selected_point = candidate["world_point"]
-                    side = get_side_from_local_vector(candidate["local_direction"], candidate["local_point"])
+                    side = candidate.get("side")
+                    if side is None:
+                        side = get_side_from_local_vector(candidate["local_direction"], candidate["local_point"])
                     depth = get_conduit_centerline_z(conduit, selected_point) - base_z
                     if is_extra:
                         extra_depths[side].append(depth)
