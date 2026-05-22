@@ -1,84 +1,95 @@
 # -*- coding: utf-8 -*-
+from __future__ import print_function
+
 import os
+import shutil
 import urllib2
 import zipfile
-import shutil
+
 from pyrevit.loader import sessionmgr
 
-# ==========================================
-# SETTINGS (Public GitHub Repository)
-# ==========================================
-# [แก้ไขจุดนี้] เปลี่ยนจาก P13.extension เป็น P13 ตามชื่อ Repo ใหม่บน GitHub
-USER_REPO = "Permpong13/P13" 
+
+USER_REPO = "Permpong13/P13"
 GITHUB_API_URL = "https://api.github.com/repos/{}/zipball/main".format(USER_REPO)
-ADMIN_USER = "Permpong13"
+ADMIN_USERS = ["Permpong13"]
+
+
+def get_current_username():
+    return (os.environ.get("USERNAME") or os.environ.get("USER") or "").strip()
+
+
+def is_admin_user():
+    current_user = get_current_username().lower()
+    return current_user in [name.lower() for name in ADMIN_USERS]
+
+
+def __selfinit__(script_cmp, ui_button_cmp, __rvt__):
+    return not is_admin_user()
+
+
+def find_extension_root(start_path):
+    current_path = start_path
+    while not os.path.basename(current_path).startswith("P13.extension"):
+        parent_path = os.path.dirname(current_path)
+        if parent_path == current_path:
+            break
+        current_path = parent_path
+    return current_path
+
 
 def sync_tools():
-    current_user = os.environ.get('USERNAME')
-    
-    # 1. ป้องกันเครื่อง Admin รันซ้ำซ้อน (พิมพ์ลง Console แทน จะได้ไม่ต้องกดปิด)
-    if current_user == ADMIN_USER:
-        print("Admin Mode: Please use the .bat file on your desktop to Push.")
+    if is_admin_user():
+        print("Admin mode: sync update is hidden for this user.")
         return
 
-    # 2. หาตำแหน่งโฟลเดอร์หลักในเครื่อง (ที่เครื่องลูกจะเป็น P13.extension)
     current_path = os.path.dirname(os.path.abspath(__file__))
-    dest_path = current_path
-    
-    # เช็คหาโฟลเดอร์หลักที่ชื่อขึ้นต้นด้วย P13.extension
-    while not os.path.basename(dest_path).startswith("P13.extension"):
-        parent = os.path.dirname(dest_path)
-        if parent == dest_path: break
-        dest_path = parent
+    dest_path = find_extension_root(current_path)
+
+    temp_zip = os.path.join(os.environ["TEMP"], "P13_update.zip")
+    temp_dir = os.path.join(os.environ["TEMP"], "P13_temp_extract")
 
     try:
-        # 3. ดาวน์โหลด Zip จาก GitHub แบบเงียบๆ (ไม่มี Progress Bar)
-        temp_zip = os.path.join(os.environ['TEMP'], "P13_update.zip")
-        temp_dir = os.path.join(os.environ['TEMP'], "P13_temp_extract")
-        
-        if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-        
+        if os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir)
+
         response = urllib2.urlopen(GITHUB_API_URL)
-        with open(temp_zip, 'wb') as f:
-            f.write(response.read())
-        
-        # แตกไฟล์
-        with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
+        with open(temp_zip, "wb") as zip_file:
+            zip_file.write(response.read())
+
+        with zipfile.ZipFile(temp_zip, "r") as zip_ref:
             zip_ref.extractall(temp_dir)
-        
-        # ค้นหาโฟลเดอร์ที่แตกออกมา (GitHub จะสร้างโฟลเดอร์ชื่อ Repo เช่น Permpong13-P13-xxx ครอบไว้ 1 ชั้น)
+
         extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
-        
-        # 4. การก๊อปปี้แบบ Safety (เอาของที่อยู่ใน Repo ไปทับในโฟลเดอร์ P13.extension โดยตรง)
+
         for root, dirs, files in os.walk(extracted_folder):
             rel_path = os.path.relpath(root, extracted_folder)
             target_dir = os.path.join(dest_path, rel_path)
-            
+
             if not os.path.exists(target_dir):
                 os.makedirs(target_dir)
-            
-            for f in files:
-                src_file = os.path.join(root, f)
-                dst_file = os.path.join(target_dir, f)
+
+            for file_name in files:
+                src_file = os.path.join(root, file_name)
+                dst_file = os.path.join(target_dir, file_name)
                 try:
                     shutil.copy2(src_file, dst_file)
-                except:
-                    # ข้ามไฟล์ที่ติด Lock แบบเงียบๆ
+                except Exception:
                     continue
 
-        # 5. ลบไฟล์ Temp ขยะทิ้งหลังจากอัปเดตเสร็จ 
+        sessionmgr.reload_pyrevit()
+
+    except Exception as exc:
+        print("Update error: {}".format(exc))
+
+    finally:
         try:
-            if os.path.exists(temp_zip): os.remove(temp_zip)
-            if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-        except:
+            if os.path.exists(temp_zip):
+                os.remove(temp_zip)
+            if os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir)
+        except Exception:
             pass
 
-        # 6. Reload pyRevit เพื่อให้เครื่องมือใหม่พร้อมใช้ทันที
-        sessionmgr.reload_pyrevit()
-        
-    except Exception as e:
-        # หากมี Error จะแสดงในหน้าต่าง Console ของ pyRevit แทนการเด้ง Popup แจ้งเตือน
-        print("Error Update: {}".format(str(e)))
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sync_tools()

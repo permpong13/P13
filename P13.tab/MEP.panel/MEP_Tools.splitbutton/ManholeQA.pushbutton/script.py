@@ -61,6 +61,23 @@ MANHOLE_LENGTH_PARAMETER_NAMES = [
     "MH Length",
     "Box Length",
 ]
+CONDUIT_MIDDLE_ELEVATION_PARAMETER_NAMES = [
+    "Middle Elevation",
+    "Center Elevation",
+    "Centre Elevation",
+    "Centerline Elevation",
+    "Centreline Elevation",
+]
+CONDUIT_TOP_ELEVATION_PARAMETER_NAMES = [
+    "Upper End Top Elevation",
+    "Top Elevation",
+    "Upper Elevation",
+]
+CONDUIT_BOTTOM_ELEVATION_PARAMETER_NAMES = [
+    "Lower End Bottom Elevation",
+    "Bottom Elevation",
+    "Lower Elevation",
+]
 
 XAML = r"""
 <Window
@@ -365,6 +382,16 @@ def get_parameter_by_names(element, param_names):
     return None
 
 
+def get_parameter_double_value(element, param_names):
+    param = get_parameter_by_names(element, param_names)
+    if not param:
+        return None
+    try:
+        return param.AsDouble()
+    except Exception:
+        return None
+
+
 def get_parameter_length_value(document, element, param_names):
     param = get_parameter_by_names(element, param_names)
     if param:
@@ -424,6 +451,99 @@ def get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft):
 def endpoint_in_local_bounds(local_point, local_bounds):
     min_x, min_y, max_x, max_y = local_bounds
     return min_x <= local_point.X <= max_x and min_y <= local_point.Y <= max_y
+
+
+def interpolate_xyz(point_0, point_1, ratio):
+    return XYZ(
+        point_0.X + (point_1.X - point_0.X) * ratio,
+        point_0.Y + (point_1.Y - point_0.Y) * ratio,
+        point_0.Z + (point_1.Z - point_0.Z) * ratio,
+    )
+
+
+def get_local_segment_direction(local_point_0, local_point_1, reverse=False):
+    multiplier = -1.0 if reverse else 1.0
+    return XYZ(
+        (local_point_1.X - local_point_0.X) * multiplier,
+        (local_point_1.Y - local_point_0.Y) * multiplier,
+        (local_point_1.Z - local_point_0.Z) * multiplier,
+    )
+
+
+def get_local_connection_direction(local_point_0, local_point_1, local_bounds, ratio):
+    segment_direction = get_local_segment_direction(local_point_0, local_point_1)
+    if ratio <= 0.0001:
+        return segment_direction
+    if ratio >= 0.9999:
+        return get_local_segment_direction(local_point_0, local_point_1, True)
+
+    before_ratio = max(0.0, ratio - 0.001)
+    after_ratio = min(1.0, ratio + 0.001)
+    before_point = interpolate_xyz(local_point_0, local_point_1, before_ratio)
+    after_point = interpolate_xyz(local_point_0, local_point_1, after_ratio)
+    before_inside = endpoint_in_local_bounds(before_point, local_bounds)
+    after_inside = endpoint_in_local_bounds(after_point, local_bounds)
+    if before_inside and not after_inside:
+        return segment_direction
+    if after_inside and not before_inside:
+        return get_local_segment_direction(local_point_0, local_point_1, True)
+    return segment_direction if ratio <= 0.5 else get_local_segment_direction(local_point_0, local_point_1, True)
+
+
+def add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds):
+    ratio = max(0.0, min(1.0, ratio))
+    for candidate in candidates:
+        if abs(candidate["ratio"] - ratio) < 0.0005:
+            return
+
+    local_point = interpolate_xyz(local_point_0, local_point_1, ratio)
+    world_point = interpolate_xyz(point_0, point_1, ratio)
+    candidates.append(
+        {
+            "ratio": ratio,
+            "local_point": local_point,
+            "world_point": world_point,
+            "local_direction": get_local_connection_direction(local_point_0, local_point_1, local_bounds, ratio),
+        }
+    )
+
+
+def get_conduit_connection_candidates(point_0, point_1, local_point_0, local_point_1, local_bounds):
+    if not local_bounds:
+        return []
+
+    candidates = []
+    in_0 = endpoint_in_local_bounds(local_point_0, local_bounds)
+    in_1 = endpoint_in_local_bounds(local_point_1, local_bounds)
+    if in_0:
+        add_connection_candidate(candidates, 0.0, point_0, point_1, local_point_0, local_point_1, local_bounds)
+    if in_1 and not in_0:
+        add_connection_candidate(candidates, 1.0, point_0, point_1, local_point_0, local_point_1, local_bounds)
+    if candidates:
+        return candidates
+
+    min_x, min_y, max_x, max_y = local_bounds
+    dx = local_point_1.X - local_point_0.X
+    dy = local_point_1.Y - local_point_0.Y
+    tolerance = mm_to_ft(1.0)
+
+    if abs(dx) > 0.0000001:
+        for edge_x in (min_x, max_x):
+            ratio = (edge_x - local_point_0.X) / dx
+            if -0.0005 <= ratio <= 1.0005:
+                hit_y = local_point_0.Y + dy * ratio
+                if min_y - tolerance <= hit_y <= max_y + tolerance:
+                    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds)
+
+    if abs(dy) > 0.0000001:
+        for edge_y in (min_y, max_y):
+            ratio = (edge_y - local_point_0.Y) / dy
+            if -0.0005 <= ratio <= 1.0005:
+                hit_x = local_point_0.X + dx * ratio
+                if min_x - tolerance <= hit_x <= max_x + tolerance:
+                    add_connection_candidate(candidates, ratio, point_0, point_1, local_point_0, local_point_1, local_bounds)
+
+    return candidates
 
 
 def get_workset_name(document, element):
@@ -515,6 +635,19 @@ def read_connection_mm(manhole, param_name):
             return 0
 
 
+def get_conduit_centerline_z(conduit, fallback_point):
+    middle_z = get_parameter_double_value(conduit, CONDUIT_MIDDLE_ELEVATION_PARAMETER_NAMES)
+    if middle_z is not None:
+        return middle_z
+
+    top_z = get_parameter_double_value(conduit, CONDUIT_TOP_ELEVATION_PARAMETER_NAMES)
+    bottom_z = get_parameter_double_value(conduit, CONDUIT_BOTTOM_ELEVATION_PARAMETER_NAMES)
+    if top_z is not None and bottom_z is not None:
+        return (top_z + bottom_z) / 2.0
+
+    return fallback_point.Z
+
+
 def scan_manholes(document, active_view_id, progress_callback=None):
     try:
         view_equipments = (
@@ -570,35 +703,15 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 local_point_0 = transform.Inverse.OfPoint(point_0)
                 local_point_1 = transform.Inverse.OfPoint(point_1)
 
-                selected_point = None
-                if local_bounds:
-                    in_0 = endpoint_in_local_bounds(local_point_0, local_bounds)
-                    in_1 = endpoint_in_local_bounds(local_point_1, local_bounds)
-                    if in_0 or in_1:
-                        selected_point = point_0 if in_0 else point_1
-
-                selected_index = None
-                if not selected_point:
-                    dist_0 = point_0.DistanceTo(origin)
-                    dist_1 = point_1.DistanceTo(origin)
-                    if min(dist_0, dist_1) > 10.0:
-                        continue
-                    selected_index = 0 if dist_0 < dist_1 else 1
-                    selected_point = point_0 if selected_index == 0 else point_1
-                elif selected_point.IsAlmostEqualTo(point_0):
-                    selected_index = 0
-                else:
-                    selected_index = 1
-
-                other_point = point_1 if selected_index == 0 else point_0
-                local_point = local_point_0 if selected_index == 0 else local_point_1
-                world_direction = XYZ(
-                    other_point.X - selected_point.X,
-                    other_point.Y - selected_point.Y,
-                    other_point.Z - selected_point.Z,
+                connection_candidates = get_conduit_connection_candidates(
+                    point_0,
+                    point_1,
+                    local_point_0,
+                    local_point_1,
+                    local_bounds,
                 )
-                local_direction = transform.Inverse.OfVector(world_direction)
-                side = get_side_from_local_vector(local_direction, local_point)
+                if not connection_candidates:
+                    continue
 
                 conduit_type = document.GetElement(conduit.GetTypeId())
                 type_name = ""
@@ -608,11 +721,14 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 conduit_name = conduit.Name.lower() if conduit.Name else ""
                 is_extra = "without duct" in type_name or "without duct" in conduit_name
 
-                depth = selected_point.Z - base_z
-                if is_extra:
-                    extra_depths[side].append(depth)
-                else:
-                    main_depths[side].append(depth)
+                for candidate in connection_candidates:
+                    selected_point = candidate["world_point"]
+                    side = get_side_from_local_vector(candidate["local_direction"], candidate["local_point"])
+                    depth = get_conduit_centerline_z(conduit, selected_point) - base_z
+                    if is_extra:
+                        extra_depths[side].append(depth)
+                    else:
+                        main_depths[side].append(depth)
 
             for fitting in view_fittings:
                 fitting_point = get_location_point(fitting)
