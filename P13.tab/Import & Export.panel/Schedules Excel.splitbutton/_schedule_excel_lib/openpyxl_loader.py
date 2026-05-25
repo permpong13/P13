@@ -7,19 +7,22 @@ import subprocess
 import sys
 import tempfile
 
-_COMMON_PYTHON_PATHS = [
-    r"C:\Python313\python.exe",
-    r"C:\Python312\python.exe",
-    r"C:\Python311\python.exe",
-    r"C:\Python310\python.exe",
-    r"C:\Python39\python.exe",
-    r"C:\Program Files\Python313\python.exe",
-    r"C:\Program Files\Python312\python.exe",
-    r"C:\Program Files\Python311\python.exe",
-    r"C:\Users\{}\AppData\Local\Programs\Python\Python313\python.exe".format(os.environ.get("USERNAME", "")),
-    r"C:\Users\{}\AppData\Local\Programs\Python\Python312\python.exe".format(os.environ.get("USERNAME", "")),
-    r"C:\Users\{}\AppData\Local\Programs\Python\Python311\python.exe".format(os.environ.get("USERNAME", "")),
-]
+def _get_common_paths():
+    paths = [
+        r"C:\Python313\python.exe",
+        r"C:\Python312\python.exe",
+        r"C:\Python311\python.exe",
+        r"C:\Python310\python.exe",
+        r"C:\Python39\python.exe",
+        r"C:\Program Files\Python313\python.exe",
+        r"C:\Program Files\Python312\python.exe",
+        r"C:\Program Files\Python311\python.exe",
+    ]
+    userprofile = os.environ.get("USERPROFILE") or os.environ.get("HOMEPATH") or os.path.expanduser("~")
+    if userprofile:
+        for v in ["313", "312", "311", "310", "39"]:
+            paths.append(os.path.join(userprofile, r"AppData\Local\Programs\Python\Python" + v, "python.exe"))
+    return paths
 
 
 def _decode_output(value):
@@ -46,7 +49,7 @@ def find_cpython():
     except Exception:
         pass
 
-    for path in _COMMON_PYTHON_PATHS:
+    for path in _get_common_paths():
         if os.path.isfile(path):
             return path
 
@@ -81,7 +84,7 @@ def ensure_openpyxl_installed(python_exe):
 
     print("[openpyxl_loader] Installing openpyxl in CPython...")
     try:
-        subprocess.check_call([python_exe, "-m", "pip", "install", "openpyxl", "--quiet"])
+        subprocess.check_call([python_exe, "-m", "pip", "install", "openpyxl", "--user", "--quiet"])
         print("[openpyxl_loader] openpyxl installed successfully.")
         return True
     except Exception as exc:
@@ -173,10 +176,26 @@ class SubprocessExcelBridge(object):
             stderr=subprocess.PIPE
         )
         stdout, stderr = proc.communicate(input=json.dumps(payload).encode("utf-8"))
+        
+        stdout_str = _decode_output(stdout).strip()
+        result = None
         try:
-            result = json.loads(_decode_output(stdout))
+            result = json.loads(stdout_str)
         except ValueError:
-            raise RuntimeError("Excel bridge did not return JSON.\nstdout={}\nstderr={}".format(stdout, stderr))
+            # Try to find a line starting with {"ok":
+            json_line = None
+            for line in stdout_str.splitlines():
+                if line.strip().startswith('{"ok":'):
+                    json_line = line.strip()
+                    break
+            if json_line:
+                try:
+                    result = json.loads(json_line)
+                except ValueError:
+                    pass
+            
+            if result is None:
+                raise RuntimeError("Excel bridge did not return JSON.\nstdout={}\nstderr={}".format(stdout_str, _decode_output(stderr)))
 
         if not result.get("ok"):
             raise RuntimeError("Excel bridge error:\n{}".format(result.get("error", "Unknown error")))
@@ -223,6 +242,7 @@ def get_subprocess_bridge(auto_install=True):
         raise RuntimeError("CPython was not found. Install Python from https://python.org or use XLSX native fallback.")
 
     if auto_install:
-        ensure_openpyxl_installed(python_exe)
+        if not ensure_openpyxl_installed(python_exe):
+            raise RuntimeError("openpyxl is not installed and auto-installation failed.")
 
     return SubprocessExcelBridge(python_exe)

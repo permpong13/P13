@@ -179,8 +179,27 @@ def set_parameter_from_text(parameter, text_value, meta=None):
                 clean_num = value.replace(",", "")
                 val_float = float(clean_num)
                 is_length = False
-                if meta and (meta.get("storage") == "Double" or "length" in str(meta.get("header")).lower()):
-                    is_length = True
+                try:
+                    # Revit 2022+ API
+                    if hasattr(parameter.Definition, "GetDataType"):
+                        forge_type = parameter.Definition.GetDataType()
+                        if forge_type and forge_type.TypeId.startswith("autodesk.spec.aec:length"):
+                            is_length = True
+                except Exception:
+                    pass
+                if not is_length:
+                    try:
+                        # Revit 2021 and earlier API
+                        if hasattr(parameter.Definition, "ParameterType"):
+                            if str(parameter.Definition.ParameterType) == "Length":
+                                is_length = True
+                    except Exception:
+                        pass
+                if not is_length and meta:
+                    # Fallback to header keywords
+                    header_str = str(meta.get("header", "")).lower()
+                    if any(k in header_str for k in ["length", "width", "height", "thickness"]):
+                        is_length = True
                     
                 if is_length:
                     internal_unit_val = val_float / 304.8
@@ -219,7 +238,7 @@ def collect_schedule_fields(doc, schedule):
             if field.IsHidden: continue
         except Exception: pass
 
-        try: field_name = field.GetName(doc)
+        try: field_name = field.GetName()
         except Exception: field_name = "Field"
 
         header = None

@@ -53,34 +53,46 @@ class ExcelIO(object):
 
     def read_xlsx(self, path):
         if self.use_bridge and self.bridge:
-            return self.bridge.read_xlsx(path)
+            try:
+                return self.bridge.read_xlsx(path)
+            except Exception as exc:
+                print("[sync] Subprocess bridge read failed: {}. Falling back to native XLSX engine.".format(exc))
         if self.openpyxl:
-            workbook = self.openpyxl.load_workbook(path, data_only=True)
-            data = {}
-            for sheet_name in workbook.sheetnames:
-                worksheet = workbook[sheet_name]
-                data[sheet_name] = [list(row) for row in worksheet.iter_rows(values_only=True)]
-            workbook.close()
-            return data
+            try:
+                workbook = self.openpyxl.load_workbook(path, data_only=True)
+                data = {}
+                for sheet_name in workbook.sheetnames:
+                    worksheet = workbook[sheet_name]
+                    data[sheet_name] = [list(row) for row in worksheet.iter_rows(values_only=True)]
+                workbook.close()
+                return data
+            except Exception as exc:
+                print("[sync] Direct openpyxl read failed: {}. Falling back to native XLSX engine.".format(exc))
         return sx.read_xlsx(path)
 
     def write_xlsx(self, path, sheets_data):
         if self.use_bridge and self.bridge:
-            self.bridge.write_xlsx(path, sheets_data)
-            return
+            try:
+                self.bridge.write_xlsx(path, sheets_data)
+                return
+            except Exception as exc:
+                print("[sync] Subprocess bridge write failed: {}. Falling back to native XLSX engine.".format(exc))
         if self.openpyxl:
-            workbook = self.openpyxl.load_workbook(path)
-            for sheet_info in sheets_data:
-                sheet_name = sheet_info["name"]
-                if sheet_name not in workbook.sheetnames:
-                    continue
-                worksheet = workbook[sheet_name]
-                for row_idx, row_data in enumerate(sheet_info["rows"]):
-                    for col_idx, value in enumerate(row_data):
-                        worksheet.cell(row=row_idx + 1, column=col_idx + 1).value = value if value != "" else None
-            workbook.save(path)
-            workbook.close()
-            return
+            try:
+                workbook = self.openpyxl.load_workbook(path)
+                for sheet_info in sheets_data:
+                    sheet_name = sheet_info["name"]
+                    if sheet_name not in workbook.sheetnames:
+                        continue
+                    worksheet = workbook[sheet_name]
+                    for row_idx, row_data in enumerate(sheet_info["rows"]):
+                        for col_idx, value in enumerate(row_data):
+                            worksheet.cell(row=row_idx + 1, column=col_idx + 1).value = value if value != "" else None
+                workbook.save(path)
+                workbook.close()
+                return
+            except Exception as exc:
+                print("[sync] Direct openpyxl write failed: {}. Falling back to native XLSX engine.".format(exc))
         sx.write_xlsx(path, sheets_data)
 
     def cleanup(self):

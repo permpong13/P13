@@ -11,6 +11,7 @@ clr.AddReference('System.Windows.Forms')
 clr.AddReference('PresentationFramework')
 clr.AddReference('PresentationCore')
 clr.AddReference('WindowsBase')
+from System.Windows.Forms import OpenFileDialog, SaveFileDialog, DialogResult
 
 from pyrevit import revit, DB, forms, output, HOST_APP
 from System.Collections.ObjectModel import ObservableCollection
@@ -385,21 +386,172 @@ class SuperSheetsUltimate(Window):
             self._load_profiles_from_disk(); self.txtProfileName.Text = ""
             self._toast("Deleted")
 
+    def _profiles_to_xml(self, profiles):
+        import xml.etree.ElementTree as ET
+        root = ET.Element("Profiles")
+        for name, data in profiles.items():
+            prof_el = ET.SubElement(root, "Profile")
+            name_el = ET.SubElement(prof_el, "Name")
+            name_el.text = name
+            
+            for key, val in data.items():
+                key_el = ET.SubElement(prof_el, key)
+                if isinstance(val, bool):
+                    key_el.text = "true" if val else "false"
+                elif val is None:
+                    key_el.text = ""
+                else:
+                    key_el.text = str(val)
+        
+        try:
+            from xml.dom import minidom
+            raw_xml = ET.tostring(root, "utf-8")
+            parsed = minidom.parseString(raw_xml)
+            return parsed.toprettyxml(indent="  ", encoding="utf-8")
+        except Exception:
+            return ET.tostring(root, "utf-8")
+
+    def _xml_to_profiles(self, xml_path):
+        import xml.etree.ElementTree as ET
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+        
+        profiles = {}
+        profile_elements = root.findall(".//Profile")
+        for p_el in profile_elements:
+            name_el = p_el.find("Name")
+            if name_el is None or not name_el.text:
+                continue
+            name = name_el.text.strip()
+            
+            p_data = {
+                'prefix': '', 'suffix': '', 'pattern': '{SheetNumber}_{SheetName}', 
+                'path': '', 'color': 0, 
+                'pdf': True, 'dwg': False, 'ifc': False, 'nwc': False,
+                'combine': False, 'combine_name': 'Combined_Set',
+                'excel': False, 'auto_folder': True,
+                'view_links': False, 'hide_ref_worksets': False,
+                'hide_unref_view_tags': False, 'hide_scope_boxes': False,
+                'hide_crop_boundaries': False, 'replace_halftone': False,
+                'region_edges_mask': False
+            }
+            
+            temp_info = p_el.find("TemplateInfo")
+            if temp_info is not None:
+                path_el = temp_info.find("CreateExportFolderPath")
+                if path_el is not None and path_el.text:
+                    p_data['path'] = path_el.text.strip()
+                    
+                pdf_el = temp_info.find("IsPDFChecked")
+                if pdf_el is not None:
+                    p_data['pdf'] = pdf_el.text.strip().lower() == "true"
+                    
+                dwg_el = temp_info.find("IsDWGChecked")
+                if dwg_el is not None:
+                    p_data['dwg'] = dwg_el.text.strip().lower() == "true"
+                    
+                ifc_el = temp_info.find("IsIFCChecked")
+                if ifc_el is not None:
+                    p_data['ifc'] = ifc_el.text.strip().lower() == "true"
+                    
+                nwc_el = temp_info.find("IsNWCChecked")
+                if nwc_el is not None:
+                    p_data['nwc'] = nwc_el.text.strip().lower() == "true"
+                    
+                sheet_params = temp_info.find("SelectSheetParameters")
+                if sheet_params is not None:
+                    comb_name_el = sheet_params.find("CombineParameterName")
+                    if comb_name_el is not None and comb_name_el.text:
+                        pattern = comb_name_el.text.strip()
+                        pattern = pattern.replace("Sheet Number", "{SheetNumber}").replace("Sheet Name", "{SheetName}").replace("Current Revision", "{Current Revision}")
+                        p_data['pattern'] = pattern
+                
+                color_el = temp_info.find("Color")
+                if color_el is not None and color_el.text:
+                    p_data['color'] = 1 if color_el.text.strip().lower() == "b&w" else 0
+                    
+                view_links_el = temp_info.find("ViewLink")
+                if view_links_el is not None:
+                    p_data['view_links'] = view_links_el.text.strip().lower() == "true"
+                    
+                hide_scope_el = temp_info.find("HideScopeBox")
+                if hide_scope_el is not None:
+                    p_data['hide_scope_boxes'] = hide_scope_el.text.strip().lower() == "true"
+                    
+                hide_unref_el = temp_info.find("HideUnreferencedTags")
+                if hide_unref_el is not None:
+                    p_data['hide_unref_view_tags'] = hide_unref_el.text.strip().lower() == "true"
+                    
+                hide_crop_el = temp_info.find("HideCropBoundaries")
+                if hide_crop_el is not None:
+                    p_data['hide_crop_boundaries'] = hide_crop_el.text.strip().lower() == "true"
+                    
+                replace_halftone_el = temp_info.find("ReplaceHalftone")
+                if replace_halftone_el is not None:
+                    p_data['replace_halftone'] = replace_halftone_el.text.strip().lower() == "true"
+                    
+                mask_coincident_el = temp_info.find("MaskCoincidentLines")
+                if mask_coincident_el is not None:
+                    p_data['region_edges_mask'] = mask_coincident_el.text.strip().lower() == "true"
+            else:
+                for key in p_data.keys():
+                    child = p_el.find(key)
+                    if child is not None and child.text is not None:
+                        txt = child.text.strip()
+                        if txt.lower() == "true":
+                            p_data[key] = True
+                        elif txt.lower() == "false":
+                            p_data[key] = False
+                        elif txt.isdigit():
+                            p_data[key] = int(txt)
+                        else:
+                            p_data[key] = txt
+                            
+            profiles[name] = p_data
+            
+        return profiles
+
     def _on_export_config(self, s, e):
-        dest = forms.save_file(file_ext='json', default_name='p13_profiles_backup')
-        if dest:
-            with open(dest, 'w') as f: json.dump(self._profiles, f)
-            self._toast("Config Exported!")
+        dialog = SaveFileDialog()
+        dialog.Title = "Export Profiles"
+        dialog.Filter = "JSON Files (*.json)|*.json|XML Files (*.xml)|*.xml"
+        dialog.FileName = "p13_profiles_backup"
+        if dialog.ShowDialog() == DialogResult.OK:
+            dest = dialog.FileName
+            ext = os.path.splitext(dest)[1].lower()
+            try:
+                if ext == ".json":
+                    with open(dest, 'w') as f:
+                        json.dump(self._profiles, f, indent=4)
+                elif ext == ".xml":
+                    xml_content = self._profiles_to_xml(self._profiles)
+                    with open(dest, 'w') as f:
+                        f.write(xml_content)
+                self._toast("Config Exported!")
+            except Exception as ex:
+                forms.alert("Export Error:\n" + str(ex))
 
     def _on_import_config(self, s, e):
-        src = forms.pick_file(file_ext='json')
-        if src:
+        dialog = OpenFileDialog()
+        dialog.Title = "Import Profiles"
+        dialog.Filter = "JSON and XML Files (*.json;*.xml)|*.json;*.xml|JSON Files (*.json)|*.json|XML Files (*.xml)|*.xml"
+        if dialog.ShowDialog() == DialogResult.OK:
+            src = dialog.FileName
+            ext = os.path.splitext(src)[1].lower()
             try:
-                with open(src, 'r') as f: self._profiles.update(json.load(f))
-                with open(CONFIG_FILE, 'w') as f: json.dump(self._profiles, f)
+                if ext == ".json":
+                    with open(src, 'r') as f:
+                        self._profiles.update(json.load(f))
+                elif ext == ".xml":
+                    imported = self._xml_to_profiles(src)
+                    self._profiles.update(imported)
+                
+                with open(CONFIG_FILE, 'w') as f:
+                    json.dump(self._profiles, f, indent=4)
                 self._load_profiles_from_disk()
                 self._toast("Config Imported!")
-            except: self._toast("Import Error!")
+            except Exception as ex:
+                forms.alert("Import Error:\n" + str(ex))
 
     def _on_profile_select(self, s, e):
         if self._ignore_events: return
