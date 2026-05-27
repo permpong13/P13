@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 __title__ = "Import Schedules\nfrom Excel"
-__doc__ = "Import a P13/MLABS schedule XLSX or CSV export and update existing Revit elements."
+__doc__ = "Import a P13 SheetBridge schedule XLSX or CSV export and update existing Revit elements."
 __author__ = "P13"
 
 import os
@@ -33,7 +33,7 @@ class SilentWarningPreprocessor(DB.IFailuresPreprocessor):
 
 def pick_schedule_file():
     dialog = OpenFileDialog()
-    dialog.Title = "Select MLABS/P13 Schedule Excel or CSV File"
+    dialog.Title = "Select P13 SheetBridge Schedule Excel or CSV File"
     dialog.Filter = "Excel or CSV Files (*.xlsx;*.csv)|*.xlsx;*.csv|Excel Files (*.xlsx)|*.xlsx|CSV Files (*.csv)|*.csv"
     if dialog.ShowDialog() == DialogResult.OK:
         return dialog.FileName
@@ -57,7 +57,7 @@ def read_source(path):
     raise Exception("Unsupported file type: {}".format(ext))
 
 
-def parse_mlabs_metadata(rows):
+def parse_sheetbridge_metadata(rows):
     if len(rows) < 8:
         return {}
 
@@ -69,7 +69,7 @@ def parse_mlabs_metadata(rows):
             break
 
         parameter_name = sx.to_text(rows[0][col_idx]).strip()
-        if not parameter_name or parameter_name == "MLabs":
+        if not parameter_name or parameter_name == "P13 SheetBridge":
             continue
 
         parameter_id = sx.to_text(rows[1][col_idx]).strip() if len(rows[1]) > col_idx else ""
@@ -90,11 +90,22 @@ def parse_mlabs_metadata(rows):
     return metadata
 
 
+def to_text(value):
+    text = sx.to_text(value).strip()
+    try:
+        val_float = float(text)
+        if val_float.is_integer():
+            return str(int(val_float))
+    except Exception:
+        pass
+    if text.endswith(".0") and text[:-2].lstrip("-").isdigit():
+        return text[:-2]
+    return text
+
+
 def get_element(element_id_text):
     try:
-        clean_id = sx.to_text(element_id_text).strip()
-        if clean_id.endswith(".0"):
-            clean_id = clean_id[:-2]
+        clean_id = to_text(element_id_text)
         if not clean_id or not clean_id.isdigit():
             return None
         return doc.GetElement(sx.make_element_id(int(clean_id)))
@@ -128,19 +139,21 @@ def build_preview(data_sheets):
         if len(rows) < 9:
             continue
 
-        sheet_metadata = parse_mlabs_metadata(rows)
+        sheet_metadata = parse_sheetbridge_metadata(rows)
         if not sheet_metadata:
             continue
 
-        headers = [sx.to_text(header).strip() for header in rows[7]]
+        headers = [to_text(header) for header in rows[7]]
         data_rows = rows[8:]
-        id_col_idx = headers.index("ElementId") if "ElementId" in headers else 0
+        id_col_idx = 0
+        for i, h in enumerate(headers):
+            if "elementid" in h.lower():
+                id_col_idx = i
+                break
 
         for raw_row in data_rows:
             row = normalize_row(raw_row, len(headers))
-            element_id_text = sx.to_text(row[id_col_idx]).strip()
-            if element_id_text.endswith(".0"):
-                element_id_text = element_id_text[:-2]
+            element_id_text = to_text(row[id_col_idx])
             if not element_id_text or not element_id_text.isdigit():
                 continue
 
