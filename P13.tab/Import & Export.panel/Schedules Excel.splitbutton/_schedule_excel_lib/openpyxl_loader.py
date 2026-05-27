@@ -130,6 +130,9 @@ def read_xlsx(path):
 
 def write_xlsx(path, sheets_data):
     import openpyxl
+    from openpyxl.styles import PatternFill
+    
+    gray_fill = PatternFill(start_color="F0F0F0", end_color="F0F0F0", fill_type="solid")
     workbook = openpyxl.load_workbook(path)
     for sheet_info in sheets_data:
         sheet_name = sheet_info["name"]
@@ -137,9 +140,27 @@ def write_xlsx(path, sheets_data):
         if sheet_name not in workbook.sheetnames:
             continue
         worksheet = workbook[sheet_name]
+        
+        read_only_cols = set()
+        read_only_cols.add(1) # ElementId column
+        if len(rows) >= 6:
+            row_modif = rows[5]
+            for c_idx in range(1, len(row_modif)):
+                if "read only" in str(row_modif[c_idx]).lower():
+                    read_only_cols.add(c_idx + 1)
+                    
+        # Last column comment/name is also read-only
+        if len(rows) >= 8:
+            last_col_idx = len(rows[7])
+            if last_col_idx > 1:
+                read_only_cols.add(last_col_idx)
+                
         for row_idx, row_data in enumerate(rows):
             for col_idx, value in enumerate(row_data):
-                worksheet.cell(row=row_idx + 1, column=col_idx + 1).value = value if value != "" else None
+                cell = worksheet.cell(row=row_idx + 1, column=col_idx + 1)
+                cell.value = value if value != "" else None
+                if row_idx + 1 >= 9 and (col_idx + 1) in read_only_cols:
+                    cell.fill = gray_fill
     workbook.save(path)
     workbook.close()
 

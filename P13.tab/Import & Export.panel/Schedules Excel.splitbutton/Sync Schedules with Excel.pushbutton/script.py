@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 __title__ = "Sync Schedules\nwith Excel"
-__doc__ = "Sync P13/MLABS schedule Excel or CSV files with the current Revit model."
+__doc__ = "Sync P13 SheetBridge Excel or CSV files with the current Revit model."
 __author__ = "P13"
 
 import datetime
@@ -79,15 +79,36 @@ class ExcelIO(object):
                 print("[sync] Subprocess bridge write failed: {}. Falling back to native XLSX engine.".format(exc))
         if self.openpyxl:
             try:
+                from openpyxl.styles import PatternFill
+                gray_fill = PatternFill(start_color="F0F0F0", end_color="F0F0F0", fill_type="solid")
                 workbook = self.openpyxl.load_workbook(path)
                 for sheet_info in sheets_data:
                     sheet_name = sheet_info["name"]
                     if sheet_name not in workbook.sheetnames:
                         continue
                     worksheet = workbook[sheet_name]
-                    for row_idx, row_data in enumerate(sheet_info["rows"]):
+                    rows = sheet_info.get("rows", [])
+                    
+                    read_only_cols = set()
+                    read_only_cols.add(1) # ElementId column
+                    if len(rows) >= 6:
+                        row_modif = rows[5]
+                        for c_idx in range(1, len(row_modif)):
+                            if "read only" in str(row_modif[c_idx]).lower():
+                                read_only_cols.add(c_idx + 1)
+                                
+                    # Last column comment/name is also read-only
+                    if len(rows) >= 8:
+                        last_col_idx = len(rows[7])
+                        if last_col_idx > 1:
+                            read_only_cols.add(last_col_idx)
+                            
+                    for row_idx, row_data in enumerate(rows):
                         for col_idx, value in enumerate(row_data):
-                            worksheet.cell(row=row_idx + 1, column=col_idx + 1).value = value if value != "" else None
+                            cell = worksheet.cell(row=row_idx + 1, column=col_idx + 1)
+                            cell.value = value if value != "" else None
+                            if row_idx + 1 >= 9 and (col_idx + 1) in read_only_cols:
+                                cell.fill = gray_fill
                 workbook.save(path)
                 workbook.close()
                 return
@@ -102,6 +123,12 @@ class ExcelIO(object):
 
 def to_text(value):
     text = sx.to_text(value).strip()
+    try:
+        val_float = float(text)
+        if val_float.is_integer():
+            return str(int(val_float))
+    except Exception:
+        pass
     if text.endswith(".0") and text[:-2].lstrip("-").isdigit():
         return text[:-2]
     return text
@@ -154,7 +181,7 @@ def write_source(path, sheets_data, excel_io):
     raise Exception("Unsupported file type: {}".format(ext))
 
 
-def parse_mlabs_metadata(rows):
+def parse_sheetbridge_metadata(rows):
     if len(rows) < 8:
         return {}
 
@@ -162,7 +189,7 @@ def parse_mlabs_metadata(rows):
     metadata = {}
     for col_idx in range(1, len(headers)):
         parameter_name = to_text(rows[0][col_idx]) if col_idx < len(rows[0]) else ""
-        if not parameter_name or parameter_name.lower() == "mlabs":
+        if not parameter_name or parameter_name.lower() == "p13 sheetbridge":
             continue
 
         parameter_id = to_text(rows[1][col_idx]) if len(rows[1]) > col_idx else ""
@@ -235,13 +262,17 @@ def build_preview(data_sheets):
         if len(rows) < 9:
             continue
 
-        metadata = parse_mlabs_metadata(rows)
+        metadata = parse_sheetbridge_metadata(rows)
         if not metadata:
             continue
         stats["sheets_with_metadata"] += 1
 
         headers = [to_text(header) for header in rows[7]]
-        id_col_idx = headers.index("ElementId") if "ElementId" in headers else 0
+        id_col_idx = 0
+        for i, h in enumerate(headers):
+            if "elementid" in h.lower():
+                id_col_idx = i
+                break
         for raw_row in rows[8:]:
             row = normalize_row(raw_row, len(headers))
             element_id_text = to_text(row[id_col_idx])
@@ -376,9 +407,13 @@ def sync_to_file(path, data_sheets, excel_io):
             updated_sheets.append({"name": sheet_name, "rows": rows})
             continue
 
-        metadata = parse_mlabs_metadata(rows)
+        metadata = parse_sheetbridge_metadata(rows)
         headers = [to_text(header) for header in rows[7]]
-        id_col_idx = headers.index("ElementId") if "ElementId" in headers else 0
+        id_col_idx = 0
+        for i, h in enumerate(headers):
+            if "elementid" in h.lower():
+                id_col_idx = i
+                break
         new_rows = [list(row) for row in rows[:8]]
 
         for raw_row in rows[8:]:

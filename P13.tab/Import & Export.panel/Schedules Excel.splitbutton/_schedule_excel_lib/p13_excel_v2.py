@@ -210,7 +210,120 @@ def set_parameter_from_text(parameter, text_value, meta=None):
             except Exception as e:
                 return False, "Unit parsing failure: " + str(e)
                 
-        return False, "Unsupported storage type"
+        if parameter.StorageType == DB.StorageType.ElementId:
+            if value == "":
+                if parameter.Set(DB.ElementId.InvalidElementId):
+                    return True, ""
+                return False, "Revit rejected setting ElementId to invalid/none"
+            
+            # 1. Try treating value as a raw ElementId integer
+            try:
+                clean_val = value.split(".")[0].strip()
+                if clean_val.lstrip("-").isdigit():
+                    eid = DB.ElementId(int(clean_val))
+                    if eid == DB.ElementId.InvalidElementId:
+                        if parameter.Set(eid): return True, ""
+                    else:
+                        try:
+                            doc = parameter.Element.Document
+                        except Exception:
+                            try:
+                                doc = revit.doc
+                            except Exception:
+                                doc = None
+                        if doc and doc.GetElement(eid) is not None:
+                            if parameter.Set(eid): return True, ""
+            except Exception:
+                pass
+            
+            # 2. Try looking up elements by name.
+            try:
+                doc = parameter.Element.Document
+            except Exception:
+                try:
+                    doc = revit.doc
+                except Exception:
+                    doc = None
+                
+            if doc:
+                try:
+                    target_class = None
+                    target_category_id = None
+                    
+                    # Try to get class/category from the current referenced element
+                    curr_eid = parameter.AsElementId()
+                    if curr_eid and curr_eid != DB.ElementId.InvalidElementId:
+                        curr_elem = doc.GetElement(curr_eid)
+                        if curr_elem:
+                            target_class = curr_elem.GetType()
+                            if curr_elem.Category:
+                                target_category_id = curr_elem.Category.Id
+                    
+                    # If we don't have current element type/class, try to guess from parameter name/id
+                    if not target_class and not target_category_id:
+                        p_name = parameter.Definition.Name.lower()
+                        if "material" in p_name:
+                            target_class = DB.Material
+                        elif "phase" in p_name:
+                            target_class = DB.Phase
+                        elif "level" in p_name:
+                            target_class = DB.Level
+                            
+                    # Let's do a search!
+                    target_elem = None
+                    
+                    # First attempt: search using both target_class and target_category_id if available
+                    if target_class or target_category_id:
+                        collector = DB.FilteredElementCollector(doc)
+                        if target_class:
+                            collector.OfClass(target_class)
+                        if target_category_id:
+                            collector.OfCategoryId(target_category_id)
+                        
+                        for elem in collector:
+                            try:
+                                if elem.Name.lower().strip() == value.lower():
+                                    target_elem = elem
+                                    break
+                            except Exception:
+                                pass
+                                
+                    # Second attempt: if target_class is FamilySymbol but we couldn't find it (maybe because category mismatched),
+                    # search all FamilySymbols or all elements of target_class
+                    if not target_elem and target_class:
+                        collector = DB.FilteredElementCollector(doc).OfClass(target_class)
+                        for elem in collector:
+                            try:
+                                if elem.Name.lower().strip() == value.lower():
+                                    target_elem = elem
+                                    break
+                            except Exception:
+                                pass
+                                
+                    # Third attempt: search common classes directly if not found yet
+                    if not target_elem:
+                        for cls in [DB.FamilySymbol, DB.Material, DB.Level, DB.Phase]:
+                            collector = DB.FilteredElementCollector(doc).OfClass(cls)
+                            for elem in collector:
+                                try:
+                                    if elem.Name.lower().strip() == value.lower():
+                                        target_elem = elem
+                                        break
+                                except Exception:
+                                    pass
+                            if target_elem:
+                                break
+                                
+                    if target_elem:
+                        if parameter.Set(target_elem.Id):
+                            return True, ""
+                        return False, "Revit rejected setting ElementId to '{}'".format(target_elem.Name)
+                except Exception as exc:
+                    return False, "ElementId lookup by name failed: " + str(exc)
+                    
+            return False, "Element '{}' not found in document".format(value)
+            
+        return False, "Unsupported storage type: " + str(parameter.StorageType)
     except Exception as exc:
         return False, str(exc)
 
@@ -332,10 +445,6 @@ def analyze_field_for_import(doc, elements, field):
         source = parameter_source(element, parameter)
         if parameter.IsReadOnly:
             return {"writable": "0", "storage": storage, "source": source, "notes": "Read-only parameter"}
-        try:
-            if parameter.StorageType == DB.StorageType.ElementId:
-                return {"writable": "0", "storage": storage, "source": source, "notes": "ElementId parameter"}
-        except Exception: pass
         return {"writable": "1", "storage": storage, "source": source, "notes": ""}
     return {"writable": "0", "storage": "", "source": "", "notes": "Parameter not found"}
 
@@ -371,22 +480,21 @@ def collect_schedule_rows(doc, schedule):
             used_indices.add(best_idx)
         else: matched_elements.append(None)
 
-    mlabs_rows = []
-    row_mlabs = ["MLabs"]
+    sheetbridge_rows = []
+    row_sheetbridge = ["P13 SheetBridge"]
     row_param_id = ["ParameterId"]
     row_data_type = ["DataType"]
     row_unit = ["Unit"]
     row_storage = ["StorageType"]
     row_modif = ["Modifiable?"]
     row_unit_id = ["UnitId"]
-    row_headers = ["ElementId"]
+    row_headers = ["ElementId [LOCK]"]
     writable_count = 0
 
     for idx, field in enumerate(fields):
         import_info = analyze_field_for_import(doc, matched_elements, field)
         
-        row_mlabs.append(field["field_name"])
-        row_headers.append(field["header"])
+        row_sheetbridge.append(field["field_name"])
         row_param_id.append(field["parameter_id"])
 
         storage = import_info["storage"]
@@ -400,15 +508,19 @@ def collect_schedule_rows(doc, schedule):
         row_storage.append(storage or "String")
 
         modif = "Read Only"
+        header_text = field["header"]
         if import_info["writable"] == "1":
             writable_count += 1
             modif = "Modifiable (Type)" if import_info["source"] == "Type" else "Modifiable (Instance)"
+        else:
+            header_text += " [LOCK]"
 
+        row_headers.append(header_text)
         row_modif.append(modif)
         row_unit_id.append("Default")
 
-    row_headers.extend(["Comment", "{ID} - {Element name}"])
-    mlabs_rows.extend([row_mlabs, row_param_id, row_data_type, row_unit, row_storage, row_modif, row_unit_id, row_headers])
+    row_headers.extend(["Comment", "{ID} - {Element name} [LOCK]"])
+    sheetbridge_rows.extend([row_sheetbridge, row_param_id, row_data_type, row_unit, row_storage, row_modif, row_unit_id, row_headers])
     mapped_rows = 0
 
     if display_rows:
@@ -420,7 +532,7 @@ def collect_schedule_rows(doc, schedule):
             if e_id: mapped_rows += 1
             
             row = [e_id] + display_row + ["", "({}) - ({})".format(e_id, e_name) if e_id else ""]
-            mlabs_rows.append(row)
+            sheetbridge_rows.append(row)
     else:
         for element in elements:
             e_id = str(get_id_value(element.Id))
@@ -433,10 +545,10 @@ def collect_schedule_rows(doc, schedule):
                 param = find_parameter(element, field["parameter_id"], field["field_name"], doc)
                 row.append(parameter_to_text(param, doc))
             row.extend(["", "({}) - ({})".format(e_id, e_name)])
-            mlabs_rows.append(row)
+            sheetbridge_rows.append(row)
 
-    stats = {"mapped_rows": mapped_rows, "writable_count": writable_count, "row_count": len(mlabs_rows) - 8}
-    return mlabs_rows, stats, itemized
+    stats = {"mapped_rows": mapped_rows, "writable_count": writable_count, "row_count": len(sheetbridge_rows) - 8}
+    return sheetbridge_rows, stats, itemized
 
 def write_csv(path, rows):
     with open(path, "wb") as csvfile:
@@ -585,7 +697,10 @@ def native_read_xlsx(path):
 def write_xlsx(path, sheets):
     if excel_lib:
         try:
+            import clr
+            clr.AddReference("System.Drawing")
             import System
+            import System.Drawing
             from System.IO import FileInfo
             file_info = FileInfo(path)
             if file_info.Exists: file_info.Delete() 
@@ -594,9 +709,31 @@ def write_xlsx(path, sheets):
                 for sheet_data in sheets:
                     s_name = safe_sheet_name(sheet_data["name"], used_names)
                     worksheet = package.Workbook.Worksheets.Add(s_name)
-                    for r_idx, row in enumerate(sheet_data["rows"], start=1):
+                    rows = sheet_data.get("rows", [])
+                    
+                    read_only_cols = set()
+                    read_only_cols.add(1) # ElementId column
+                    if len(rows) >= 6:
+                        row_modif = rows[5]
+                        for c_idx in range(1, len(row_modif)):
+                            if "read only" in str(row_modif[c_idx]).lower():
+                                read_only_cols.add(c_idx + 1)
+                                
+                    # Last column comment/name is also read-only
+                    if len(rows) >= 8:
+                        last_col_idx = len(rows[7])
+                        if last_col_idx > 1:
+                            read_only_cols.add(last_col_idx)
+                    
+                    for r_idx, row in enumerate(rows, start=1):
                         for c_idx, val in enumerate(row, start=1):
-                            worksheet.Cells[r_idx, c_idx].Value = to_text(val)
+                            cell = worksheet.Cells[r_idx, c_idx]
+                            cell.Value = to_text(val)
+                            if r_idx >= 9 and c_idx in read_only_cols:
+                                try:
+                                    cell.Style.Fill.PatternType = excel_lib.Style.ExcelFillStyle.Solid
+                                    cell.Style.Fill.BackgroundColor.SetColor(System.Drawing.Color.FromArgb(240, 240, 240))
+                                except Exception: pass
                 package.Save()
             return
         except Exception as e:

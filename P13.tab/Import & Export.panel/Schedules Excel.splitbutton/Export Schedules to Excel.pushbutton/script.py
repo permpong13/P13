@@ -2,7 +2,7 @@
 from __future__ import print_function
 
 __title__ = "Export Schedules\nto Excel"
-__doc__ = "Export selected Revit schedules to XLSX with MLABS format for round-trip import."
+__doc__ = "Export selected Revit schedules to XLSX with P13 SheetBridge format for round-trip import."
 __author__ = "P13"
 
 import datetime
@@ -81,7 +81,7 @@ class ExportManager(object):
     @staticmethod
     def print_summary(exported_sheets):
         output = script.get_output()
-        output.print_md("# P13 Schedule Export Summary (MLABS Format)")
+        output.print_md("# P13 Schedule Export Summary (P13 SheetBridge Format)")
         table_data = [
             [item["name"], item["row_count"], item["mapped_rows"], item["writable_count"], "Yes" if item["itemized"] else "No"]
             for item in exported_sheets
