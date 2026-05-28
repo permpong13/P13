@@ -36,10 +36,10 @@ IOS_BLUE = Color.FromArgb(0, 122, 255)
 IOS_BG_GRAY = Color.FromArgb(242, 242, 247)
 IOS_SEPARATOR = Color.FromArgb(200, 199, 204)
 IOS_TEXT_GRAY = Color.FromArgb(142, 142, 147)
-FONT_REGULAR = Font("Segoe UI", 12)
-FONT_BOLD = Font("Segoe UI", 12, FontStyle.Bold)
-FONT_TITLE = Font("Segoe UI", 14, System.Drawing.FontStyle.Bold)
-FONT_BUTTON = Font("Segoe UI Semibold", 13)
+FONT_REGULAR = Font("Segoe UI", 10)
+FONT_BOLD = Font("Segoe UI", 10, FontStyle.Bold)
+FONT_TITLE = Font("Segoe UI", 13, System.Drawing.FontStyle.Bold)
+FONT_BUTTON = Font("Segoe UI Semibold", 11)
 
 # ============================================================
 # ฐานข้อมูลจังหวัดในไทยและการเลือก UTM Zone
@@ -271,7 +271,7 @@ class GoogleMapsForm(Form):
     def InitializeComponent(self):
         # --- ตั้งค่าฟอร์ม ---
         self.Text = "Show on Google Maps"
-        self.Size = Size(380, 540)
+        self.ClientSize = Size(500, 505) # กำหนด ClientSize แทน Size เพื่อควบคุมขนาดพื้นที่ใช้งานให้เท่ากันทุก OS
         self.StartPosition = FormStartPosition.CenterScreen
         self.BackColor = Color.White
         self.FormBorderStyle = FormBorderStyle.FixedDialog
@@ -288,8 +288,8 @@ class GoogleMapsForm(Form):
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 50))  # 0: Title
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 170)) # 1: Mode group
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 130)) # 2: Location settings (Province & Zone)
-        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 80))  # 3: Import settings
-        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 70))  # 4: Buttons
+        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 95))  # 3: Import settings
+        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 60))  # 4: Buttons
         
         self.Controls.Add(self.mainLayout)
         
@@ -310,30 +310,30 @@ class GoogleMapsForm(Form):
         self.mode_group.FlatStyle = FlatStyle.Flat
         
         self.rb_pick = RadioButton()
-        self.rb_pick.Text = "🎯 Pick point on screen / คลิกเลือกจุดในแบบ"
+        self.rb_pick.Text = "Pick point on screen / คลิกเลือกจุดในแบบ"
         self.rb_pick.Location = Point(15, 25)
-        self.rb_pick.Width = 310
+        self.rb_pick.Width = 440
         self.rb_pick.Font = FONT_REGULAR
         self.rb_pick.Checked = (self.last_mode == "PickPoint")
         
         self.rb_elem = RadioButton()
-        self.rb_elem.Text = "📦 Selected element / อ้างอิงจากโมเดลที่เลือก"
+        self.rb_elem.Text = "Selected element / อ้างอิงจากโมเดลที่เลือก"
         self.rb_elem.Location = Point(15, 55)
-        self.rb_elem.Width = 310
+        self.rb_elem.Width = 440
         self.rb_elem.Font = FONT_REGULAR
         self.rb_elem.Checked = (self.last_mode == "Element")
         
         self.rb_pbp = RadioButton()
-        self.rb_pbp.Text = "📍 Project Base Point (จุดเริ่มต้นของโครงการ)"
+        self.rb_pbp.Text = "Project Base Point (จุดเริ่มต้นของโครงการ)"
         self.rb_pbp.Location = Point(15, 85)
-        self.rb_pbp.Width = 310
+        self.rb_pbp.Width = 440
         self.rb_pbp.Font = FONT_REGULAR
         self.rb_pbp.Checked = (self.last_mode == "ProjectBasePoint")
         
         self.rb_sp = RadioButton()
-        self.rb_sp.Text = "🏗️ Survey Point (จุดอ้างอิงรังวัดจริง)"
+        self.rb_sp.Text = "Survey Point (จุดอ้างอิงรังวัดจริง)"
         self.rb_sp.Location = Point(15, 115)
-        self.rb_sp.Width = 310
+        self.rb_sp.Width = 440
         self.rb_sp.Font = FONT_REGULAR
         self.rb_sp.Checked = (self.last_mode == "SurveyPoint")
         
@@ -352,13 +352,13 @@ class GoogleMapsForm(Form):
         self.lbl_prov.Text = "Select Province / เลือกจังหวัด"
         self.lbl_prov.Font = FONT_BOLD
         self.lbl_prov.Location = Point(0, 5)
-        self.lbl_prov.Width = 340
+        self.lbl_prov.Width = 470
         self.lbl_prov.Height = 20
         self.loc_panel.Controls.Add(self.lbl_prov)
         
         self.cb_province = ComboBox()
         self.cb_province.Location = Point(0, 25)
-        self.cb_province.Width = 340
+        self.cb_province.Width = 470
         self.cb_province.Font = FONT_REGULAR
         self.cb_province.DropDownStyle = ComboBoxStyle.DropDownList
         for p in provinces:
@@ -385,13 +385,13 @@ class GoogleMapsForm(Form):
         self.lbl_zone.Text = "UTM Zone / โซนพิกัด (สามารถเปลี่ยนเพื่อข้ามค่าได้)"
         self.lbl_zone.Font = FONT_BOLD
         self.lbl_zone.Location = Point(0, 60)
-        self.lbl_zone.Width = 340
+        self.lbl_zone.Width = 470
         self.lbl_zone.Height = 20
         self.loc_panel.Controls.Add(self.lbl_zone)
         
         self.cb_zone = ComboBox()
         self.cb_zone.Location = Point(0, 80)
-        self.cb_zone.Width = 340
+        self.cb_zone.Width = 470
         self.cb_zone.Font = FONT_REGULAR
         self.cb_zone.DropDownStyle = ComboBoxStyle.DropDownList
         self.cb_zone.Items.Add("UTM Zone 47N (EPSG:32647)")
@@ -414,14 +414,14 @@ class GoogleMapsForm(Form):
         # ป้ายสถานะแจ้งการตรวจสอบอัตโนมัติ (Auto-Detection Status Label)
         self.lbl_auto_detect = Label()
         self.lbl_auto_detect.Location = Point(0, 107)
-        self.lbl_auto_detect.Width = 340
+        self.lbl_auto_detect.Width = 470
         self.lbl_auto_detect.Height = 20
-        self.lbl_auto_detect.Font = Font("Segoe UI", 10, FontStyle.Italic)
+        self.lbl_auto_detect.Font = Font("Segoe UI", 9, FontStyle.Italic)
         if self.detected_zone is not None:
-            self.lbl_auto_detect.Text = "✨ ตรวจพบ UTM Zone {}N อัตโนมัติ / Auto-detected UTM Zone {}N".format(self.detected_zone, self.detected_zone)
+            self.lbl_auto_detect.Text = "ตรวจพบ UTM Zone {}N อัตโนมัติ / Auto-detected UTM Zone {}N".format(self.detected_zone, self.detected_zone)
             self.lbl_auto_detect.ForeColor = Color.FromArgb(46, 125, 50) # Forest Green
         else:
-            self.lbl_auto_detect.Text = "⚠️ ใช้ค่าเริ่มต้น/ประวัติการเลือก / Using default or history settings"
+            self.lbl_auto_detect.Text = "ใช้ค่าเริ่มต้น/ประวัติการเลือก / Using default or history settings"
             self.lbl_auto_detect.ForeColor = IOS_TEXT_GRAY
         self.loc_panel.Controls.Add(self.lbl_auto_detect)
         
@@ -432,10 +432,10 @@ class GoogleMapsForm(Form):
         self.import_panel.Dock = DockStyle.Fill
         
         self.cb_import = CheckBox()
-        self.cb_import.Text = "📥 Import satellite map / นำเข้าภาพดาวเทียม"
+        self.cb_import.Text = "Import satellite map / นำเข้าภาพดาวเทียม"
         self.cb_import.Font = FONT_BOLD
         self.cb_import.Location = Point(0, 5)
-        self.cb_import.Width = 340
+        self.cb_import.Width = 470
         self.cb_import.Height = 25
         self.cb_import.Checked = self.last_import
         self.cb_import.CheckedChanged += self.on_import_changed
@@ -445,13 +445,13 @@ class GoogleMapsForm(Form):
         self.lbl_size.Text = "Map coverage size (meters) / ขนาดพื้นที่แผนที่ (เมตร):"
         self.lbl_size.Font = FONT_REGULAR
         self.lbl_size.Location = Point(0, 35)
-        self.lbl_size.Width = 240
+        self.lbl_size.Width = 470
         self.lbl_size.Height = 20
         self.import_panel.Controls.Add(self.lbl_size)
         
         self.tb_size = TextBox()
-        self.tb_size.Location = Point(250, 32)
-        self.tb_size.Width = 90
+        self.tb_size.Location = Point(0, 60)
+        self.tb_size.Width = 120
         self.tb_size.Font = FONT_REGULAR
         self.tb_size.Text = str(self.last_size)
         self.tb_size.TextAlign = System.Windows.Forms.HorizontalAlignment.Right
