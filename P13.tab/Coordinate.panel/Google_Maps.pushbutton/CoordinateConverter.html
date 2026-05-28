@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BIM Coordinate Converter (Thailand 77 Provinces)</title>
+    <!-- เรียกใช้ Proj4js สำหรับคำนวณพิกัด -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.9.0/proj4.js"></script>
+    <style>
+        :root {
+            --primary: #0056b3;
+            --bg-color: #f4f6f9;
+            --card-bg: #ffffff;
+            --text-main: #333333;
+            --border-color: #ced4da;
+            --badge-bg: #e9ecef;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        .container {
+            background-color: var(--card-bg);
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 500px;
+        }
+        h2 {
+            text-align: center;
+            margin-top: 0;
+            color: var(--primary);
+            font-size: 24px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        select, input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            box-sizing: border-box;
+            font-size: 15px;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        .row {
+            display: flex;
+            gap: 15px;
+        }
+        .col {
+            flex: 1;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 5px;
+            font-size: 15px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s;
+            margin-top: 10px;
+        }
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #004494;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .divider {
+            text-align: center;
+            margin: 25px 0;
+            position: relative;
+        }
+        .divider::before {
+            content: "";
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            border-top: 1px solid var(--border-color);
+            z-index: 1;
+        }
+        .divider span {
+            background: var(--card-bg);
+            padding: 0 10px;
+            position: relative;
+            z-index: 2;
+            color: #6c757d;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .zone-badge {
+            display: inline-block;
+            background-color: var(--badge-bg);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-top: 5px;
+        }
+        .section-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+        .section-title {
+            margin-top: 0;
+            margin-bottom: 15px;
+            color: #495057;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>BIM Coordinate Converter</h2>
+    
+    <div class="form-group">
+        <label for="province">เลือกจังหวัด (Province)</label>
+        <select id="province" onchange="onProvinceChange()"></select>
+        <div id="zoneDisplay" class="zone-badge">UTM Zone: -</div>
+    </div>
+
+    <!-- Section 1: WGS84 -->
+    <div class="section-card">
+        <h4 class="section-title">📍 Google Maps (WGS 84)</h4>
+        <div class="row">
+            <div class="col form-group">
+                <label for="lat">Latitude (Y)</label>
+                <input type="number" id="lat" step="any" placeholder="เช่น 13.3611" value="13.36114">
+            </div>
+            <div class="col form-group">
+                <label for="lng">Longitude (X)</label>
+                <input type="number" id="lng" step="any" placeholder="เช่น 101.1500" value="101.16139">
+            </div>
+        </div>
+        <button class="btn-primary" onclick="convertToRevit()">แปลงเป็นค่า Revit (N/E) ⬇</button>
+    </div>
+
+    <div class="divider"><span>สลับการแปลงพิกัด (OR)</span></div>
+
+    <!-- Section 2: UTM / Revit -->
+    <div class="section-card">
+        <h4 class="section-title">🏗️ Revit / Survey Point (UTM Metric)</h4>
+        <div class="row">
+            <div class="col form-group">
+                <label for="northing">Northing (N)</label>
+                <input type="number" id="northing" step="any" placeholder="เช่น 1450000.00">
+            </div>
+            <div class="col form-group">
+                <label for="easting">Easting (E)</label>
+                <input type="number" id="easting" step="any" placeholder="เช่น 700000.00">
+            </div>
+        </div>
+        <button class="btn-secondary" onclick="convertToMaps()">แปลงเป็นแผนที่ (Lat/Lng) ⬆</button>
+    </div>
+</div>
+
+<script>
+    // นิยามระบบพิกัดอ้างอิงของไทย (EPSG Codes)
+    proj4.defs("EPSG:32647", "+proj=utm +zone=47 +datum=WGS84 +units=m +no_defs");
+    proj4.defs("EPSG:32648", "+proj=utm +zone=48 +datum=WGS84 +units=m +no_defs");
+
+    // ฐานข้อมูล 77 จังหวัด แยกตาม UTM Zone
+    const provinceData = {
+        "EPSG:32647": {
+            label: "Zone 47N",
+            provinces: ["กรุงเทพมหานคร", "กระบี่", "กาญจนบุรี", "กำแพงเพชร", "ชัยนาท", "ชุมพร", "เชียงราย", "เชียงใหม่", "ตรัง", "ตาก", "นครนายก", "นครปฐม", "นครศรีธรรมราช", "นครสวรรค์", "นนทบุรี", "นราธิวาส", "น่าน", "ปทุมธานี", "ประจวบคีรีขันธ์", "ปัตตานี", "พระนครศรีอยุธยา", "พะเยา", "พังงา", "พัทลุง", "พิจิตร", "พิษณุโลก", "เพชรบุรี", "เพชรบูรณ์", "แพร่", "ภูเก็ต", "แม่ฮ่องสอน", "ยะลา", "ระนอง", "ราชบุรี", "ลพบุรี", "ลำปาง", "ลำพูน", "สงขลา", "สตูล", "สมุทรปราการ", "สมุทรสงคราม", "สมุทรสาคร", "สระบุรี", "สิงห์บุรี", "สุโขทัย", "สุพรรณบุรี", "สุราษฎร์ธานี", "อ่างทอง", "อุตรดิตถ์", "อุทัยธานี"]
+        },
+        "EPSG:32648": {
+            label: "Zone 48N",
+            provinces: ["กาฬสินธุ์", "ขอนแก่น", "จันทบุรี", "ฉะเชิงเทรา", "ชลบุรี", "ชัยภูมิ", "ตราด", "นครพนม", "นครราชสีมา", "บึงกาฬ", "บุรีรัมย์", "ปราจีนบุรี", "มหาสารคาม", "มุกดาหาร", "ยโสธร", "ร้อยเอ็ด", "ระยอง", "เลย", "ศรีสะเกษ", "สกลนคร", "สระแก้ว", "สุรินทร์", "หนองคาย", "หนองบัวลำภู", "อำนาจเจริญ", "อุดรธานี", "อุบลราชธานี"]
+        }
+    };
+
+    let currentEpsg = "EPSG:32648"; // ค่าตั้งต้น
+
+    // ฟังก์ชันสร้างตัวเลือกจังหวัดใน Dropdown
+    function populateProvinces() {
+        const select = document.getElementById("province");
+        
+        // สร้าง OptGroup สำหรับ Zone 47N และ 48N
+        for (const [epsg, data] of Object.entries(provinceData)) {
+            const optGroup = document.createElement("optgroup");
+            optGroup.label = data.label;
+            
+            data.provinces.forEach(prov => {
+                const option = document.createElement("option");
+                option.value = epsg;
+                option.textContent = prov;
+                // ตั้งค่าเริ่มต้นที่ ชลบุรี
+                if (prov === "ชลบุรี") option.selected = true;
+                optGroup.appendChild(option);
+            });
+            
+            select.appendChild(optGroup);
+        }
+        onProvinceChange(); // อัปเดต UI เมื่อโหลดเสร็จ
+    }
+
+    // เมื่อผู้ใช้เปลี่ยนจังหวัด
+    function onProvinceChange() {
+        const select = document.getElementById("province");
+        currentEpsg = select.value;
+        const zoneLabel = provinceData[currentEpsg].label;
+        document.getElementById("zoneDisplay").textContent = `ใช้พิกัดอ้างอิง: UTM ${zoneLabel}`;
+        convertToRevit(); // คำนวณใหม่เมื่อเปลี่ยนโซน
+    }
+
+    // ฟังก์ชันแปลงจาก Google Maps -> Revit
+    function convertToRevit() {
+        const lat = parseFloat(document.getElementById('lat').value);
+        const lng = parseFloat(document.getElementById('lng').value);
+
+        if (isNaN(lat) || isNaN(lng)) return;
+
+        // proj4 รับค่าอาเรย์เป็น [Longitude (X), Latitude (Y)]
+        const result = proj4('EPSG:4326', currentEpsg, [lng, lat]);
+        
+        // ปัดเศษทศนิยม 3 ตำแหน่ง (มิลลิเมตร)
+        document.getElementById('easting').value = result[0].toFixed(3);
+        document.getElementById('northing').value = result[1].toFixed(3);
+    }
+
+    // ฟังก์ชันแปลงจาก Revit -> Google Maps
+    function convertToMaps() {
+        const northing = parseFloat(document.getElementById('northing').value);
+        const easting = parseFloat(document.getElementById('easting').value);
+
+        if (isNaN(northing) || isNaN(easting)) return;
+
+        // proj4 รับค่าอาเรย์เป็น [Easting (X), Northing (Y)]
+        const result = proj4(currentEpsg, 'EPSG:4326', [easting, northing]);
+        
+        // ปัดเศษทศนิยม 6 ตำแหน่ง สำหรับ Google Maps
+        document.getElementById('lat').value = result[1].toFixed(6);
+        document.getElementById('lng').value = result[0].toFixed(6);
+    }
+
+    // ทำงานทันทีเมื่อเปิดหน้าเว็บ
+    window.onload = function() {
+        populateProvinces();
+    };
+</script>
+
+</body>
+</html>
