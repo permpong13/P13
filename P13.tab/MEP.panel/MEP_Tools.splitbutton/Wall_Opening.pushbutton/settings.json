@@ -1,0 +1,22 @@
+{
+  "param_system": "MEP_System", 
+  "prefix_tray": "OP-C-", 
+  "offset_pipe": 100.0, 
+  "offset_tray": 130.0, 
+  "mode": "Create Mode", 
+  "param_depth": "Thickness", 
+  "number_param": "Comments", 
+  "param_height": "Height", 
+  "scope": "Entire Model", 
+  "offset_duct": 120.0, 
+  "param_width": "Width", 
+  "param_size": "MEP_Size", 
+  "enable_numbering": "No", 
+  "prefix_duct": "OP-D-", 
+  "source": "Script Folder RFAs", 
+  "prefix_conduit": "OP-T-", 
+  "offset_conduit": 150.0, 
+  "prefix_pipe": "OP-P-", 
+  "profiles": "Both Round & Rectangular", 
+  "param_elevation": "MEP_Elevation"
+}

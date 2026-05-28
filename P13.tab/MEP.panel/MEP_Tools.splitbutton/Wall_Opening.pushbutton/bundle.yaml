@@ -1,0 +1,22 @@
+title: "Wall\nOpening"
+
+tooltip: |
+  Automatically places custom Wall Opening families at intersections between MEP elements (pipes, ducts, cable trays, conduits) and walls.
+
+  Key Features:
+  - Multi-Model Intersections: Detects intersections with both host and linked walls.
+  - Precise Geometric Computations: Calculates exact intersection points and wall penetration thickness.
+  - Sloped and Skewed Angles: Employs vector projection to size openings for non-orthogonal MEP runs.
+  - Smart Parameter Sync: transfers system type, size, and elevation to placed openings.
+  - Update Mode: resizes, moves, and retypes tracked openings after MEP changes.
+  - Category Grouping: sequential numbering per MEP category with customizable prefixes.
+
+  How to use:
+  1. Open a view showing MEP elements and walls.
+  2. Click the Wall Opening tool.
+  3. Configure parameters, offsets, and numbering settings in the UI.
+  4. Select elements or run on the active view/document to place openings.
+  5. Run Update Mode after MEP sizes or locations change.
+
+author: "Permpong Taweekun (P13)"
+description: "Automate custom Wall Opening family placement at MEP-wall intersections with slope calculations and parameter synchronization."

@@ -1,0 +1,19 @@
+title: "Google\nMaps"
+
+tooltip: |
+  🇬🇧 [EN] Identify a point or element in your Revit project and open its location on Google Maps.
+  Key Features:
+  • Converts Revit internal coordinates (X/Y) to UTM Northing/Easting and WGS84 Lat/Lng.
+  • Supports picking a point on screen, using selected elements, or using Project Base Point/Survey Point.
+  • Supports 77 Thailand provinces to automatically detect UTM Zone 47N or 48N.
+  • Custom iOS-style UI.
+
+  🇹🇭 [TH] ดูตำแหน่งจุดหรือโมเดลในโครงการ Revit บน Google Maps
+  ฟังก์ชันหลัก:
+  • แปลงค่าพิกัดภายในของ Revit (X/Y) เป็นพิกัดจริง UTM Northing/Easting และ WGS84 Lat/Lng
+  • รองรับการคลิกเลือกจุดบนหน้าจอ, เลือกตำแหน่งโมเดล, Project Base Point หรือ Survey Point
+  • รองรับ 77 จังหวัดทั่วไทยเพื่อระบุ Zone UTM 47N หรือ 48N ให้โดยอัตโนมัติ
+  • หน้าต่างตั้งค่าสไตล์ iOS ใช้งานง่ายและสวยงาม
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Show project coordinates on Google Maps. / แสดงพิกัดโครงการบนแผนที่ Google Maps"
