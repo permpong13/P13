@@ -252,26 +252,74 @@ def detect_utm_zone(easting, northing):
 # ============================================================
 # หน้าต่างอินเตอร์เฟซผู้ใช้แบบ iOS Style (WPF/Form)
 # ============================================================
+def get_model_bounds(doc):
+    """คำนวณขอบเขตของโมเดลทั้งหมดที่มองเห็นใน Active View ในหน่วยฟุต เพื่อระบุขอบเขตครอบคลุมโมเดล"""
+    try:
+        collector = DB.FilteredElementCollector(doc, doc.ActiveView.Id)
+        min_x = min_y = float('inf')
+        max_x = max_y = float('-inf')
+        has_points = False
+        
+        ignored_categories = [
+            int(DB.BuiltInCategory.OST_ProjectBasePoint),
+            int(DB.BuiltInCategory.OST_SharedBasePoint),
+            int(DB.BuiltInCategory.OST_Levels),
+            int(DB.BuiltInCategory.OST_Grids),
+            int(DB.BuiltInCategory.OST_Views),
+            int(DB.BuiltInCategory.OST_Cameras),
+            int(DB.BuiltInCategory.OST_SectionBox),
+            int(DB.BuiltInCategory.OST_VolumeOfInterest) # Scope Boxes
+        ]
+        
+        for elem in collector:
+            if elem.Category is None:
+                continue
+            if elem.Category.CategoryType != DB.CategoryType.Model:
+                continue
+            if elem.Category.Id.IntegerValue in ignored_categories:
+                continue
+                
+            bbox = elem.get_BoundingBox(doc.ActiveView)
+            if bbox is not None:
+                if bbox.Min.X > -1000000 and bbox.Max.X < 1000000:
+                    min_x = min(min_x, bbox.Min.X)
+                    min_y = min(min_y, bbox.Min.Y)
+                    max_x = max(max_x, bbox.Max.X)
+                    max_y = max(max_y, bbox.Max.Y)
+                    has_points = True
+                    
+        if not has_points:
+            return None
+        return min_x, min_y, max_x, max_y
+    except:
+        return None
+
+# ============================================================
+# หน้าต่างอินเตอร์เฟซผู้ใช้แบบ iOS Style (WPF/Form)
+# ============================================================
 class GoogleMapsForm(Form):
-    def __init__(self, last_mode, last_province, detected_zone, last_import, last_size):
+    def __init__(self, last_mode, last_province, detected_zone, last_import, last_size, last_auto_size, model_auto_size):
         self.selected_mode = None
         self.selected_province = None
         self.utm_zone = None
         self.import_map = False
         self.map_size = 500.0
+        self.auto_size = True
         
         self.last_mode = last_mode
         self.last_province = last_province
         self.detected_zone = detected_zone
         self.last_import = last_import
         self.last_size = last_size
+        self.last_auto_size = last_auto_size
+        self.model_auto_size = model_auto_size
         
         self.InitializeComponent()
 
     def InitializeComponent(self):
         # --- ตั้งค่าฟอร์ม ---
         self.Text = "Show on Google Maps"
-        self.ClientSize = Size(500, 505) # กำหนด ClientSize แทน Size เพื่อควบคุมขนาดพื้นที่ใช้งานให้เท่ากันทุก OS
+        self.ClientSize = Size(500, 530) # ปรับขนาดความสูงเพิ่มจาก 505 เป็น 530 เพื่อรองรับช่องติ๊กถูกขนาดอัตโนมัติ
         self.StartPosition = FormStartPosition.CenterScreen
         self.BackColor = Color.White
         self.FormBorderStyle = FormBorderStyle.FixedDialog
@@ -288,7 +336,7 @@ class GoogleMapsForm(Form):
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 50))  # 0: Title
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 170)) # 1: Mode group
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 130)) # 2: Location settings (Province & Zone)
-        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 95))  # 3: Import settings
+        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 120)) # 3: Import settings (เพิ่มขนาดจาก 95 เป็น 120)
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 60))  # 4: Buttons
         
         self.Controls.Add(self.mainLayout)
@@ -441,16 +489,27 @@ class GoogleMapsForm(Form):
         self.cb_import.CheckedChanged += self.on_import_changed
         self.import_panel.Controls.Add(self.cb_import)
         
+        self.cb_auto_size = CheckBox()
+        self.cb_auto_size.Text = "Auto-detect from model bounds / ครอบคลุมพื้นที่โมเดลทั้งหมด"
+        self.cb_auto_size.Font = FONT_REGULAR
+        self.cb_auto_size.Location = Point(20, 32)
+        self.cb_auto_size.Width = 450
+        self.cb_auto_size.Height = 25
+        self.cb_auto_size.Checked = self.last_auto_size if self.model_auto_size is not None else False
+        self.cb_auto_size.Enabled = (self.model_auto_size is not None)
+        self.cb_auto_size.CheckedChanged += self.on_auto_size_changed
+        self.import_panel.Controls.Add(self.cb_auto_size)
+        
         self.lbl_size = Label()
         self.lbl_size.Text = "Map coverage size (meters) / ขนาดพื้นที่แผนที่ (เมตร):"
         self.lbl_size.Font = FONT_REGULAR
-        self.lbl_size.Location = Point(0, 35)
-        self.lbl_size.Width = 470
+        self.lbl_size.Location = Point(20, 60)
+        self.lbl_size.Width = 450
         self.lbl_size.Height = 20
         self.import_panel.Controls.Add(self.lbl_size)
         
         self.tb_size = TextBox()
-        self.tb_size.Location = Point(0, 60)
+        self.tb_size.Location = Point(20, 85)
         self.tb_size.Width = 120
         self.tb_size.Font = FONT_REGULAR
         self.tb_size.Text = str(self.last_size)
@@ -517,8 +576,19 @@ class GoogleMapsForm(Form):
             self.cb_zone.SelectedIndex = 1
 
     def on_import_changed(self, sender, args):
-        self.tb_size.Enabled = self.cb_import.Checked
-        self.lbl_size.Enabled = self.cb_import.Checked
+        is_checked = self.cb_import.Checked
+        self.cb_auto_size.Enabled = is_checked and (self.model_auto_size is not None)
+        self.on_auto_size_changed(None, None)
+
+    def on_auto_size_changed(self, sender, args):
+        is_import = self.cb_import.Checked
+        is_auto = self.cb_auto_size.Checked and self.cb_auto_size.Enabled
+        
+        self.lbl_size.Enabled = is_import and not is_auto
+        self.tb_size.Enabled = is_import and not is_auto
+        
+        if is_auto and self.model_auto_size is not None:
+            self.tb_size.Text = "{:.1f}".format(self.model_auto_size)
 
     def on_ok_click(self, sender, args):
         if self.cb_import.Checked:
@@ -544,6 +614,7 @@ class GoogleMapsForm(Form):
         self.selected_province = self.cb_province.SelectedItem
         self.utm_zone = 47 if self.cb_zone.SelectedIndex == 0 else 48
         self.import_map = self.cb_import.Checked
+        self.auto_size = self.cb_auto_size.Checked if self.cb_auto_size.Enabled else False
         self.DialogResult = DialogResult.OK
         self.Close()
 
@@ -584,15 +655,32 @@ def main():
     # ตรวจสอบ UTM Zone อัตโนมัติจากพิกัด (เทียบ Zone 47N และ 48N ในพื้นที่ประเทศไทย)
     detected_zone = detect_utm_zone(init_easting, init_northing)
 
+    # 2. คำนวณขอบเขตขนาดของโมเดลทั้งหมดในมุมมองปัจจุบัน
+    model_bounds = get_model_bounds(doc)
+    model_auto_size = None
+    if model_bounds:
+        min_x, min_y, max_x, max_y = model_bounds
+        w_ft = max_x - min_x
+        h_ft = max_y - min_y
+        max_dim_ft = max(w_ft, h_ft)
+        max_dim_m = max_dim_ft * 0.3048
+        # เพิ่มระยะเผื่อขอบข้าง 25% เพื่อความสวยงามในการครอบคลุมโมเดล
+        model_auto_size = max_dim_m * 1.25
+        # จำกัดขนาดความกว้างให้อยู่ในช่วง 50 - 2000 เมตร
+        model_auto_size = max(50.0, min(model_auto_size, 2000.0))
+        # ปัดเศษเป็นทศนิยม 1 ตำแหน่ง
+        model_auto_size = round(model_auto_size, 1)
+
     # โหลดประวัติการใช้งาน
     cfg = script.get_config("ShowOnGoogleMaps")
     last_mode = getattr(cfg, "last_mode", "PickPoint")
     last_province = getattr(cfg, "last_province", "ชลบุรี")
     last_import = getattr(cfg, "last_import", False)
     last_size = getattr(cfg, "last_size", 500)
+    last_auto_size = getattr(cfg, "last_auto_size", True)
 
-    # แสดงหน้าต่างพร้อมส่งค่า UTM Zone ที่ตรวจพบ
-    form = GoogleMapsForm(last_mode, last_province, detected_zone, last_import, last_size)
+    # แสดงหน้าต่างพร้อมส่งค่า UTM Zone ที่ตรวจพบ และขอบเขตขนาดโมเดล
+    form = GoogleMapsForm(last_mode, last_province, detected_zone, last_import, last_size, last_auto_size, model_auto_size)
     result = form.ShowDialog()
 
     if result != DialogResult.OK:
@@ -603,12 +691,14 @@ def main():
     zone = form.utm_zone
     import_map = form.import_map
     map_size = form.map_size
+    auto_size = form.auto_size
     
     # บันทึกประวัติการตั้งค่า
     cfg.last_mode = mode
     cfg.last_province = province
     cfg.last_import = import_map
     cfg.last_size = map_size
+    cfg.last_auto_size = auto_size
     script.save_config()
 
     # ดึงค่ามุมเอียงและค่าพิกัดเริ่มต้นจาก Project Base Point
@@ -665,7 +755,7 @@ def main():
         forms.alert("ไม่สามารถหาตำแหน่งพิกัดได้ / Could not determine coordinates.", title="Error")
         return
 
-    # คำนวณเป็น UTM Northing, Easting ในหน่วยเมตร
+    # คำนวณเป็น UTM Northing, Easting ในหน่วยเมตรสำหรับจุดอ้างอิงหลัก
     northing, easting = forward_transform(x_ft, y_ft, angle, bp_ewest, bp_nsouth)
     
     # แปลง UTM เมตร เป็นค่าพิกัดแผนที่ (Latitude, Longitude)
@@ -696,16 +786,35 @@ def main():
         temp_dir = tempfile.gettempdir()
         temp_img_path = os.path.join(temp_dir, "revit_satellite_map.jpg")
         
+        # กำหนดจุดศูนย์กลางของแผนที่ดาวเทียม
+        # หากเลือกให้ปรับขนาดครอบคลุมทั้งโมเดลอัตโนมัติ จะวางภาพที่ศูนย์กลางโมเดล
+        # หากใช้ค่ากำหนดเอง จะวางภาพที่จุดอ้างอิงที่เลือก (x_ft, y_ft)
+        if auto_size and model_bounds is not None:
+            min_x, min_y, max_x, max_y = model_bounds
+            center_x = (min_x + max_x) / 2.0
+            center_y = (min_y + max_y) / 2.0
+        else:
+            center_x = x_ft
+            center_y = y_ft
+
+        # คำนวณ Latitude, Longitude สำหรับพิกัดศูนย์กลางภาพแผนที่ดาวเทียม
+        try:
+            c_northing, c_easting = forward_transform(center_x, center_y, angle, bp_ewest, bp_nsouth)
+            c_lat, c_lon = utm_to_latlon(c_easting, c_northing, zone, northern=True)
+        except Exception as ex:
+            forms.alert("เกิดข้อผิดพลาดในการคำนวณพิกัดสำหรับตำแหน่งรูปภาพ: {}".format(ex), title="Error")
+            return
+
         # คำนวณ Span สำหรับ Yandex Static Map
         # 1 องศาลองจิจูดที่ละติจูดต่างๆ = 111320 * cos(lat) เมตร
         lat_degree_meters = 111320.0
-        lon_degree_meters = 111320.0 * math.cos(math.radians(lat))
+        lon_degree_meters = 111320.0 * math.cos(math.radians(c_lat))
         
         spn_lat = map_size / lat_degree_meters
         spn_lon = map_size / lon_degree_meters
         
         map_url = "https://static-maps.yandex.ru/1.x/?ll={:.7f},{:.7f}&spn={:.7f},{:.7f}&l=sat&size=650,450".format(
-            lon, lat, spn_lon, spn_lat
+            c_lon, c_lat, spn_lon, spn_lat
         )
         
         try:
@@ -728,17 +837,35 @@ def main():
                         img_type = DB.ImageType.Create(doc, temp_img_path)
                     
                     # วางรูปภาพใน Active 2D View
-                    placement_pt = DB.XYZ(x_ft, y_ft, 0.0)
-                    img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, placement_pt)
+                    placement_pt = DB.XYZ(center_x, center_y, 0.0)
+                    try:
+                        # สำหรับ Revit 2021+ ที่ต้องการ ImagePlacementOptions
+                        placement_opts = DB.ImagePlacementOptions(placement_pt, DB.BoxPlacement.Center)
+                        img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, placement_opts)
+                    except (AttributeError, TypeError):
+                        # สำหรับ Revit รุ่นเก่า (2020 หรือต่ำกว่า) ที่รับ XYZ โดยตรง
+                        img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, placement_pt)
                     
                     # กำหนดขนาดจริงใน Revit (หน่วยฟุต)
                     img_instance.Width = map_size / 0.3048
                     img_instance.Height = map_size / 0.3048
                     
-                    # หมุนรูปภาพให้ตรงกับมุม True North ของโมเดล
-                    if abs(angle) > 0.0001:
+                    # ตรวจสอบทิศทางการหันมุมของมุมมองปัจจุบัน (Project North หรือ True North)
+                    is_true_north = False
+                    if hasattr(doc.ActiveView, "Orientation"):
+                        try:
+                            is_true_north = (doc.ActiveView.Orientation == DB.ViewOrientationDirection.TrueNorth)
+                        except:
+                            pass
+                    
+                    # ถ้ามุมมองเป็น Project North ให้หมุนรูปภาพด้วย -angle เพื่อให้ตรงกับโมเดล
+                    # ถ้ามุมมองเป็น True North ไม่ต้องหมุนรูปภาพ (เป็น 0.0) เพราะทิศเหนือจริงชี้ขึ้นตรงกันอยู่แล้ว
+                    rot_angle = 0.0 if is_true_north else -angle
+                    
+                    # หมุนรูปภาพให้ตรงกับทิศทางของมุมมอง
+                    if abs(rot_angle) > 0.0001:
                         axis = DB.Line.CreateBound(placement_pt, placement_pt + DB.XYZ(0, 0, 1))
-                        DB.ElementTransformUtils.RotateElement(doc, img_instance.Id, axis, -angle)
+                        DB.ElementTransformUtils.RotateElement(doc, img_instance.Id, axis, rot_angle)
                         
                     t.Commit()
                 
@@ -755,14 +882,18 @@ def main():
         forms.alert("ไม่สามารถเปิดเบราว์เซอร์ได้: {}\n\nคุณสามารถนำลิงก์ด้านล่างนี้ไปเปิดเองได้:\n{}".format(ex, google_maps_url))
         return
 
+    # คำนวณพิกัดหน่วยเมตร
+    x_m = x_ft * 0.3048
+    y_m = y_ft * 0.3048
+
     # แสดงรายงานสรุปผล
     msg = (
         "📍 แปลงพิกัดเสร็จสมบูรณ์ (Coordinate Conversion Successful)\n\n"
         "• จังหวัดสำหรับคำนวณ (Province): {}\n"
         "• UTM Zone อ้างอิง: {}N\n\n"
         "🏗️ ตำแหน่งพิกัดใน Revit (Internal Coordinates):\n"
-        "• X: {:.3f} ft\n"
-        "• Y: {:.3f} ft\n\n"
+        "• X: {:.3f} m ({:.3f} ft)\n"
+        "• Y: {:.3f} m ({:.3f} ft)\n\n"
         "🌐 ค่าพิกัดจริง (UTM Metric):\n"
         "• Easting (E): {:.3f} m\n"
         "• Northing (N): {:.3f} m\n\n"
@@ -770,7 +901,7 @@ def main():
         "• Latitude (Y): {:.7f}\n"
         "• Longitude (X): {:.7f}\n"
         "{}{}"
-    ).format(province, zone, x_ft, y_ft, easting, northing, lat, lon, copied_status, image_import_status)
+    ).format(province, zone, x_m, x_ft, y_m, y_ft, easting, northing, lat, lon, copied_status, image_import_status)
 
     forms.alert(msg, title="Open Google Maps")
 
