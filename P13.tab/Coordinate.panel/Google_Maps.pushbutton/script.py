@@ -184,8 +184,17 @@ def get_base_point_info(doc):
 def rotate(x, y, theta):
     return [math.cos(theta) * x + math.sin(theta) * y, -math.sin(theta) * x + math.cos(theta) * y]
 
-def forward_transform(revit_x, revit_y, angle, bp_ewest, bp_nsouth):
-    """แปลงพิกัด Revit Internal (ฟุต) เป็นพิกัดจริง N/E (เมตร)"""
+def forward_transform(revit_x, revit_y, angle=0.0, bp_ewest=0.0, bp_nsouth=0.0, doc=None):
+    """แปลงพิกัด Revit Internal (ฟุต) เป็นพิกัดจริง N/E (เมตร) โดยใช้ API หรือการคำนวณแบบแมนนวล"""
+    if doc is not None:
+        try:
+            pt = DB.XYZ(revit_x, revit_y, 0.0)
+            transform = doc.ActiveProjectLocation.GetTotalTransform()
+            shared_pt = transform.Inverse.OfPoint(pt)
+            return shared_pt.Y * 0.3048, shared_pt.X * 0.3048
+        except:
+            pass
+            
     relative_coords = rotate(revit_x, revit_y, angle)
     relative_east = relative_coords[0]
     relative_north = relative_coords[1]
@@ -255,6 +264,29 @@ def detect_utm_zone(easting, northing):
 def get_model_bounds(doc):
     """คำนวณขอบเขตของโมเดลทั้งหมดที่มองเห็นใน Active View ในหน่วยฟุต เพื่อระบุขอบเขตครอบคลุมโมเดล"""
     try:
+        view = doc.ActiveView
+        # 1. ลองใช้ CropBox ก่อน หากเปิดใช้งาน Crop View อยู่ เพื่อขอบเขตที่สอดคล้องกับที่ผู้ใช้เห็น
+        if view.CropBoxActive:
+            crop_box = view.CropBox
+            trans = crop_box.Transform
+            c_min = crop_box.Min
+            c_max = crop_box.Max
+            pts = [
+                trans.OfPoint(DB.XYZ(c_min.X, c_min.Y, 0.0)),
+                trans.OfPoint(DB.XYZ(c_max.X, c_min.Y, 0.0)),
+                trans.OfPoint(DB.XYZ(c_min.X, c_max.Y, 0.0)),
+                trans.OfPoint(DB.XYZ(c_max.X, c_max.Y, 0.0))
+            ]
+            min_x = min(p.X for p in pts)
+            max_x = max(p.X for p in pts)
+            min_y = min(p.Y for p in pts)
+            max_y = max(p.Y for p in pts)
+            return min_x, min_y, max_x, max_y
+    except:
+        pass
+
+    # 2. หากไม่ได้เปิด Crop View ให้หาขอบเขตจากโมเดลองค์ประกอบทั้งหมดใน View (ใช้โมเดลพิกัดภายใน)
+    try:
         collector = DB.FilteredElementCollector(doc, doc.ActiveView.Id)
         min_x = min_y = float('inf')
         max_x = max_y = float('-inf')
@@ -274,14 +306,21 @@ def get_model_bounds(doc):
         for elem in collector:
             if elem.Category is None:
                 continue
-            if elem.Category.CategoryType != DB.CategoryType.Model:
-                continue
             if elem.Category.Id.IntegerValue in ignored_categories:
                 continue
+            
+            # ดึงเฉพาะประเภทที่เป็นโมเดล หรือพวก CAD/Link
+            is_model = elem.Category.CategoryType == DB.CategoryType.Model
+            is_link_or_import = isinstance(elem, (DB.RevitLinkInstance, DB.ImportSymbol))
+            
+            if not (is_model or is_link_or_import):
+                continue
                 
-            bbox = elem.get_BoundingBox(doc.ActiveView)
+            # ดึง Bounding Box ในพิกัดโมเดลภายใน (ใช้ None แทน view เพื่อได้พิกัดโมเดลจริงตรงๆ)
+            bbox = elem.get_BoundingBox(None)
             if bbox is not None:
-                if bbox.Min.X > -1000000 and bbox.Max.X < 1000000:
+                # ข้ามค่าพิกัดที่หลุดไปไกลเกินจริง (พิกัดขยะ)
+                if bbox.Min.X > -1000000 and bbox.Max.X < 1000000 and bbox.Min.Y > -1000000 and bbox.Max.Y < 1000000:
                     min_x = min(min_x, bbox.Min.X)
                     min_y = min(min_y, bbox.Min.Y)
                     max_x = max(max_x, bbox.Max.X)
@@ -319,7 +358,7 @@ class GoogleMapsForm(Form):
     def InitializeComponent(self):
         # --- ตั้งค่าฟอร์ม ---
         self.Text = "Show on Google Maps"
-        self.ClientSize = Size(500, 530) # ปรับขนาดความสูงเพิ่มจาก 505 เป็น 530 เพื่อรองรับช่องติ๊กถูกขนาดอัตโนมัติ
+        self.ClientSize = Size(500, 540) # ปรับขนาดความสูงเป็น 540 เพื่อความพอดีหลังจากเอาเมนูความละเอียดออก
         self.StartPosition = FormStartPosition.CenterScreen
         self.BackColor = Color.White
         self.FormBorderStyle = FormBorderStyle.FixedDialog
@@ -336,7 +375,7 @@ class GoogleMapsForm(Form):
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 50))  # 0: Title
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 170)) # 1: Mode group
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 130)) # 2: Location settings (Province & Zone)
-        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 120)) # 3: Import settings (เพิ่มขนาดจาก 95 เป็น 120)
+        self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 120)) # 3: Import settings
         self.mainLayout.RowStyles.Add(RowStyle(SizeType.Absolute, 60))  # 4: Buttons
         
         self.Controls.Add(self.mainLayout)
@@ -500,6 +539,15 @@ class GoogleMapsForm(Form):
         self.cb_auto_size.CheckedChanged += self.on_auto_size_changed
         self.import_panel.Controls.Add(self.cb_auto_size)
         
+        # เมนูสำหรับเลือกความละเอียดภาพดาวเทียม
+        self.lbl_res = Label()
+        self.lbl_res.Text = "Image Resolution / ความละเอียดรูปภาพ:"
+        self.lbl_res.Font = FONT_REGULAR
+        self.lbl_res.Location = Point(20, 60)
+        self.lbl_res.Width = 200
+        self.lbl_res.Height = 20
+        self.import_panel.Controls.Add(self.lbl_res)
+        
         self.lbl_size = Label()
         self.lbl_size.Text = "Map coverage size (meters) / ขนาดพื้นที่แผนที่ (เมตร):"
         self.lbl_size.Font = FONT_REGULAR
@@ -650,7 +698,7 @@ def main():
                 break
 
     # แปลงพิกัดเริ่มต้นเป็น UTM Metric (เมตร)
-    init_northing, init_easting = forward_transform(init_x, init_y, angle, bp_ewest, bp_nsouth)
+    init_northing, init_easting = forward_transform(init_x, init_y, angle, bp_ewest, bp_nsouth, doc=doc)
     
     # ตรวจสอบ UTM Zone อัตโนมัติจากพิกัด (เทียบ Zone 47N และ 48N ในพื้นที่ประเทศไทย)
     detected_zone = detect_utm_zone(init_easting, init_northing)
@@ -756,7 +804,7 @@ def main():
         return
 
     # คำนวณเป็น UTM Northing, Easting ในหน่วยเมตรสำหรับจุดอ้างอิงหลัก
-    northing, easting = forward_transform(x_ft, y_ft, angle, bp_ewest, bp_nsouth)
+    northing, easting = forward_transform(x_ft, y_ft, angle, bp_ewest, bp_nsouth, doc=doc)
     
     # แปลง UTM เมตร เป็นค่าพิกัดแผนที่ (Latitude, Longitude)
     try:
@@ -783,97 +831,152 @@ def main():
         import os
         import System.Net
         
-        temp_dir = tempfile.gettempdir()
-        temp_img_path = os.path.join(temp_dir, "revit_satellite_map.jpg")
+        # ตรวจสอบทิศทางการหันมุมของมุมมองปัจจุบัน (Project North หรือ True North)
+        is_true_north = False
+        if hasattr(doc.ActiveView, "Orientation"):
+            try:
+                is_true_north = (doc.ActiveView.Orientation == DB.ViewOrientationDirection.TrueNorth)
+            except:
+                pass
         
-        # กำหนดจุดศูนย์กลางของแผนที่ดาวเทียม
-        # หากเลือกให้ปรับขนาดครอบคลุมทั้งโมเดลอัตโนมัติ จะวางภาพที่ศูนย์กลางโมเดล
-        # หากใช้ค่ากำหนดเอง จะวางภาพที่จุดอ้างอิงที่เลือก (x_ft, y_ft)
+        # ตั้งค่ามุมหมุนรูปภาพเป็น 0.0 เสมอเพื่อให้ขนานตรงตามแนวทิศเหนือ (ไม่มีการหมุนภาพใน Revit) ตามที่ผู้ใช้ระบุ
+        rot_angle = 0.0
+        
+        # กำหนดจุดศูนย์กลางของแผนที่ดาวเทียมทั้งหมด
         if auto_size and model_bounds is not None:
             min_x, min_y, max_x, max_y = model_bounds
-            center_x = (min_x + max_x) / 2.0
-            center_y = (min_y + max_y) / 2.0
+            main_center_x = (min_x + max_x) / 2.0
+            main_center_y = (min_y + max_y) / 2.0
         else:
-            center_x = x_ft
-            center_y = y_ft
+            main_center_x = x_ft
+            main_center_y = y_ft
 
-        # คำนวณ Latitude, Longitude สำหรับพิกัดศูนย์กลางภาพแผนที่ดาวเทียม
-        try:
-            c_northing, c_easting = forward_transform(center_x, center_y, angle, bp_ewest, bp_nsouth)
-            c_lat, c_lon = utm_to_latlon(c_easting, c_northing, zone, northern=True)
-        except Exception as ex:
-            forms.alert("เกิดข้อผิดพลาดในการคำนวณพิกัดสำหรับตำแหน่งรูปภาพ: {}".format(ex), title="Error")
-            return
+        # อัตราส่วนภาพของ Yandex (650x450)
+        aspect_ratio = 650.0 / 450.0
+        total_h_m = map_size
+        total_w_m = map_size * aspect_ratio
+        
+        import time
+        unique_id = int(time.time())
+        
+        # ดึง Transform สำหรับการแปลงพิกัดจาก Revit API โดยตรง
+        transform = doc.ActiveProjectLocation.GetTotalTransform()
+        main_center_internal = DB.XYZ(main_center_x, main_center_y, 0.0)
+        main_center_shared = transform.Inverse.OfPoint(main_center_internal)
 
-        # คำนวณ Span สำหรับ Yandex Static Map
-        # 1 องศาลองจิจูดที่ละติจูดต่างๆ = 111320 * cos(lat) เมตร
-        lat_degree_meters = 111320.0
-        lon_degree_meters = 111320.0 * math.cos(math.radians(c_lat))
-        
-        spn_lat = map_size / lat_degree_meters
-        spn_lon = map_size / lon_degree_meters
-        
-        map_url = "https://static-maps.yandex.ru/1.x/?ll={:.7f},{:.7f}&spn={:.7f},{:.7f}&l=sat&size=650,450".format(
-            c_lon, c_lat, spn_lon, spn_lat
-        )
+        # เตรียมข้อมูลสำหรับดาวน์โหลดภาพเดียว (จุดศูนย์กลางใน Revit internal, จุดศูนย์กลางใน Shared, ความกว้าง, ความสูง, ดัชนี)
+        tiles_data = [(
+            main_center_internal.X, main_center_internal.Y,
+            main_center_shared.X, main_center_shared.Y,
+            total_w_m, total_h_m, 0
+        )]
+
+        success_count = 0
+        temp_dir = tempfile.gettempdir()
+        downloaded_files = []
         
         try:
-            # ดาวน์โหลดภาพแผนที่
-            web_client = System.Net.WebClient()
-            web_client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
-            web_client.DownloadFile(map_url, temp_img_path)
-            
-            # ตรวจสอบว่าภาพดาวน์โหลดเสร็จและมีไฟล์อยู่จริง
-            if os.path.exists(temp_img_path) and os.path.getsize(temp_img_path) > 0:
-                with DB.Transaction(doc, "Import Satellite Map Background") as t:
-                    t.Start()
-                    
-                    # สร้าง ImageType
-                    try:
-                        options = DB.ImageTypeOptions(temp_img_path, False, DB.ImageTypeSource.Import)
-                        img_type = DB.ImageType.Create(doc, options)
-                    except AttributeError:
-                        # รองรับรูปแบบเก่า
-                        img_type = DB.ImageType.Create(doc, temp_img_path)
-                    
-                    # วางรูปภาพใน Active 2D View
-                    placement_pt = DB.XYZ(center_x, center_y, 0.0)
-                    try:
-                        # สำหรับ Revit 2021+ ที่ต้องการ ImagePlacementOptions
-                        placement_opts = DB.ImagePlacementOptions(placement_pt, DB.BoxPlacement.Center)
-                        img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, placement_opts)
-                    except (AttributeError, TypeError):
-                        # สำหรับ Revit รุ่นเก่า (2020 หรือต่ำกว่า) ที่รับ XYZ โดยตรง
-                        img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, placement_pt)
-                    
-                    # กำหนดขนาดจริงใน Revit (หน่วยฟุต)
-                    img_instance.Width = map_size / 0.3048
-                    img_instance.Height = map_size / 0.3048
-                    
-                    # ตรวจสอบทิศทางการหันมุมของมุมมองปัจจุบัน (Project North หรือ True North)
-                    is_true_north = False
-                    if hasattr(doc.ActiveView, "Orientation"):
-                        try:
-                            is_true_north = (doc.ActiveView.Orientation == DB.ViewOrientationDirection.TrueNorth)
-                        except:
-                            pass
-                    
-                    # ถ้ามุมมองเป็น Project North ให้หมุนรูปภาพด้วย -angle เพื่อให้ตรงกับโมเดล
-                    # ถ้ามุมมองเป็น True North ไม่ต้องหมุนรูปภาพ (เป็น 0.0) เพราะทิศเหนือจริงชี้ขึ้นตรงกันอยู่แล้ว
-                    rot_angle = 0.0 if is_true_north else -angle
-                    
-                    # หมุนรูปภาพให้ตรงกับทิศทางของมุมมอง
-                    if abs(rot_angle) > 0.0001:
-                        axis = DB.Line.CreateBound(placement_pt, placement_pt + DB.XYZ(0, 0, 1))
-                        DB.ElementTransformUtils.RotateElement(doc, img_instance.Id, axis, rot_angle)
-                        
-                    t.Commit()
+            with DB.Transaction(doc, "Import Satellite Map Background") as t:
+                t.Start()
                 
-                image_import_status = "\n📥 นำเข้าภาพแผนที่ดาวเทียมขนาด {} ม. เข้ามาในมุมมองปัจจุบันสำเร็จแล้ว!\n(Satellite map image imported to current view!)".format(map_size)
+                # 1. ปรับมุมมองปัจจุบันให้หันหาทิศ True North โดยอัตโนมัติเพื่อให้แผนที่ไม่ต้องหมุน
+                try:
+                    orient_param = doc.ActiveView.get_Parameter(DB.BuiltInParameter.VIEW_ORIENTATION)
+                    if orient_param and not orient_param.IsReadOnly:
+                        orient_param.Set(1) # 1 = True North
+                except:
+                    pass
+                
+                for tile_x_ft, tile_y_ft, tile_shared_x, tile_shared_y, tile_w_m, tile_h_m, tile_idx in tiles_data:
+                    # คำนวณ Latitude, Longitude สำหรับตำแหน่งของแผ่นภาพนี้
+                    try:
+                        tile_northing = tile_shared_y * 0.3048
+                        tile_easting = tile_shared_x * 0.3048
+                        tile_lat, tile_lon = utm_to_latlon(tile_easting, tile_northing, zone, northern=True)
+                    except Exception as ex:
+                        continue
+                    
+                    # คำนวณ Span สำหรับภาพนี้
+                    lat_degree_meters = 111320.0
+                    lon_degree_meters = 111320.0 * math.cos(math.radians(tile_lat))
+                    
+                    spn_lat = tile_h_m / lat_degree_meters
+                    spn_lon = tile_w_m / lon_degree_meters
+                    
+                    map_url = "https://static-maps.yandex.ru/1.x/?ll={:.7f},{:.7f}&spn={:.7f},{:.7f}&l=sat&size=650,450".format(
+                        tile_lon, tile_lat, spn_lon, spn_lat
+                    )
+                    
+                    temp_img_path = os.path.join(temp_dir, "revit_map_{}_{}.jpg".format(unique_id, tile_idx))
+                    
+                    try:
+                        web_client = System.Net.WebClient()
+                        web_client.Headers.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                        web_client.DownloadFile(map_url, temp_img_path)
+                        
+                        if os.path.exists(temp_img_path) and os.path.getsize(temp_img_path) > 0:
+                            downloaded_files.append(temp_img_path)
+                            
+                            # สร้าง ImageType
+                            try:
+                                options = DB.ImageTypeOptions(temp_img_path, False, DB.ImageTypeSource.Import)
+                                img_type = DB.ImageType.Create(doc, options)
+                            except AttributeError:
+                                img_type = DB.ImageType.Create(doc, temp_img_path)
+                            
+                            # วางรูปภาพใน Active 2D View
+                            width_ft = tile_w_m / 0.3048
+                            height_ft = tile_h_m / 0.3048
+                            placement_pt = DB.XYZ(tile_x_ft, tile_y_ft, 0.0)
+                            
+                            try:
+                                placement_opts = DB.ImagePlacementOptions(placement_pt, DB.BoxPlacement.Center)
+                                img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, placement_opts)
+                                # กำหนดขนาดที่ถูกต้อง
+                                img_instance.Width = width_ft
+                                img_instance.Height = height_ft
+                            except (AttributeError, TypeError):
+                                # Fallback สำหรับ Revit รุ่นเก่าที่วางภาพโดยใช้มุมซ้ายล่าง
+                                bottom_left_pt = DB.XYZ(tile_x_ft - width_ft / 2.0, tile_y_ft - height_ft / 2.0, 0.0)
+                                img_instance = DB.ImageInstance.Create(doc, doc.ActiveView, img_type.Id, bottom_left_pt)
+                                # กำหนดขนาดที่ถูกต้อง
+                                img_instance.Width = width_ft
+                                img_instance.Height = height_ft
+                            
+                            # หมุนรูปภาพให้ตรงกับมุมมอง
+                            if abs(rot_angle) > 0.0001:
+                                axis = DB.Line.CreateBound(placement_pt, placement_pt + DB.XYZ(0, 0, 1))
+                                DB.ElementTransformUtils.RotateElement(doc, img_instance.Id, axis, rot_angle)
+                            
+                            # ส่งรูปภาพดาวเทียมไปไว้ด้านหลังสุด (Send to Back) เพื่อให้เส้นโมเดลและ Grid ลอยทับขึ้นมามองเห็นชัดเจน
+                            try:
+                                import System.Collections.Generic
+                                elem_ids = System.Collections.Generic.List[DB.ElementId]()
+                                elem_ids.Add(img_instance.Id)
+                                DB.DetailElementOrderUtils.SendToBack(doc, doc.ActiveView, elem_ids)
+                            except:
+                                pass
+                                
+                            success_count += 1
+                    except:
+                        pass
+                
+                t.Commit()
+                
+            if success_count > 0:
+                image_import_status = "\n📥 นำเข้าภาพแผนที่ดาวเทียม (ขยายครอบคลุมโมเดล {} ม. ปรับหน้าต่างมองทิศ True North และส่งภาพไปข้างหลังสุด) สำเร็จแล้ว!\n(Satellite map imported successfully!)".format(map_size)
             else:
-                image_import_status = "\n❌ ดาวน์โหลดภาพล้มเหลว (เกิดข้อผิดพลาดในการรับข้อมูลภาพ)"
+                image_import_status = "\n❌ ดาวน์โหลดภาพล้มเหลว (เกิดข้อผิดพลาดในการดึงข้อมูลภาพ)"
         except Exception as img_ex:
             image_import_status = "\n❌ ไม่สามารถนำเข้าภาพดาวเทียมได้: {}".format(img_ex)
+        finally:
+            # ลบไฟล์ภาพชั่วคราวบนดิสก์ออกทั้งหมดเพื่อประหยัดพื้นที่ดิสก์และรักษาความสะอาดของระบบ
+            for file_path in downloaded_files:
+                try:
+                    if os.path.exists(file_path):
+                        os.remove(file_path)
+                except:
+                    pass
 
     # เปิดเบราว์เซอร์
     try:

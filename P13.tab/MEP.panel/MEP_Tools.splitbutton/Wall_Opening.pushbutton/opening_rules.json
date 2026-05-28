@@ -1,31 +1,75 @@
 {
-  "OST_PipeCurves": [
-    { "max_size_mm": 100.0, "shape": "ROUND", "family_name": "Window-Round Opening" },
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
-  "OST_Conduit": [
-    { "max_size_mm": 99999.0, "shape": "ROUND", "family_name": "Window-Round Opening" }
-  ],
-  "OST_DuctCurves": [
-    { "max_size_mm": 150.0, "shape": "ROUND", "family_name": "Window-Round Opening" },
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
-  "OST_CableTray": [
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
   "OST_PipeAccessory": [
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
-  "OST_PipeFitting": [
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
-  "OST_DuctAccessory": [
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
-  "OST_DuctFitting": [
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
-  ],
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
   "OST_MechanicalEquipment": [
-    { "max_size_mm": 99999.0, "shape": "RECT", "family_name": "Window-Square Opening" }
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_DuctFitting": [
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_DuctCurves": [
+    {
+      "max_size_mm": 150.0, 
+      "family_name": "Window-Round Opening", 
+      "shape": "ROUND"
+    }, 
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_PipeCurves": [
+    {
+      "max_size_mm": 100.0, 
+      "family_name": "Window-Round Opening", 
+      "shape": "ROUND"
+    }, 
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_PipeFitting": [
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_DuctAccessory": [
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_CableTray": [
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Square Opening", 
+      "shape": "RECT"
+    }
+  ], 
+  "OST_Conduit": [
+    {
+      "max_size_mm": 99999.0, 
+      "family_name": "Window-Round Opening", 
+      "shape": "ROUND"
+    }
   ]
 }

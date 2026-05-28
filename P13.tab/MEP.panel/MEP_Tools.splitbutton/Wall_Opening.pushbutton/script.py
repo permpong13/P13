@@ -24,7 +24,10 @@ from Autodesk.Revit.DB.ExtensibleStorage import Schema, SchemaBuilder, Entity, A
 from pyrevit import revit, forms, script
 from System.Windows.Forms import (
     BorderStyle, Button, CheckBox, ComboBox, ComboBoxStyle, DialogResult, FlatStyle,
-    Form, FormStartPosition, Label, MessageBox, Panel, TextBox
+    Form, FormStartPosition, Label, MessageBox, Panel, TextBox,
+    DataGridView, DataGridViewAutoSizeColumnMode, DataGridViewColumn,
+    DataGridViewDataErrorContexts,
+    DataGridViewComboBoxColumn, DataGridViewSelectionMode, DataGridViewTextBoxColumn
 )
 from System.Drawing import Color, Font, FontStyle, Point, Size
 
@@ -65,11 +68,14 @@ TRACKING_FIELD_WALL_DOC = "WallDocumentTitle"
 # Global fallback parameter names
 PARAM_WIDTHS = ["Width", "Opening_Width", "Opening Width", "Cut_Width"]
 PARAM_HEIGHTS = ["Height", "Opening_Height", "Opening Height", "Cut_Height"]
-PARAM_DIAMETERS = ["Diameter", "Opening_Diameter", "Opening Diameter", "Cut_Diameter"]
+PARAM_DIAMETERS = ["Rough Diameter", "Diameter", "Opening_Diameter", "Opening Diameter", "Cut_Diameter"]
 PARAM_DEPTHS = ["Thickness", "Opening_Thickness", "Opening Depth", "Wall_Thickness"]
 PARAM_SYSTEMS = ["MEP_System"]
 PARAM_SIZES = ["MEP_Size"]
 PARAM_ELEVATIONS = ["MEP_Elevation"]
+PARAM_ROUGH_WIDTHS = ["Rough Width", "Width", "Opening_Width", "Opening Width", "Cut_Width"]
+PARAM_ROUGH_HEIGHTS = ["Rough Height", "Height", "Opening_Height", "Opening Height", "Cut_Height"]
+PARAM_SILL_HEIGHTS = ["Sill Height", "Default Sill Height", "Sill Height (default)"]
 
 # --- Helper Functions ---
 
@@ -176,29 +182,84 @@ def get_transformed_curve(elem, transform=None):
         return curve
     return None
 
+def is_valid_solid(solid, min_volume=1e-9):
+    """Return True only for Revit solids that can safely be used in geometry calls."""
+    if solid is None:
+        return False
+    try:
+        if not solid.IsValidObject:
+            return False
+    except:
+        pass
+    try:
+        if solid.Volume <= min_volume:
+            return False
+    except:
+        return False
+    try:
+        if not solid.Faces or solid.Faces.Size == 0:
+            return False
+    except:
+        return False
+    return True
+
+def append_valid_solid(solids, solid, transform=None):
+    """Append a solid after optional transform, skipping null or invalid geometry."""
+    if not is_valid_solid(solid):
+        return
+    try:
+        safe_solid = DB.SolidUtils.CreateTransformed(solid, transform) if transform else solid
+    except:
+        return
+    if is_valid_solid(safe_solid):
+        solids.append(safe_solid)
+
+def intersect_solid_with_curve(solid, curve):
+    """Safely intersect a solid and curve without letting Revit abort on null solids."""
+    if not is_valid_solid(solid) or curve is None:
+        return None
+    try:
+        return solid.IntersectWithCurve(curve, DB.SolidCurveIntersectionOptions())
+    except:
+        return None
+
+def boolean_intersection_solid(solid_a, solid_b):
+    """Safely return the Boolean intersection solid, or None when geometry is unusable."""
+    if not is_valid_solid(solid_a) or not is_valid_solid(solid_b):
+        return None
+    try:
+        result = DB.BooleanOperationsUtils.ExecuteBooleanOperation(
+            solid_a, solid_b, DB.BooleanOperationsType.Intersect
+        )
+    except:
+        return None
+    return result if is_valid_solid(result, min_volume=0.0001) else None
+
 def get_element_solids(elem, transform=None):
     """Extract and merge all valid geometry solids of any element, transformed if in a link."""
     solids = []
     options = DB.Options()
     options.DetailLevel = DB.ViewDetailLevel.Fine
-    geom = elem.get_Geometry(options)
+    try:
+        geom = elem.get_Geometry(options)
+    except:
+        return solids
     if geom is None:
         return solids
 
     for obj in geom:
-        if isinstance(obj, DB.Solid) and obj.Volume > 0.0:
-            if transform:
-                solids.append(DB.SolidUtils.CreateTransformed(obj, transform))
-            else:
-                solids.append(obj)
+        if isinstance(obj, DB.Solid):
+            append_valid_solid(solids, obj, transform)
         elif isinstance(obj, DB.GeometryInstance):
-            inst_geom = obj.GetInstanceGeometry()
+            try:
+                inst_geom = obj.GetInstanceGeometry()
+            except:
+                inst_geom = None
+            if inst_geom is None:
+                continue
             for sub_obj in inst_geom:
-                if isinstance(sub_obj, DB.Solid) and sub_obj.Volume > 0.0:
-                    if transform:
-                        solids.append(DB.SolidUtils.CreateTransformed(sub_obj, transform))
-                    else:
-                        solids.append(sub_obj)
+                if isinstance(sub_obj, DB.Solid):
+                    append_valid_solid(solids, sub_obj, transform)
     return solids
 
 def get_wall_solids(wall, transform=None):
@@ -292,6 +353,109 @@ def find_and_set_parameter(elem, possible_names, value):
             except:
                 pass
     return False
+
+def find_parameter(elem, possible_names):
+    """Return the first parameter matching any name in the provided list."""
+    if not elem:
+        return None
+    for name in possible_names:
+        try:
+            p = elem.LookupParameter(name)
+            if p:
+                return p
+        except:
+            pass
+    return None
+
+def set_parameter_value(param, value):
+    """Set a parameter using the right storage type."""
+    if not param or param.IsReadOnly:
+        return False
+    try:
+        if param.StorageType == DB.StorageType.Double:
+            param.Set(float(value))
+        elif param.StorageType == DB.StorageType.Integer:
+            param.Set(int(value))
+        elif param.StorageType == DB.StorageType.String:
+            param.Set(str(value))
+        else:
+            return False
+        return True
+    except:
+        return False
+
+def get_element_type(elem):
+    """Get the Revit element type for an instance when available."""
+    try:
+        type_id = elem.GetTypeId()
+        if type_id and type_id != DB.ElementId.InvalidElementId:
+            return doc.GetElement(type_id)
+    except:
+        pass
+    return None
+
+def find_and_set_instance_or_type_parameter(elem, possible_names, value):
+    """Set an instance parameter first, then the element type parameter as fallback."""
+    if find_and_set_parameter(elem, possible_names, value):
+        return True
+    elem_type = get_element_type(elem)
+    if elem_type:
+        return find_and_set_parameter(elem_type, possible_names, value)
+    return False
+
+def safe_element_name(elem, fallback=""):
+    """Read an element name without relying on IronPython dynamic .Name access."""
+    if not elem:
+        return fallback
+    try:
+        name = DB.Element.Name.GetValue(elem)
+        if name:
+            return name
+    except:
+        pass
+    for bip_name in ["SYMBOL_NAME_PARAM", "ALL_MODEL_TYPE_NAME"]:
+        try:
+            p = elem.get_Parameter(getattr(DB.BuiltInParameter, bip_name))
+            if p and p.AsString():
+                return p.AsString()
+        except:
+            pass
+    try:
+        name = elem.Name
+        if name:
+            return name
+    except:
+        pass
+    return fallback
+
+def safe_family_name(symbol_or_family, fallback=""):
+    """Read a family name from a Family or FamilySymbol safely."""
+    if not symbol_or_family:
+        return fallback
+    try:
+        p = symbol_or_family.get_Parameter(DB.BuiltInParameter.SYMBOL_FAMILY_NAME_PARAM)
+        if p and p.AsString():
+            return p.AsString()
+    except:
+        pass
+    try:
+        family = symbol_or_family.Family
+        name = safe_element_name(family, fallback)
+        if name:
+            return name
+    except:
+        pass
+    return safe_element_name(symbol_or_family, fallback)
+
+def safe_symbol_name(symbol, fallback=""):
+    """Read a family symbol type name safely."""
+    return safe_element_name(symbol, fallback)
+
+def safe_symbol_display_name(symbol):
+    """Build a stable Family : Type display name."""
+    family_name = safe_family_name(symbol, "Unknown Family")
+    type_name = safe_symbol_name(symbol, "Unknown Type")
+    return "{} : {}".format(family_name, type_name)
 
 def is_probable_revit_unique_id(value):
     """Return True when a string looks like a Revit UniqueId, not a Mark or sequence number."""
@@ -430,7 +594,7 @@ def get_shape_from_symbol(symbol):
     """Infer opening shape from the selected family type name."""
     if not symbol:
         return "RECT"
-    name = "{} {}".format(symbol.Family.Name, symbol.Name).lower()
+    name = safe_symbol_display_name(symbol).lower()
     return "ROUND" if any(token in name for token in ["round", "circular", "pipe"]) else "RECT"
 
 def get_first_parameter(elem, possible_names):
@@ -439,6 +603,12 @@ def get_first_parameter(elem, possible_names):
         p = elem.LookupParameter(name)
         if p:
             return p
+    elem_type = get_element_type(elem)
+    if elem_type:
+        for name in possible_names:
+            p = elem_type.LookupParameter(name)
+            if p:
+                return p
     return None
 
 def parameter_double_changed(param, target_value, tolerance=0.001):
@@ -467,19 +637,115 @@ def needs_opening_size_update(opening, shape, width, height, depth):
     p_depth = get_first_parameter(opening, PARAM_DEPTHS)
     return parameter_double_changed(p_depth, depth)
 
-def set_opening_size(opening, shape, width, height, depth):
-    """Write opening dimensions using round and rectangular family parameter conventions."""
+def get_sized_type_name(shape, width, height):
+    """Build a stable family type name for size-driven window opening families."""
+    if shape == "ROUND":
+        return "P13 D{:.0f}mm".format(to_mm(max(width, height)))
+    return "P13 {:.0f}x{:.0f}mm".format(to_mm(width), to_mm(height))
+
+def set_symbol_opening_size(symbol, shape, width, height):
+    """Write type parameters used by the local Window-Round and Window-Square opening families."""
+    if shape == "ROUND":
+        diameter = max(width, height)
+        wrote = find_and_set_parameter(symbol, PARAM_DIAMETERS, diameter)
+        if not wrote:
+            find_and_set_parameter(symbol, PARAM_ROUGH_WIDTHS, diameter)
+            find_and_set_parameter(symbol, PARAM_ROUGH_HEIGHTS, diameter)
+        return True
+
+    wrote_w = find_and_set_parameter(symbol, ["Width", "Opening_Width", "Opening Width", "Cut_Width"], width)
+    wrote_h = find_and_set_parameter(symbol, ["Height", "Opening_Height", "Opening Height", "Cut_Height"], height)
+    if not wrote_w:
+        wrote_w = find_and_set_parameter(symbol, PARAM_ROUGH_WIDTHS, width)
+    if not wrote_h:
+        wrote_h = find_and_set_parameter(symbol, PARAM_ROUGH_HEIGHTS, height)
+    return wrote_w or wrote_h
+
+def get_or_create_sized_symbol(base_symbol, shape, width, height):
+    """Create or reuse a unique family type for the required opening size."""
+    if not base_symbol:
+        return None
+    type_name = get_sized_type_name(shape, width, height)
+    family = base_symbol.Family
+    for symbol_id in family.GetFamilySymbolIds():
+        symbol = doc.GetElement(symbol_id)
+        if symbol and safe_symbol_name(symbol) == type_name:
+            set_symbol_opening_size(symbol, shape, width, height)
+            if not symbol.IsActive:
+                symbol.Activate()
+            return symbol
+
+    try:
+        symbol = base_symbol.Duplicate(type_name)
+    except:
+        symbol = base_symbol
+    set_symbol_opening_size(symbol, shape, width, height)
+    if not symbol.IsActive:
+        symbol.Activate()
+    return symbol
+
+def calculate_sill_height(midpoint, level, opening_height):
+    """Calculate window sill height so the family opening center matches the detected midpoint."""
+    if not midpoint or not level:
+        return None
+    return midpoint.Z - level.Elevation - (opening_height / 2.0)
+
+def get_window_insertion_point(center_point, level):
+    """
+    Return the insertion point for a wall-hosted Window family.
+    Window elevation is controlled by Sill Height, so the insertion point stays on the level plane
+    while X/Y remains at the detected MEP center on the wall.
+    """
+    if not center_point:
+        return None
+    z_value = level.Elevation if level else center_point.Z
+    return DB.XYZ(center_point.X, center_point.Y, z_value)
+
+def set_builtin_double_parameter(elem, bip_name, value):
+    """Set a double built-in parameter when it exists and is writable."""
+    try:
+        bip = getattr(DB.BuiltInParameter, bip_name)
+        p = elem.get_Parameter(bip)
+        if p and not p.IsReadOnly and p.StorageType == DB.StorageType.Double:
+            p.Set(float(value))
+            return True
+    except:
+        pass
+    return False
+
+def set_opening_sill_height(opening, level, midpoint, opening_height):
+    """Write Sill Height / Default Sill Height for the local window opening families."""
+    sill_height = calculate_sill_height(midpoint, level, opening_height)
+    if sill_height is None:
+        return False
+
+    # Window sill is normally an instance parameter in projects. Use it first so
+    # same-size openings at different elevations do not fight over one type value.
+    if set_builtin_double_parameter(opening, "INSTANCE_SILL_HEIGHT_PARAM", sill_height):
+        return True
+    if set_builtin_double_parameter(opening, "INSTANCE_HEAD_HEIGHT_PARAM", sill_height + opening_height):
+        return True
+    if find_and_set_parameter(opening, PARAM_SILL_HEIGHTS, sill_height):
+        return True
+    return False
+
+def set_opening_size(opening, shape, width, height, depth, level=None, midpoint=None):
+    """Write opening dimensions using the local Window-Round and Window-Square family parameters."""
     wrote_size = False
     if shape == "ROUND":
         diameter = max(width, height)
-        wrote_size = find_and_set_parameter(opening, PARAM_DIAMETERS, diameter)
-        wrote_size = find_and_set_parameter(opening, PARAM_WIDTHS, diameter) or wrote_size
-        find_and_set_parameter(opening, PARAM_HEIGHTS, diameter)
+        wrote_size = find_and_set_instance_or_type_parameter(opening, PARAM_DIAMETERS, diameter)
+        wrote_size = find_and_set_instance_or_type_parameter(opening, PARAM_ROUGH_WIDTHS, diameter) or wrote_size
+        find_and_set_instance_or_type_parameter(opening, PARAM_ROUGH_HEIGHTS, diameter)
     else:
-        wrote_size = find_and_set_parameter(opening, PARAM_WIDTHS, width)
-        wrote_size = find_and_set_parameter(opening, PARAM_HEIGHTS, height) or wrote_size
-    wrote_depth = find_and_set_parameter(opening, PARAM_DEPTHS, depth)
-    return wrote_size or wrote_depth
+        wrote_size = find_and_set_instance_or_type_parameter(opening, ["Width", "Opening_Width", "Opening Width", "Cut_Width"], width)
+        wrote_size = find_and_set_instance_or_type_parameter(opening, ["Height", "Opening_Height", "Opening Height", "Cut_Height"], height) or wrote_size
+        if not wrote_size:
+            find_and_set_instance_or_type_parameter(opening, PARAM_ROUGH_WIDTHS, width)
+            find_and_set_instance_or_type_parameter(opening, PARAM_ROUGH_HEIGHTS, height)
+    wrote_depth = find_and_set_instance_or_type_parameter(opening, PARAM_DEPTHS, depth)
+    wrote_sill = set_opening_sill_height(opening, level, midpoint, height) if level and midpoint else False
+    return wrote_size or wrote_depth or wrote_sill
 
 def move_opening_to_point(opening, target_point):
     """Move an opening instance to the target point using Revit's transform API."""
@@ -491,6 +757,29 @@ def move_opening_to_point(opening, target_point):
         return False
     DB.ElementTransformUtils.MoveElement(doc, opening.Id, target_point - current_point)
     return True
+
+def align_opening_bbox_center(opening, target_center, wall_dir):
+    """
+    Move a wall-hosted window along the wall until its actual bounding-box center
+    matches the detected MEP center. Some window families use a non-center insertion point.
+    """
+    if not opening or not target_center or not wall_dir:
+        return False
+    try:
+        doc.Regenerate()
+        bbox = opening.get_BoundingBox(None)
+        if not bbox:
+            return False
+        current_center = bbox_center(bbox)
+        offset = target_center - current_center
+        along_wall = offset.DotProduct(wall_dir)
+        move_vector = wall_dir * along_wall
+        if move_vector.GetLength() <= 0.001:
+            return False
+        DB.ElementTransformUtils.MoveElement(doc, opening.Id, move_vector)
+        return True
+    except:
+        return False
 
 def change_opening_symbol(opening, target_symbol):
     """Swap the opening family type when rules now require another opening profile."""
@@ -508,7 +797,7 @@ def collect_tracked_opening_signatures(symbol_family_names):
     generic_instances = DB.FilteredElementCollector(doc).OfCategory(DB.BuiltInCategory.OST_GenericModel).WhereElementIsNotElementType().ToElements()
     for inst in list(instances) + list(generic_instances):
         try:
-            if symbol_family_names and inst.Symbol.Family.Name not in symbol_family_names:
+            if symbol_family_names and safe_family_name(inst.Symbol) not in symbol_family_names:
                 continue
             tracking = get_opening_tracking(inst)
             if tracking.get("mep_uid") and tracking.get("wall_uid") and hasattr(inst.Location, "Point"):
@@ -529,7 +818,7 @@ def get_mep_system_name(mep_el):
             names = []
             for conn in mep_el.ConnectorManager.Connectors:
                 if conn.MEPSystem:
-                    names.append(conn.MEPSystem.Name)
+                    names.append(safe_element_name(conn.MEPSystem, "N/A"))
             if names:
                 return ", ".join(list(set(names)))
     except:
@@ -570,7 +859,7 @@ def load_local_family(doc, rfa_path, name):
     """Load a family into the document if not already loaded."""
     families = DB.FilteredElementCollector(doc).OfClass(DB.Family)
     for fam in families:
-        if fam.Name == name:
+        if safe_family_name(fam) == name:
             return fam
     try:
         # Use simple overload (returns bool) and retrieve family object by name from collector
@@ -578,7 +867,7 @@ def load_local_family(doc, rfa_path, name):
         if loaded:
             families = DB.FilteredElementCollector(doc).OfClass(DB.Family)
             for fam in families:
-                if fam.Name == name:
+                if safe_family_name(fam) == name:
                     return fam
     except Exception as e:
         logger.warning("Failed to load local family {}: {}".format(name, e))
@@ -603,9 +892,7 @@ def build_family_map(doc):
             if not s or not s.Category:
                 continue
             if s.Category.BuiltInCategory in [DB.BuiltInCategory.OST_Windows, DB.BuiltInCategory.OST_GenericModel]:
-                f_name = s.Family.Name
-                t_name = s.Name
-                display_name = "{} : {}".format(f_name, t_name)
+                display_name = safe_symbol_display_name(s)
                 family_map[display_name] = s
         except:
             continue
@@ -746,6 +1033,178 @@ def save_rules(rules):
         logger.warning("Failed to save opening_rules.json: {}".format(e))
         return False
 
+def get_category_offset_mm(cat_name, settings):
+    """Return clearance in millimeters for a category name."""
+    if "Pipe" in cat_name:
+        return float(settings.get("offset_pipe", 50.0))
+    if "Duct" in cat_name or "MechanicalEquipment" in cat_name:
+        return float(settings.get("offset_duct", 50.0))
+    if "CableTray" in cat_name:
+        return float(settings.get("offset_tray", 50.0))
+    if "Conduit" in cat_name:
+        return float(settings.get("offset_conduit", 50.0))
+    return 50.0
+
+def rounded_mm(value):
+    """Round a Revit dimension converted to millimeters for grouping."""
+    try:
+        return int(round(float(value)))
+    except:
+        return 0
+
+def get_mep_nominal_size_info(mep_el, mep_dim=None):
+    """Return nominal MEP size data used for exact-size family mapping rows."""
+    if not mep_el or not mep_el.Category:
+        return None
+    if mep_dim is None:
+        mep_dim = get_mep_dimensions(mep_el)
+
+    cat_name = mep_el.Category.BuiltInCategory.ToString()
+    shape = mep_dim.get("shape", "RECT")
+    width_mm = rounded_mm(to_mm(mep_dim.get("width", 0.0)))
+    height_mm = rounded_mm(to_mm(mep_dim.get("height", 0.0)))
+    diameter_mm = rounded_mm(to_mm(mep_dim.get("diameter", 0.0)))
+
+    if shape == "ROUND" and diameter_mm > 0:
+        size_mm = diameter_mm
+        label = "D{}".format(diameter_mm)
+    elif width_mm > 0 and height_mm > 0:
+        shape = "RECT"
+        size_mm = max(width_mm, height_mm)
+        label = "{}x{}".format(width_mm, height_mm)
+    else:
+        bbox = mep_el.get_BoundingBox(None)
+        if not bbox:
+            return None
+        dims = bbox.Max - bbox.Min
+        width_mm = rounded_mm(to_mm(max(abs(dims.X), abs(dims.Y))))
+        height_mm = rounded_mm(to_mm(abs(dims.Z)))
+        if width_mm <= 0 or height_mm <= 0:
+            return None
+        shape = "RECT"
+        diameter_mm = 0
+        size_mm = max(width_mm, height_mm)
+        label = "{}x{}".format(width_mm, height_mm)
+
+    return {
+        "category": cat_name,
+        "mep_shape": shape,
+        "width_mm": width_mm,
+        "height_mm": height_mm,
+        "diameter_mm": diameter_mm,
+        "max_size_mm": float(size_mm),
+        "mep_size_label": label
+    }
+
+def get_recommended_family_name(shape, family_options):
+    """Pick a sensible default opening family for a scanned MEP size."""
+    preferred_tokens = ["round", "circular"] if shape == "ROUND" else ["square", "rect", "rectangle"]
+    for family_name in family_options:
+        lower_name = family_name.lower()
+        if any(token in lower_name for token in preferred_tokens):
+            return family_name
+    fallback = "Window-Round Opening" if shape == "ROUND" else "Window-Square Opening"
+    return fallback if fallback in family_options else (family_options[0] if family_options else fallback)
+
+def build_scanned_size_rules(mep_items, settings, family_options):
+    """Group equal MEP sizes into exact-match rules for fast family mapping."""
+    groups = {}
+    for mep_el, mep_t, mep_doc in mep_items:
+        size_info = get_mep_nominal_size_info(mep_el)
+        if not size_info:
+            continue
+        cat_name = size_info["category"]
+        offset_mm = get_category_offset_mm(cat_name, settings)
+        shape = size_info["mep_shape"]
+        if shape == "ROUND":
+            opening_dia = size_info["diameter_mm"] + (2.0 * offset_mm)
+            recommended_label = "D{:.0f}".format(opening_dia)
+            opening_shape = "ROUND"
+            key = (cat_name, shape, size_info["diameter_mm"], 0, 0)
+        else:
+            opening_w = size_info["width_mm"] + (2.0 * offset_mm)
+            opening_h = size_info["height_mm"] + (2.0 * offset_mm)
+            recommended_label = "{:.0f}x{:.0f}".format(opening_w, opening_h)
+            opening_shape = "RECT"
+            key = (cat_name, shape, 0, size_info["width_mm"], size_info["height_mm"])
+
+        if key not in groups:
+            groups[key] = {
+                "match_mode": "EXACT",
+                "max_size_mm": size_info["max_size_mm"],
+                "mep_shape": shape,
+                "width_mm": float(size_info["width_mm"]),
+                "height_mm": float(size_info["height_mm"]),
+                "diameter_mm": float(size_info["diameter_mm"]),
+                "mep_size_label": size_info["mep_size_label"],
+                "recommended_opening_label": recommended_label,
+                "count": 0,
+                "shape": opening_shape,
+                "family_name": get_recommended_family_name(opening_shape, family_options)
+            }
+        groups[key]["count"] += 1
+
+    rules_by_category = {}
+    for key, rule in groups.items():
+        category = key[0]
+        rules_by_category.setdefault(category, []).append(rule)
+    for category, category_rules in rules_by_category.items():
+        category_rules.sort(key=lambda rule: (
+            rule.get("max_size_mm", 99999.0),
+            rule.get("width_mm", 0.0),
+            rule.get("height_mm", 0.0)
+        ))
+    return rules_by_category
+
+def merge_scanned_rules(existing_rules, scanned_rules):
+    """Replace old scanned exact rules while preserving manual threshold rules."""
+    merged = {}
+    all_categories = set(existing_rules.keys()) | set(scanned_rules.keys())
+    for category in all_categories:
+        manual_rules = []
+        for rule in existing_rules.get(category, []):
+            if rule.get("match_mode", "THRESHOLD") != "EXACT":
+                manual_rules.append(rule)
+        merged[category] = scanned_rules.get(category, []) + manual_rules
+        merged[category].sort(key=lambda rule: (
+            0 if rule.get("match_mode") == "EXACT" else 1,
+            rule.get("max_size_mm", 99999.0),
+            rule.get("width_mm", 0.0),
+            rule.get("height_mm", 0.0)
+        ))
+    return merged
+
+def rule_matches_exact_size(rule, mep_dim):
+    """Check whether a scanned exact-size rule matches the current MEP element."""
+    if rule.get("match_mode", "THRESHOLD") != "EXACT":
+        return False
+    size_info = {
+        "mep_shape": mep_dim.get("shape", "RECT"),
+        "width_mm": rounded_mm(to_mm(mep_dim.get("width", 0.0))),
+        "height_mm": rounded_mm(to_mm(mep_dim.get("height", 0.0))),
+        "diameter_mm": rounded_mm(to_mm(mep_dim.get("diameter", 0.0)))
+    }
+    if size_info["mep_shape"] == "ROUND":
+        return (
+            rule.get("mep_shape") == "ROUND" and
+            rounded_mm(rule.get("diameter_mm", 0.0)) == size_info["diameter_mm"]
+        )
+    return (
+        rule.get("mep_shape") == "RECT" and
+        rounded_mm(rule.get("width_mm", 0.0)) == size_info["width_mm"] and
+        rounded_mm(rule.get("height_mm", 0.0)) == size_info["height_mm"]
+    )
+
+def get_symbol_from_rule(rule, family_map, ui_round, ui_rect):
+    """Resolve a rule family name to a project family symbol."""
+    shape = rule.get("shape", "RECT")
+    fam_name = rule.get("family_name")
+    if fam_name:
+        for display_name, symbol in family_map.items():
+            if display_name.split(" : ")[0] == fam_name:
+                return symbol, shape
+    return (ui_round if shape == "ROUND" else ui_rect), shape
+
 def resolve_opening_family(mep_el, mep_dim, rules, family_map, ui_round, ui_rect):
     """Looks up mapping rules based on element category and dimension."""
     if not mep_el.Category:
@@ -753,6 +1212,10 @@ def resolve_opening_family(mep_el, mep_dim, rules, family_map, ui_round, ui_rect
 
     cat_name = mep_el.Category.BuiltInCategory.ToString()
     rules_list = rules.get(cat_name, [])
+
+    for rule in rules_list:
+        if rule_matches_exact_size(rule, mep_dim):
+            return get_symbol_from_rule(rule, family_map, ui_round, ui_rect)
 
     # Calculate size in mm for rule checks
     size_mm = 0.0
@@ -770,14 +1233,10 @@ def resolve_opening_family(mep_el, mep_dim, rules, family_map, ui_round, ui_rect
 
     # Match against rules list
     for rule in rules_list:
+        if rule.get("match_mode", "THRESHOLD") == "EXACT":
+            continue
         if size_mm <= rule.get("max_size_mm", 99999.0):
-            shape = rule.get("shape", "RECT")
-            fam_name = rule.get("family_name")
-            if fam_name:
-                for display_name, symbol in family_map.items():
-                    if display_name.split(" : ")[0] == fam_name:
-                        return symbol, shape
-            return (ui_round if shape == "ROUND" else ui_rect), shape
+            return get_symbol_from_rule(rule, family_map, ui_round, ui_rect)
 
     return (ui_round if mep_dim['shape'] == 'ROUND' else ui_rect), mep_dim['shape']
 
@@ -790,6 +1249,130 @@ def boxes_overlap(boxA, boxB, tolerance=0.5):
     if boxA.Min.Z - tolerance > boxB.Max.Z: return False
     if boxA.Max.Z + tolerance < boxB.Min.Z: return False
     return True
+
+def point_inside_box(point, bbox, tolerance=0.5):
+    """Check whether a point is inside a bounding box with tolerance."""
+    if not point or not bbox:
+        return False
+    return (
+        bbox.Min.X - tolerance <= point.X <= bbox.Max.X + tolerance and
+        bbox.Min.Y - tolerance <= point.Y <= bbox.Max.Y + tolerance and
+        bbox.Min.Z - tolerance <= point.Z <= bbox.Max.Z + tolerance
+    )
+
+def get_box_intersection(boxA, boxB):
+    """Return the overlapping bounding box, or None if there is no overlap."""
+    if not boxes_overlap(boxA, boxB, tolerance=0.0):
+        return None
+    bbox = DB.BoundingBoxXYZ()
+    bbox.Min = DB.XYZ(
+        max(boxA.Min.X, boxB.Min.X),
+        max(boxA.Min.Y, boxB.Min.Y),
+        max(boxA.Min.Z, boxB.Min.Z)
+    )
+    bbox.Max = DB.XYZ(
+        min(boxA.Max.X, boxB.Max.X),
+        min(boxA.Max.Y, boxB.Max.Y),
+        min(boxA.Max.Z, boxB.Max.Z)
+    )
+    return bbox
+
+def get_curve_endpoints(curve):
+    """Return safe start and end points for a Revit curve."""
+    try:
+        return curve.GetEndPoint(0), curve.GetEndPoint(1)
+    except:
+        return None, None
+
+def estimate_curve_wall_plane_hit(mep_curve, wall_el, wall_t, wall_dir, wall_bbox, tolerance=1.0):
+    """
+    Fallback hit test: intersect the MEP centerline chord with the wall center plane.
+    This catches common cases where Revit solid intersection misses due to linked geometry,
+    view detail, or small tolerance differences.
+    """
+    start, end = get_curve_endpoints(mep_curve)
+    if not start or not end:
+        return None
+    segment = end - start
+    length = segment.GetLength()
+    if length <= 0.0001:
+        return None
+
+    mep_dir = segment.Normalize()
+    wall_normal = DB.XYZ(wall_dir.Y, -wall_dir.X, 0.0)
+    if wall_normal.GetLength() <= 0.0001:
+        return None
+    wall_normal = wall_normal.Normalize()
+
+    wall_curve = None
+    try:
+        if isinstance(wall_el.Location, DB.LocationCurve):
+            wall_curve = wall_el.Location.Curve
+            if wall_t:
+                wall_curve = wall_curve.CreateTransformed(wall_t)
+    except:
+        wall_curve = None
+    if not wall_curve:
+        return None
+
+    wall_origin = wall_curve.Evaluate(0.5, True)
+    denom = mep_dir.DotProduct(wall_normal)
+    if abs(denom) < 0.01:
+        return None
+
+    distance = (wall_origin - start).DotProduct(wall_normal) / denom
+    if distance < -tolerance or distance > length + tolerance:
+        return None
+
+    hit_point = start + mep_dir * distance
+    if not point_inside_box(hit_point, wall_bbox, tolerance):
+        return None
+    return hit_point
+
+def bbox_center(bbox):
+    """Return the center of a bounding box."""
+    return bbox.Min + (bbox.Max - bbox.Min) * 0.5
+
+def estimate_wall_thickness(wall_el, wall_bbox):
+    """Return a reasonable wall thickness fallback in internal units."""
+    if hasattr(wall_el, 'Width') and wall_el.Width > 0:
+        return wall_el.Width
+    if wall_bbox:
+        dims = wall_bbox.Max - wall_bbox.Min
+        candidates = [abs(dims.X), abs(dims.Y)]
+        candidates = [v for v in candidates if v > 0.001]
+        if candidates:
+            return min(candidates)
+    return to_feet(200.0)
+
+def add_diag(diag, key):
+    """Increment a diagnostic counter."""
+    diag[key] = diag.get(key, 0) + 1
+
+def print_diagnostics(diag):
+    """Print a concise diagnostic summary when no openings are placed."""
+    if not diag:
+        return
+    output.print_md("### Placement Diagnostics")
+    rows = []
+    labels = {
+        "walls_no_bbox": "Walls skipped: no bounding box",
+        "walls_no_solids": "Walls skipped: no usable solid geometry",
+        "mep_no_bbox": "MEP skipped: no bounding box",
+        "bbox_candidates": "MEP-wall bounding-box candidates",
+        "shape_filtered": "Candidates skipped by selected opening shape",
+        "no_symbol": "Candidates skipped: opening family type not found",
+        "no_precise_hit": "Candidates skipped: no centerline/solid/bbox hit",
+        "no_projection": "Candidates skipped: projection size failed",
+        "duplicates": "Candidates skipped: opening already tracked",
+        "no_level": "Candidates skipped: no host level found",
+        "placement_failed": "Candidates skipped: family placement failed"
+    }
+    for key in sorted(labels.keys()):
+        if diag.get(key, 0):
+            rows.append([labels[key], diag[key]])
+    if rows:
+        output.print_table(table_data=rows, title="Why no openings were placed", columns=["Reason", "Count"])
 
 # --- Interactive Rules Editor Table (WPF SelectFromList) ---
 
@@ -841,7 +1424,7 @@ def edit_rules_table():
     symbols = DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
     for s in symbols:
         if s.Category and s.Category.BuiltInCategory in [DB.BuiltInCategory.OST_Windows, DB.BuiltInCategory.OST_GenericModel]:
-            loaded_symbols.append("{} : {}".format(s.Family.Name, s.Name))
+            loaded_symbols.append(safe_symbol_display_name(s))
     loaded_symbols = sorted(list(set(loaded_symbols)))
 
     tracked_cats = [
@@ -1043,18 +1626,30 @@ class SettingsDashboardForm(Form):
     """Task-first Wall Opening dashboard with only the controls needed to run."""
     def __init__(self, settings):
         self.Text = "Wall Opening"
-        self.Size = Size(1060, 690)
+        self.Size = Size(1380, 840)
         self.StartPosition = FormStartPosition.CenterScreen
         self.Font = Font("Segoe UI", 9)
         self.BackColor = Color.FromArgb(242, 244, 247)
         self.settings = dict(settings)
+        self.rules = load_rules()
         self.action = "cancel"
         self.inputs = {}
         self.profile_round = None
         self.profile_rect = None
         self.enable_numbering = None
         self.numbering_controls = []
+        self.rule_grid = None
+        self.bulk_shape = None
+        self.bulk_family = None
+        self._bulk_updating = False
+        self.tracked_rule_categories = [
+            "OST_PipeCurves", "OST_DuctCurves", "OST_CableTray", "OST_Conduit",
+            "OST_PipeFitting", "OST_PipeAccessory", "OST_DuctFitting", "OST_DuctAccessory",
+            "OST_MechanicalEquipment"
+        ]
+        self.rule_family_options = self._get_rule_family_options()
         self._build_ui()
+        self._load_rule_rows()
         self._sync_numbering_controls()
         self._sync_run_button()
 
@@ -1088,6 +1683,42 @@ class SettingsDashboardForm(Form):
         button.FlatStyle = FlatStyle.Flat
         button.Click += handler
         return button
+
+    def _style_grid(self, grid):
+        grid.AllowUserToAddRows = False
+        grid.AllowUserToDeleteRows = False
+        grid.MultiSelect = True
+        grid.RowHeadersVisible = False
+        grid.SelectionMode = DataGridViewSelectionMode.FullRowSelect
+        grid.BackgroundColor = Color.White
+        grid.BorderStyle = getattr(BorderStyle, "None")
+        grid.EnableHeadersVisualStyles = False
+        grid.GridColor = Color.FromArgb(235, 235, 235)
+        grid.ColumnHeadersDefaultCellStyle.BackColor = Color.FromArgb(240, 240, 240)
+        grid.ColumnHeadersDefaultCellStyle.ForeColor = Color.FromArgb(60, 60, 60)
+        grid.ColumnHeadersDefaultCellStyle.Font = Font("Segoe UI", 9, FontStyle.Bold)
+        grid.ColumnHeadersHeight = 32
+        grid.DefaultCellStyle.SelectionBackColor = Color.FromArgb(41, 128, 185)
+        grid.DefaultCellStyle.SelectionForeColor = Color.White
+        grid.AlternatingRowsDefaultCellStyle.BackColor = Color.FromArgb(250, 250, 250)
+
+    def _get_rule_family_options(self):
+        options = set()
+        for rfa in get_local_rfa_files():
+            options.add(rfa.replace(".rfa", ""))
+        try:
+            symbols = DB.FilteredElementCollector(doc).OfClass(DB.FamilySymbol)
+            for symbol in symbols:
+                if symbol.Category and symbol.Category.BuiltInCategory in [DB.BuiltInCategory.OST_Windows, DB.BuiltInCategory.OST_GenericModel]:
+                    family_name = safe_family_name(symbol)
+                    if family_name:
+                        options.add(family_name)
+        except:
+            pass
+        if not options:
+            options.add("Window-Round Opening")
+            options.add("Window-Square Opening")
+        return sorted(list(options))
 
     def _create_hint(self, text, location, size, parent):
         label = self._create_label(text, location, size, parent, False)
@@ -1134,7 +1765,7 @@ class SettingsDashboardForm(Form):
     def _build_ui(self):
         header = Panel()
         header.Location = Point(12, 12)
-        header.Size = Size(1000, 64)
+        header.Size = Size(1328, 64)
         header.BackColor = Color.FromArgb(47, 54, 64)
         self.Controls.Add(header)
         title = self._create_label("WALL OPENING", Point(18, 12), Size(360, 24), header, True)
@@ -1142,54 +1773,389 @@ class SettingsDashboardForm(Form):
         subtitle = self._create_label("Create and update custom wall openings from MEP-wall intersections.", Point(18, 36), Size(680, 18), header, False)
         subtitle.ForeColor = Color.FromArgb(220, 225, 230)
 
-        workflow = self._create_panel("1. What should the tool do?", Point(12, 88), Size(322, 238))
-        self._create_hint("Use Create for new openings. Use Update after MEP sizes or locations change.", Point(16, 42), Size(286, 36), workflow)
-        mode = self._add_combo(workflow, "mode", "Action", ["Create Mode", "Update Mode"], 16, 88, 286)
+        run_panel = self._create_panel("Run setup", Point(12, 88), Size(300, 630))
+        self._create_hint("Choose what to process, then run. Update mode resizes and recenters existing tracked openings.", Point(16, 42), Size(286, 48), run_panel)
+        mode = self._add_combo(run_panel, "mode", "Action", ["Create Mode", "Update Mode"], 16, 104, 266)
         mode.SelectedIndexChanged += self._mode_changed
-        self._add_combo(workflow, "scope", "Where to search", ["Active View", "Selected MEP Elements", "Entire Model"], 16, 146, 286)
+        self._add_combo(run_panel, "scope", "Where to search", ["Active View", "Selected MEP Elements", "Entire Model"], 16, 164, 266)
 
-        profiles = self._create_panel("2. Opening types", Point(350, 88), Size(314, 238))
+        self._create_label("Opening types", Point(16, 224), Size(260, 20), run_panel, True)
         profile_value = str(self.settings.get("profiles", "Both Round & Rectangular"))
-        self.profile_round = self._add_checkbox(profiles, "Round openings", 18, 54, "Round" in profile_value or "Both" in profile_value, 260)
-        self.profile_rect = self._add_checkbox(profiles, "Rectangular openings", 18, 86, "Rectangular" in profile_value or "Both" in profile_value, 260)
-        self._add_combo(profiles, "source", "Opening family source", ["Script Folder RFAs", "Already Loaded Families in Project"], 18, 128, 270)
-        self._create_hint("Size rules decide when each family is used. Keep both checked for most projects.", Point(18, 188), Size(270, 34), profiles)
+        self.profile_round = self._add_checkbox(run_panel, "Round openings", 16, 252, "Round" in profile_value or "Both" in profile_value, 260)
+        self.profile_rect = self._add_checkbox(run_panel, "Rectangular openings", 16, 284, "Rectangular" in profile_value or "Both" in profile_value, 260)
+        self._add_combo(run_panel, "source", "Opening family source", ["Script Folder RFAs", "Already Loaded Families in Project"], 16, 330, 266)
+        self._create_hint("Use Scan MEP Sizes to build exact mapping rows from Pipe, Conduit, Duct, and Tray sizes.", Point(16, 390), Size(266, 52), run_panel)
 
-        clearances = self._create_panel("3. Clearance around MEP", Point(680, 88), Size(332, 238))
-        self._create_hint("Values are added around the detected MEP size before writing opening dimensions.", Point(16, 42), Size(292, 36), clearances)
-        self._add_textbox(clearances, "offset_pipe", "Pipe (mm)", 16, 88, 140)
-        self._add_textbox(clearances, "offset_duct", "Duct (mm)", 176, 88, 136)
-        self._add_textbox(clearances, "offset_tray", "Cable Tray (mm)", 16, 154, 140)
-        self._add_textbox(clearances, "offset_conduit", "Conduit (mm)", 176, 154, 136)
-
-        numbering = self._create_panel("4. Opening marks", Point(12, 346), Size(322, 232))
-        self.enable_numbering = self._add_checkbox(numbering, "Number openings by category", 16, 50, str(self.settings.get("enable_numbering", "No")) == "Yes", 270)
+        self._create_label("Opening marks", Point(16, 452), Size(260, 20), run_panel, True)
+        self.enable_numbering = self._add_checkbox(run_panel, "Number openings by category", 16, 480, str(self.settings.get("enable_numbering", "No")) == "Yes", 270)
         self.enable_numbering.CheckedChanged += self._numbering_changed
-        self.numbering_controls.append(self._add_textbox(numbering, "number_param", "Write mark to parameter", 16, 86, 286))
-        self.numbering_controls.append(self._add_textbox(numbering, "prefix_pipe", "Pipe prefix", 16, 144, 136))
-        self.numbering_controls.append(self._add_textbox(numbering, "prefix_duct", "Duct prefix", 170, 144, 132))
-        self.numbering_controls.append(self._add_textbox(numbering, "prefix_tray", "Cable tray prefix", 16, 188, 136))
-        self.numbering_controls.append(self._add_textbox(numbering, "prefix_conduit", "Conduit prefix", 170, 188, 132))
+        self.numbering_controls.append(self._add_textbox(run_panel, "number_param", "Write mark to parameter", 16, 514, 266))
+        self.numbering_controls.append(self._add_textbox(run_panel, "prefix_pipe", "Pipe prefix", 16, 560, 136))
+        self.numbering_controls.append(self._add_textbox(run_panel, "prefix_duct", "Duct prefix", 158, 560, 124))
 
-        parameters = self._create_panel("5. Family parameter mapping", Point(350, 346), Size(314, 232))
-        self._create_hint("Only change these when your opening family uses different parameter names.", Point(16, 42), Size(278, 34), parameters)
-        self._add_textbox(parameters, "param_width", "Width", 16, 86, 132)
-        self._add_textbox(parameters, "param_height", "Height", 166, 86, 128)
-        self._add_textbox(parameters, "param_depth", "Wall thickness", 16, 144, 132)
-        self._add_textbox(parameters, "param_system", "MEP system", 166, 144, 128)
-        self._add_textbox(parameters, "param_size", "MEP size", 16, 188, 132)
-        self._add_textbox(parameters, "param_elevation", "Elevation", 166, 188, 128)
+        settings_panel = self._create_panel("Opening settings", Point(324, 88), Size(300, 630))
+        self._create_label("Clearance around MEP", Point(16, 42), Size(260, 20), settings_panel, True)
+        self._create_hint("Clearance is added on both sides of the detected MEP size before writing opening dimensions.", Point(16, 68), Size(266, 46), settings_panel)
+        self._add_textbox(settings_panel, "offset_pipe", "Pipe (mm)", 16, 122, 126)
+        self._add_textbox(settings_panel, "offset_duct", "Duct (mm)", 156, 122, 126)
+        self._add_textbox(settings_panel, "offset_tray", "Cable Tray (mm)", 16, 184, 126)
+        self._add_textbox(settings_panel, "offset_conduit", "Conduit (mm)", 156, 184, 126)
 
-        rules = self._create_panel("6. Family selection rules", Point(680, 346), Size(332, 232))
-        self._create_hint("Rules map category and size to the opening family. Configure once, then just Create or Update.", Point(16, 48), Size(292, 46), rules)
-        self.btn_rules = self._create_button("Edit Size Rules", Point(16, 106), Size(290, 36), self._rules_clicked, Color.FromArgb(41, 128, 185))
-        rules.Controls.Add(self.btn_rules)
-        self._create_hint("Default local RFAs: Window-Round Opening and Window-Square Opening.", Point(16, 158), Size(292, 42), rules)
+        self._create_label("Family parameter mapping", Point(16, 260), Size(260, 20), settings_panel, True)
+        self._create_hint("Change these only if the opening families use different parameter names.", Point(16, 286), Size(266, 36), settings_panel)
+        self._add_textbox(settings_panel, "param_width", "Width", 16, 336, 126)
+        self._add_textbox(settings_panel, "param_height", "Height", 156, 336, 126)
+        self._add_textbox(settings_panel, "param_depth", "Wall thickness", 16, 398, 126)
+        self._add_textbox(settings_panel, "param_system", "MEP system", 156, 398, 126)
 
-        self.btn_run = self._create_button("Create Openings", Point(12, 604), Size(220, 36), self._run_clicked, Color.FromArgb(39, 174, 96))
-        self.btn_cancel = self._create_button("Cancel", Point(872, 604), Size(140, 36), self._cancel_clicked, Color.FromArgb(127, 140, 141))
+        self._create_label("Metadata parameters", Point(16, 474), Size(260, 20), settings_panel, True)
+        self._add_textbox(settings_panel, "param_size", "MEP size", 16, 506, 126)
+        self._add_textbox(settings_panel, "param_elevation", "Elevation", 156, 506, 126)
+        self.numbering_controls.append(self._add_textbox(settings_panel, "prefix_tray", "Cable tray prefix", 16, 560, 126))
+        self.numbering_controls.append(self._add_textbox(settings_panel, "prefix_conduit", "Conduit prefix", 156, 560, 126))
+
+        rules_panel = self._create_panel("MEP size rules and family mapping", Point(636, 88), Size(704, 630))
+        self._create_hint("Scan groups equal MEP sizes into one exact row. Select multiple rows, then apply Shape or Family once.", Point(16, 42), Size(672, 34), rules_panel)
+        self._create_rules_grid(rules_panel)
+
+        self.btn_scan_sizes = self._create_button("Scan MEP Sizes", Point(16, 520), Size(132, 30), self._scan_mep_sizes_clicked, Color.FromArgb(39, 174, 96))
+        self.btn_add_rule = self._create_button("Add Rule", Point(160, 520), Size(90, 30), self._add_rule_clicked, Color.FromArgb(41, 128, 185))
+        self.btn_delete_rule = self._create_button("Delete Rule", Point(262, 520), Size(96, 30), self._delete_rule_clicked, Color.FromArgb(192, 57, 43))
+        rules_panel.Controls.Add(self.btn_scan_sizes)
+        rules_panel.Controls.Add(self.btn_add_rule)
+        rules_panel.Controls.Add(self.btn_delete_rule)
+
+        self._create_label("Batch edit selected rows", Point(16, 562), Size(180, 18), rules_panel, True)
+        self.bulk_shape = ComboBox()
+        self.bulk_shape.Location = Point(200, 558)
+        self.bulk_shape.Size = Size(86, 25)
+        self.bulk_shape.DropDownStyle = ComboBoxStyle.DropDownList
+        self.bulk_shape.Items.Add("ROUND")
+        self.bulk_shape.Items.Add("RECT")
+        self.bulk_shape.SelectedIndex = 0
+        rules_panel.Controls.Add(self.bulk_shape)
+
+        self.bulk_family = ComboBox()
+        self.bulk_family.Location = Point(296, 558)
+        self.bulk_family.Size = Size(246, 25)
+        self.bulk_family.DropDownStyle = ComboBoxStyle.DropDownList
+        for family_name in self.rule_family_options:
+            self.bulk_family.Items.Add(family_name)
+        if self.bulk_family.Items.Count:
+            self.bulk_family.SelectedIndex = 0
+        rules_panel.Controls.Add(self.bulk_family)
+
+        self.btn_apply_selected = self._create_button("Apply", Point(554, 556), Size(80, 30), self._apply_selected_clicked, Color.FromArgb(52, 73, 94))
+        rules_panel.Controls.Add(self.btn_apply_selected)
+
+        self.btn_run = self._create_button("Create Openings", Point(12, 744), Size(220, 36), self._run_clicked, Color.FromArgb(39, 174, 96))
+        self.btn_cancel = self._create_button("Cancel", Point(1200, 744), Size(140, 36), self._cancel_clicked, Color.FromArgb(127, 140, 141))
         self.Controls.Add(self.btn_run)
         self.Controls.Add(self.btn_cancel)
+
+    def _create_rules_grid(self, parent):
+        self.rule_grid = DataGridView()
+        self.rule_grid.Location = Point(12, 84)
+        self.rule_grid.Size = Size(parent.Size.Width - 24, 424)
+        self._style_grid(self.rule_grid)
+        self.rule_grid.CurrentCellDirtyStateChanged += self._rule_grid_dirty_state_changed
+        self.rule_grid.CellValueChanged += self._rule_grid_cell_value_changed
+        self.rule_grid.DataError += self._rule_grid_data_error
+        parent.Controls.Add(self.rule_grid)
+
+        category_col = DataGridViewComboBoxColumn()
+        category_col.HeaderText = "MEP Category"
+        category_col.Name = "Category"
+        category_col.Width = 128
+        for category in self.tracked_rule_categories:
+            category_col.Items.Add(category)
+
+        mep_size_col = DataGridViewTextBoxColumn()
+        mep_size_col.HeaderText = "MEP Size"
+        mep_size_col.Name = "MEPSize"
+        mep_size_col.Width = 88
+        mep_size_col.ReadOnly = True
+
+        recommended_col = DataGridViewTextBoxColumn()
+        recommended_col.HeaderText = "Opening"
+        recommended_col.Name = "RecommendedOpening"
+        recommended_col.Width = 96
+        recommended_col.ReadOnly = True
+
+        count_col = DataGridViewTextBoxColumn()
+        count_col.HeaderText = "Qty"
+        count_col.Name = "Count"
+        count_col.Width = 44
+        count_col.ReadOnly = True
+
+        mode_col = DataGridViewTextBoxColumn()
+        mode_col.HeaderText = "Match"
+        mode_col.Name = "MatchMode"
+        mode_col.Width = 70
+        mode_col.ReadOnly = True
+
+        max_col = DataGridViewTextBoxColumn()
+        max_col.HeaderText = "Max Size (mm)"
+        max_col.Name = "MaxSize"
+        max_col.Width = 86
+
+        shape_col = DataGridViewComboBoxColumn()
+        shape_col.HeaderText = "Shape"
+        shape_col.Name = "Shape"
+        shape_col.Width = 74
+        shape_col.Items.Add("ROUND")
+        shape_col.Items.Add("RECT")
+
+        family_col = DataGridViewComboBoxColumn()
+        family_col.HeaderText = "Opening Family"
+        family_col.Name = "FamilyName"
+        family_col.AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill
+        for family_name in self.rule_family_options:
+            family_col.Items.Add(family_name)
+
+        self.rule_grid.Columns.Add(category_col)
+        self.rule_grid.Columns.Add(mep_size_col)
+        self.rule_grid.Columns.Add(recommended_col)
+        self.rule_grid.Columns.Add(count_col)
+        self.rule_grid.Columns.Add(mode_col)
+        self.rule_grid.Columns.Add(max_col)
+        self.rule_grid.Columns.Add(shape_col)
+        self.rule_grid.Columns.Add(family_col)
+
+        for hidden_name in ["MEPShape", "MEPWidth", "MEPHeight", "MEPDiameter"]:
+            hidden_col = DataGridViewTextBoxColumn()
+            hidden_col.Name = hidden_name
+            hidden_col.Visible = False
+            self.rule_grid.Columns.Add(hidden_col)
+
+    def _load_rule_rows(self):
+        if not self.rule_grid:
+            return
+        self.rule_grid.Rows.Clear()
+        for category in self.tracked_rule_categories:
+            for rule in self.rules.get(category, []):
+                family_name = rule.get("family_name", "")
+                self._ensure_family_option(family_name)
+                max_size = rule.get("max_size_mm", 99999.0)
+                max_text = "99999" if max_size >= 99999.0 else "{:.0f}".format(max_size)
+                match_mode = rule.get("match_mode", "THRESHOLD")
+                mep_size = rule.get("mep_size_label", "Any <= max") if match_mode == "EXACT" else "Any <= max"
+                recommended = rule.get("recommended_opening_label", "")
+                count_text = str(rule.get("count", "")) if match_mode == "EXACT" else ""
+                row_index = self.rule_grid.Rows.Add(
+                    category,
+                    mep_size,
+                    recommended,
+                    count_text,
+                    match_mode,
+                    max_text,
+                    rule.get("shape", "RECT"),
+                    family_name,
+                    rule.get("mep_shape", ""),
+                    str(rule.get("width_mm", "")),
+                    str(rule.get("height_mm", "")),
+                    str(rule.get("diameter_mm", ""))
+                )
+                if match_mode == "EXACT":
+                    self.rule_grid.Rows[row_index].DefaultCellStyle.BackColor = Color.FromArgb(245, 251, 247)
+
+    def _ensure_family_option(self, family_name):
+        if not family_name or family_name in self.rule_family_options:
+            return
+        self.rule_family_options.append(family_name)
+        self.rule_family_options = sorted(list(set(self.rule_family_options)))
+        if self.rule_grid:
+            try:
+                family_col = self.rule_grid.Columns["FamilyName"]
+                if family_col and not family_col.Items.Contains(family_name):
+                    family_col.Items.Add(family_name)
+            except:
+                pass
+        if self.bulk_family:
+            try:
+                if not self.bulk_family.Items.Contains(family_name):
+                    self.bulk_family.Items.Add(family_name)
+            except:
+                pass
+
+    def _add_rule_clicked(self, sender, args):
+        if not self.rule_grid:
+            return
+        family_name = "Window-Square Opening"
+        if family_name not in self.rule_family_options and self.rule_family_options:
+            family_name = self.rule_family_options[0]
+        self.rule_grid.Rows.Add("OST_PipeCurves", "Any <= max", "", "", "THRESHOLD", "99999", "RECT", family_name, "", "", "", "")
+
+    def _delete_rule_clicked(self, sender, args):
+        if not self.rule_grid or self.rule_grid.SelectedRows.Count == 0:
+            return
+        rows_to_remove = []
+        for row in self.rule_grid.SelectedRows:
+            if not row.IsNewRow:
+                rows_to_remove.append(row)
+        for row in rows_to_remove:
+            self.rule_grid.Rows.Remove(row)
+
+    def _rule_grid_dirty_state_changed(self, sender, args):
+        try:
+            if self.rule_grid.IsCurrentCellDirty:
+                self.rule_grid.CommitEdit(DataGridViewDataErrorContexts.Commit)
+        except:
+            pass
+
+    def _rule_grid_cell_value_changed(self, sender, args):
+        if self._bulk_updating or args.RowIndex < 0 or args.ColumnIndex < 0:
+            return
+        column_name = self.rule_grid.Columns[args.ColumnIndex].Name
+        if column_name not in ["Shape", "FamilyName"]:
+            return
+        try:
+            value = self.rule_grid.Rows[args.RowIndex].Cells[column_name].Value
+            if not value or self.rule_grid.SelectedRows.Count <= 1:
+                return
+            self._bulk_updating = True
+            for row in self.rule_grid.SelectedRows:
+                if not row.IsNewRow:
+                    row.Cells[column_name].Value = value
+        finally:
+            self._bulk_updating = False
+
+    def _rule_grid_data_error(self, sender, args):
+        args.ThrowException = False
+
+    def _get_current_scan_settings(self):
+        scan_settings = dict(self.settings)
+        for key in ["offset_pipe", "offset_duct", "offset_tray", "offset_conduit"]:
+            control = self.inputs.get(key)
+            value = control.Text if control else scan_settings.get(key, 50.0)
+            try:
+                parsed = float(value)
+                if parsed < 0:
+                    raise ValueError()
+                scan_settings[key] = parsed
+            except:
+                MessageBox.Show("Clearance values must be zero or positive numbers before scanning.", "Invalid Clearance")
+                return None
+        return scan_settings
+
+    def _get_current_scope_key(self):
+        scope_control = self.inputs.get("scope")
+        scope_text = str(scope_control.SelectedItem) if scope_control and scope_control.SelectedItem else str(self.settings.get("scope", "Active View"))
+        return "SELECTION" if "Selected" in scope_text else ("VIEW" if "View" in scope_text else "MODEL")
+
+    def _scan_mep_sizes_clicked(self, sender, args):
+        scan_settings = self._get_current_scan_settings()
+        if scan_settings is None:
+            return
+        current_rules = self._collect_rules()
+        if current_rules is None:
+            return
+        try:
+            mep_items, wall_items = collect_elements(self._get_current_scope_key())
+            scanned_rules = build_scanned_size_rules(mep_items, scan_settings, self.rule_family_options)
+        except Exception as ex:
+            MessageBox.Show("Failed to scan MEP sizes: {}".format(ex), "Scan Failed")
+            return
+        scanned_count = sum(len(category_rules) for category_rules in scanned_rules.values())
+        if scanned_count == 0:
+            MessageBox.Show("No measurable MEP sizes were found in the selected search scope.", "Scan MEP Sizes")
+            return
+        self.rules = merge_scanned_rules(current_rules, scanned_rules)
+        self._load_rule_rows()
+        MessageBox.Show(
+            "Scanned {} MEP elements and created {} grouped size rows.".format(len(mep_items), scanned_count),
+            "Scan MEP Sizes"
+        )
+
+    def _apply_selected_clicked(self, sender, args):
+        if not self.rule_grid or self.rule_grid.SelectedRows.Count == 0:
+            MessageBox.Show("Select one or more rows to update.", "Batch Edit")
+            return
+        shape_value = self.bulk_shape.SelectedItem if self.bulk_shape else None
+        family_value = self.bulk_family.SelectedItem if self.bulk_family else None
+        self._bulk_updating = True
+        try:
+            for row in self.rule_grid.SelectedRows:
+                if row.IsNewRow:
+                    continue
+                if shape_value:
+                    row.Cells["Shape"].Value = str(shape_value)
+                if family_value:
+                    row.Cells["FamilyName"].Value = str(family_value)
+        finally:
+            self._bulk_updating = False
+
+    def _collect_rules(self):
+        if not self.rule_grid:
+            return self.rules
+        self.rule_grid.EndEdit()
+        new_rules = {}
+        for category in self.tracked_rule_categories:
+            new_rules[category] = []
+
+        for row in self.rule_grid.Rows:
+            if row.IsNewRow:
+                continue
+            category = row.Cells["Category"].Value
+            max_size = row.Cells["MaxSize"].Value
+            shape = row.Cells["Shape"].Value
+            family_name = row.Cells["FamilyName"].Value
+            match_mode = row.Cells["MatchMode"].Value
+            category = "" if category is None else str(category)
+            max_size = "" if max_size is None else str(max_size)
+            shape = "" if shape is None else str(shape)
+            family_name = "" if family_name is None else str(family_name)
+            match_mode = "THRESHOLD" if match_mode is None else str(match_mode)
+
+            if not category or category not in self.tracked_rule_categories:
+                MessageBox.Show("Every size rule must have a valid MEP category.", "Invalid Size Rule")
+                return None
+            try:
+                max_value = float(max_size)
+                if max_value <= 0:
+                    raise ValueError()
+            except:
+                MessageBox.Show("Max Size must be a positive number. Use 99999 for unlimited.", "Invalid Size Rule")
+                return None
+            if shape not in ["ROUND", "RECT"]:
+                MessageBox.Show("Opening Shape must be ROUND or RECT.", "Invalid Size Rule")
+                return None
+            if not family_name:
+                MessageBox.Show("Every size rule must have an opening family.", "Invalid Size Rule")
+                return None
+
+            rule_data = {
+                "max_size_mm": max_value,
+                "shape": shape,
+                "family_name": family_name
+            }
+            if match_mode == "EXACT":
+                rule_data["match_mode"] = "EXACT"
+                rule_data["mep_size_label"] = str(row.Cells["MEPSize"].Value or "")
+                rule_data["recommended_opening_label"] = str(row.Cells["RecommendedOpening"].Value or "")
+                try:
+                    rule_data["count"] = int(str(row.Cells["Count"].Value or "0"))
+                except:
+                    rule_data["count"] = 0
+                rule_data["mep_shape"] = str(row.Cells["MEPShape"].Value or "")
+                try:
+                    rule_data["width_mm"] = float(str(row.Cells["MEPWidth"].Value or "0"))
+                    rule_data["height_mm"] = float(str(row.Cells["MEPHeight"].Value or "0"))
+                    rule_data["diameter_mm"] = float(str(row.Cells["MEPDiameter"].Value or "0"))
+                except:
+                    MessageBox.Show("Scanned exact-size rule data is invalid. Scan MEP Sizes again.", "Invalid Size Rule")
+                    return None
+
+            new_rules.setdefault(category, []).append(rule_data)
+
+        for category, category_rules in new_rules.items():
+            category_rules.sort(key=lambda rule: (
+                0 if rule.get("match_mode") == "EXACT" else 1,
+                rule.get("max_size_mm", 99999.0),
+                rule.get("width_mm", 0.0),
+                rule.get("height_mm", 0.0)
+            ))
+        return new_rules
 
     def _mode_changed(self, sender, args):
         self._sync_run_button()
@@ -1211,6 +2177,10 @@ class SettingsDashboardForm(Form):
 
     def _collect_settings(self):
         new_settings = dict(self.settings)
+        new_rules = self._collect_rules()
+        if new_rules is None:
+            return None
+        self.rules = new_rules
         if not self.profile_round.Checked and not self.profile_rect.Checked:
             MessageBox.Show("Select at least one opening type: Round or Rectangular.", "Opening Type Required")
             return None
@@ -1254,6 +2224,7 @@ class SettingsDashboardForm(Form):
         if collected is None:
             return
         self.settings = collected
+        save_rules(self.rules)
         self.action = "run"
         self.DialogResult = DialogResult.OK
         self.Close()
@@ -1262,6 +2233,7 @@ class SettingsDashboardForm(Form):
         collected = self._collect_settings()
         if collected is not None:
             self.settings = collected
+            save_rules(self.rules)
         self.action = "rules"
         self.DialogResult = DialogResult.OK
         self.Close()
@@ -1357,11 +2329,9 @@ def configure_settings_table():
 def main():
     global PARAM_WIDTHS, PARAM_HEIGHTS, PARAM_DIAMETERS, PARAM_DEPTHS, PARAM_SYSTEMS, PARAM_SIZES, PARAM_ELEVATIONS
 
-    # Load mapping rules
-    rules = load_rules()
-
     # Configure inputs using settings table
     settings = configure_settings_table()
+    rules = load_rules()
 
     is_update_mode = settings["mode"] == "Update Mode"
     scope = "SELECTION" if "Selected" in settings["scope"] else ("VIEW" if "View" in settings["scope"] else "MODEL")
@@ -1487,6 +2457,7 @@ def main():
             placed_count = 0
             placed_details = []
             placed_keys = set()
+            diag = {}
 
             offsets = {
                 DB.BuiltInCategory.OST_PipeCurves: offset_pipe,
@@ -1502,25 +2473,26 @@ def main():
 
             opening_family_names = set()
             if round_symbol:
-                opening_family_names.add(round_symbol.Family.Name)
+                opening_family_names.add(safe_family_name(round_symbol))
             if rect_symbol:
-                opening_family_names.add(rect_symbol.Family.Name)
+                opening_family_names.add(safe_family_name(rect_symbol))
             existing_signatures = collect_tracked_opening_signatures(opening_family_names)
 
             # Bounding box filter optimization for large models
             for wall_el, wall_t, wall_doc in wall_items:
                 wall_bbox = wall_el.get_BoundingBox(None)
                 if not wall_bbox:
+                    add_diag(diag, "walls_no_bbox")
                     continue
 
                 # Get wall solids and direction
                 wall_solids = get_wall_solids(wall_el, wall_t)
-                if not wall_solids:
-                    continue
                 wall_dir = get_wall_direction(wall_el, wall_t)
 
                 # Transform wall bbox if in link
                 wall_bbox = transform_bounding_box(wall_bbox, wall_t)
+                if not wall_solids:
+                    add_diag(diag, "walls_no_solids")
 
                 # Filter candidates by Bounding Box pre-filter
                 candidates = []
@@ -1531,16 +2503,18 @@ def main():
 
                     mep_bbox = mep_el.get_BoundingBox(None)
                     if not mep_bbox:
+                        add_diag(diag, "mep_no_bbox")
                         continue
 
                     mep_bbox = transform_bounding_box(mep_bbox, mep_t)
 
                     # Check overlap
                     if boxes_overlap(wall_bbox, mep_bbox, tolerance=1.0):
-                        candidates.append((mep_el, mep_t))
+                        candidates.append((mep_el, mep_t, mep_bbox))
+                        add_diag(diag, "bbox_candidates")
 
                 # Perform precise geometric checks on candidates
-                for mep_el, mep_t in candidates:
+                for mep_el, mep_t, mep_bbox in candidates:
                     mep_cat = mep_el.Category.BuiltInCategory
                     mep_dim = get_mep_dimensions(mep_el)
 
@@ -1549,13 +2523,20 @@ def main():
 
                     # Filter based on shape selection
                     if shape == 'ROUND' and not place_round:
+                        add_diag(diag, "shape_filtered")
                         continue
                     if shape == 'RECT' and not place_rect:
+                        add_diag(diag, "shape_filtered")
                         continue
                     if not symbol:
+                        add_diag(diag, "no_symbol")
                         continue
 
                     offset_ft = offsets.get(mep_cat, to_feet(50.0))
+                    midpoint = None
+                    opening_w = 0.0
+                    opening_h = 0.0
+                    wall_thickness = estimate_wall_thickness(wall_el, wall_bbox)
 
                     # Curve-based elements (Pipes, Ducts, Trays, Conduits)
                     mep_curve = get_transformed_curve(mep_el, mep_t)
@@ -1564,75 +2545,94 @@ def main():
 
                         intersect_segment = None
                         for solid in wall_solids:
-                            res = solid.IntersectWithCurve(mep_curve, DB.SolidCurveIntersectionOptions())
+                            res = intersect_solid_with_curve(solid, mep_curve)
                             if res and res.SegmentCount > 0:
                                 intersect_segment = res.GetCurveSegment(0)
                                 break
 
-                        if not intersect_segment:
+                        if intersect_segment:
+                            midpoint = intersect_segment.Evaluate(0.5, True)
+                            wall_thickness = estimate_wall_thickness(wall_el, wall_bbox)
+                        else:
+                            midpoint = estimate_curve_wall_plane_hit(mep_curve, wall_el, wall_t, wall_dir, wall_bbox, tolerance=1.0)
+                        if not midpoint:
+                            add_diag(diag, "no_precise_hit")
                             continue
-
-                        midpoint = intersect_segment.Evaluate(0.5, True)
                         coord_key = (round(midpoint.X, 2), round(midpoint.Y, 2), round(midpoint.Z, 2))
                         if coord_key in placed_keys:
+                            add_diag(diag, "duplicates")
                             continue
                         if (mep_el.UniqueId, wall_el.UniqueId, coord_key) in existing_signatures:
+                            add_diag(diag, "duplicates")
                             continue
 
                         projected_dims = calculate_projection_size(mep_dim, mep_dir, wall_dir, offset_ft)
                         if not projected_dims:
+                            add_diag(diag, "no_projection")
                             continue
                         opening_w, opening_h = projected_dims
-                        wall_thickness = wall_el.Width if hasattr(wall_el, 'Width') else intersect_segment.Length
 
                     # Solid-based elements (Fittings, Accessories, Mechanical Equipment)
                     else:
                         mep_solids = get_element_solids(mep_el, mep_t)
-                        if not mep_solids:
-                            continue
 
                         intersect_solid = None
                         for s_mep in mep_solids:
                             for s_wall in wall_solids:
-                                try:
-                                    res_solid = DB.BooleanOperationsUtils.ExecuteBooleanOperation(
-                                        s_mep, s_wall, DB.BooleanOperationsType.Intersect
-                                    )
-                                    if res_solid and res_solid.Volume > 0.0001:
-                                        intersect_solid = res_solid
-                                        break
-                                except:
-                                    pass
+                                res_solid = boolean_intersection_solid(s_mep, s_wall)
+                                if res_solid:
+                                    intersect_solid = res_solid
+                                    break
                             if intersect_solid:
                                 break
 
-                        if not intersect_solid:
-                            continue
+                        if intersect_solid:
+                            # Centroid of overlapping region
+                            bbox_intersect = intersect_solid.GetBoundingBox()
+                            midpoint = bbox_center(bbox_intersect)
+                        else:
+                            bbox_intersect = get_box_intersection(mep_bbox, wall_bbox)
+                            if bbox_intersect:
+                                midpoint = bbox_center(bbox_intersect)
 
-                        # Centroid of overlapping region
-                        bbox_intersect = intersect_solid.GetBoundingBox()
-                        midpoint = bbox_intersect.Min + (bbox_intersect.Max - bbox_intersect.Min) * 0.5
+                        if not midpoint:
+                            add_diag(diag, "no_precise_hit")
+                            continue
 
                         coord_key = (round(midpoint.X, 2), round(midpoint.Y, 2), round(midpoint.Z, 2))
                         if coord_key in placed_keys:
+                            add_diag(diag, "duplicates")
                             continue
                         if (mep_el.UniqueId, wall_el.UniqueId, coord_key) in existing_signatures:
+                            add_diag(diag, "duplicates")
                             continue
 
                         # Get overlapping vertices and project them
                         pts = []
-                        for face in intersect_solid.Faces:
-                            for loop in face.EdgeLoops:
-                                for edge in loop:
-                                    pts.append(edge.Evaluate(0.0))
-                                    pts.append(edge.Evaluate(1.0))
+                        if intersect_solid:
+                            for face in intersect_solid.Faces:
+                                for loop in face.EdgeLoops:
+                                    for edge in loop:
+                                        pts.append(edge.Evaluate(0.0))
+                                        pts.append(edge.Evaluate(1.0))
+                        else:
+                            pts = [
+                                DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Min.Y, bbox_intersect.Min.Z),
+                                DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Min.Y, bbox_intersect.Max.Z),
+                                DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Max.Y, bbox_intersect.Min.Z),
+                                DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Max.Y, bbox_intersect.Max.Z),
+                                DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Min.Y, bbox_intersect.Min.Z),
+                                DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Min.Y, bbox_intersect.Max.Z),
+                                DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Max.Y, bbox_intersect.Min.Z),
+                                DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Max.Y, bbox_intersect.Max.Z)
+                            ]
 
                         x_coords = [p.DotProduct(wall_dir) for p in pts]
                         y_coords = [p.DotProduct(DB.XYZ.BasisZ) for p in pts]
 
                         opening_w = (max(x_coords) - min(x_coords)) + 2.0 * offset_ft
                         opening_h = (max(y_coords) - min(y_coords)) + 2.0 * offset_ft
-                        wall_thickness = wall_el.Width if hasattr(wall_el, 'Width') else (bbox_intersect.Max.Y - bbox_intersect.Min.Y)
+                        wall_thickness = estimate_wall_thickness(wall_el, wall_bbox)
 
                     # Place instance
                     lvl = None
@@ -1643,30 +2643,43 @@ def main():
                     if not lvl:
                         lvl = get_closest_level(doc, midpoint.Z)
                     if not lvl:
+                        add_diag(diag, "no_level")
                         continue
+
+                    symbol = get_or_create_sized_symbol(symbol, shape, opening_w, opening_h)
+                    if not symbol:
+                        add_diag(diag, "no_symbol")
+                        continue
+
+                    insertion_point = get_window_insertion_point(midpoint, lvl)
 
                     inst = None
                     if wall_el.Document == doc:
                         try:
                             inst = doc.Create.NewFamilyInstance(
-                                midpoint, symbol, wall_el, lvl, DB.Structure.StructuralType.NonStructural
+                                insertion_point, symbol, wall_el, lvl, DB.Structure.StructuralType.NonStructural
                             )
                         except:
                             pass
                     if not inst:
                         try:
                             inst = doc.Create.NewFamilyInstance(
-                                midpoint, symbol, lvl, DB.Structure.StructuralType.NonStructural
+                                insertion_point, symbol, lvl, DB.Structure.StructuralType.NonStructural
                             )
                             # Align angle with wall
                             wall_angle = math.atan2(wall_dir.Y, wall_dir.X)
-                            rot_axis = DB.Line.CreateBound(midpoint, midpoint + DB.XYZ.BasisZ)
+                            rot_axis = DB.Line.CreateBound(insertion_point, insertion_point + DB.XYZ.BasisZ)
                             DB.ElementTransformUtils.RotateElement(doc, inst.Id, rot_axis, wall_angle)
                         except:
+                            add_diag(diag, "placement_failed")
                             continue
+                    if not inst:
+                        add_diag(diag, "placement_failed")
+                        continue
 
                     # Set size parameters
-                    set_opening_size(inst, shape, opening_w, opening_h, wall_thickness)
+                    set_opening_size(inst, shape, opening_w, opening_h, wall_thickness, lvl, midpoint)
+                    align_opening_bbox_center(inst, midpoint, wall_dir)
 
                     # Set metadata
                     find_and_set_parameter(inst, PARAM_SYSTEMS, get_mep_system_name(mep_el))
@@ -1708,13 +2721,15 @@ def main():
             print("Successfully placed {} openings.".format(placed_count))
             output.print_md("### Placement Summary")
             output.print_md("- **Total Placed**: {}".format(placed_count))
+            if placed_count == 0:
+                print_diagnostics(diag)
 
             if placed_details:
                 table_data = []
                 for idx, (inst, cat, mid) in enumerate(placed_details):
                     mep_cat_name = str(cat).replace("OST_", "")
 
-                    shape = "ROUND" if "round" in inst.Symbol.Family.Name.lower() else "RECT"
+                    shape = get_shape_from_symbol(inst.Symbol)
 
                     p_w = inst.LookupParameter(param_width) or inst.LookupParameter("Width")
                     p_h = inst.LookupParameter(param_height) or inst.LookupParameter("Height")
@@ -1757,9 +2772,9 @@ def main():
 
             symbols_names = set()
             if round_symbol:
-                symbols_names.add(round_symbol.Family.Name)
+                symbols_names.add(safe_family_name(round_symbol))
             if rect_symbol:
-                symbols_names.add(rect_symbol.Family.Name)
+                symbols_names.add(safe_family_name(rect_symbol))
             if not symbols_names:
                 for display_name in family_map.keys():
                     symbols_names.add(display_name.split(" : ")[0])
@@ -1770,7 +2785,7 @@ def main():
 
             tracked_openings = []
             for inst in all_instances:
-                f_name = inst.Symbol.Family.Name
+                f_name = safe_family_name(inst.Symbol)
                 if f_name in symbols_names:
                     tracking = get_opening_tracking(inst)
                     if tracking.get("mep_uid"):
@@ -1852,11 +2867,12 @@ def main():
                     wall_bbox = transform_bounding_box(wall_bbox, wall_t)
 
                     if boxes_overlap(mep_bbox, wall_bbox, tolerance=1.0):
-                        wall_candidates.append((wall_el, wall_t))
+                        wall_candidates.append((wall_el, wall_t, wall_bbox))
 
                 # Perform precise collision
                 intersect_found = False
                 matched_wall = None
+                matched_wall_dir = None
                 new_midpoint = None
                 new_w, new_h, new_d = 0.0, 0.0, 0.0
 
@@ -1867,10 +2883,9 @@ def main():
                     target_shape = get_shape_from_symbol(opening.Symbol)
                 offset_ft = offsets.get(mep_cat, to_feet(50.0))
 
-                for wall_el, wall_t in wall_candidates:
+                matched_level = None
+                for wall_el, wall_t, wall_bbox in wall_candidates:
                     wall_solids = get_wall_solids(wall_el, wall_t)
-                    if not wall_solids:
-                        continue
                     wall_dir = get_wall_direction(wall_el, wall_t)
 
                     # Curve check
@@ -1879,7 +2894,7 @@ def main():
                         mep_dir = mep_curve.ComputeDerivatives(0.5, True).BasisX.Normalize()
                         intersect_segment = None
                         for solid in wall_solids:
-                            res = solid.IntersectWithCurve(mep_curve, DB.SolidCurveIntersectionOptions())
+                            res = intersect_solid_with_curve(solid, mep_curve)
                             if res and res.SegmentCount > 0:
                                 intersect_segment = res.GetCurveSegment(0)
                                 break
@@ -1889,9 +2904,22 @@ def main():
                             projected_dims = calculate_projection_size(mep_dim, mep_dir, wall_dir, offset_ft)
                             if projected_dims:
                                 new_w, new_h = projected_dims
-                                new_d = wall_el.Width if hasattr(wall_el, 'Width') else intersect_segment.Length
+                                new_d = estimate_wall_thickness(wall_el, wall_bbox)
                                 intersect_found = True
                                 matched_wall = wall_el
+                                matched_wall_dir = wall_dir
+                                matched_level = doc.GetElement(wall_el.LevelId) if wall_el.Document == doc and wall_el.LevelId != DB.ElementId.InvalidElementId else get_closest_level(doc, new_midpoint.Z)
+                                break
+                        else:
+                            new_midpoint = estimate_curve_wall_plane_hit(mep_curve, wall_el, wall_t, wall_dir, wall_bbox, tolerance=1.0)
+                            projected_dims = calculate_projection_size(mep_dim, mep_dir, wall_dir, offset_ft)
+                            if new_midpoint and projected_dims:
+                                new_w, new_h = projected_dims
+                                new_d = estimate_wall_thickness(wall_el, wall_bbox)
+                                intersect_found = True
+                                matched_wall = wall_el
+                                matched_wall_dir = wall_dir
+                                matched_level = doc.GetElement(wall_el.LevelId) if wall_el.Document == doc and wall_el.LevelId != DB.ElementId.InvalidElementId else get_closest_level(doc, new_midpoint.Z)
                                 break
                     # Solid check
                     else:
@@ -1899,15 +2927,10 @@ def main():
                         intersect_solid = None
                         for s_mep in mep_solids:
                             for s_wall in wall_solids:
-                                try:
-                                    res_solid = DB.BooleanOperationsUtils.ExecuteBooleanOperation(
-                                        s_mep, s_wall, DB.BooleanOperationsType.Intersect
-                                    )
-                                    if res_solid and res_solid.Volume > 0.0001:
-                                        intersect_solid = res_solid
-                                        break
-                                except:
-                                    pass
+                                res_solid = boolean_intersection_solid(s_mep, s_wall)
+                                if res_solid:
+                                    intersect_solid = res_solid
+                                    break
                             if intersect_solid:
                                 break
 
@@ -1927,10 +2950,36 @@ def main():
 
                             new_w = (max(x_coords) - min(x_coords)) + 2.0 * offset_ft
                             new_h = (max(y_coords) - min(y_coords)) + 2.0 * offset_ft
-                            new_d = wall_el.Width if hasattr(wall_el, 'Width') else (bbox_intersect.Max.Y - bbox_intersect.Min.Y)
+                            new_d = estimate_wall_thickness(wall_el, wall_bbox)
                             intersect_found = True
                             matched_wall = wall_el
+                            matched_wall_dir = wall_dir
+                            matched_level = doc.GetElement(wall_el.LevelId) if wall_el.Document == doc and wall_el.LevelId != DB.ElementId.InvalidElementId else get_closest_level(doc, new_midpoint.Z)
                             break
+                        else:
+                            bbox_intersect = get_box_intersection(mep_bbox, wall_bbox)
+                            if bbox_intersect:
+                                new_midpoint = bbox_center(bbox_intersect)
+                                pts = [
+                                    DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Min.Y, bbox_intersect.Min.Z),
+                                    DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Min.Y, bbox_intersect.Max.Z),
+                                    DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Max.Y, bbox_intersect.Min.Z),
+                                    DB.XYZ(bbox_intersect.Min.X, bbox_intersect.Max.Y, bbox_intersect.Max.Z),
+                                    DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Min.Y, bbox_intersect.Min.Z),
+                                    DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Min.Y, bbox_intersect.Max.Z),
+                                    DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Max.Y, bbox_intersect.Min.Z),
+                                    DB.XYZ(bbox_intersect.Max.X, bbox_intersect.Max.Y, bbox_intersect.Max.Z)
+                                ]
+                                x_coords = [p.DotProduct(wall_dir) for p in pts]
+                                y_coords = [p.DotProduct(DB.XYZ.BasisZ) for p in pts]
+                                new_w = (max(x_coords) - min(x_coords)) + 2.0 * offset_ft
+                                new_h = (max(y_coords) - min(y_coords)) + 2.0 * offset_ft
+                                new_d = estimate_wall_thickness(wall_el, wall_bbox)
+                                intersect_found = True
+                                matched_wall = wall_el
+                                matched_wall_dir = wall_dir
+                                matched_level = doc.GetElement(wall_el.LevelId) if wall_el.Document == doc and wall_el.LevelId != DB.ElementId.InvalidElementId else get_closest_level(doc, new_midpoint.Z)
+                                break
 
                 if not intersect_found:
                     # MEP element moved away from wall
@@ -1944,14 +2993,24 @@ def main():
                 has_moved = False
                 try:
                     if hasattr(opening.Location, "Point"):
-                        has_moved = not opening.Location.Point.IsAlmostEqualTo(new_midpoint, 0.01)
+                        target_location = get_window_insertion_point(new_midpoint, matched_level)
+                        has_moved = target_location is not None and not opening.Location.Point.IsAlmostEqualTo(target_location, 0.01)
                 except:
                     has_moved = False
 
+                target_symbol = get_or_create_sized_symbol(target_symbol, target_shape, new_w, new_h)
                 needs_symbol_update = target_symbol is not None and opening.Symbol.Id != target_symbol.Id
                 needs_param_update = needs_opening_size_update(opening, target_shape, new_w, new_h, new_d)
+                needs_center_align = False
+                if matched_wall_dir:
+                    try:
+                        bbox = opening.get_BoundingBox(None)
+                        if bbox:
+                            needs_center_align = abs((new_midpoint - bbox_center(bbox)).DotProduct(matched_wall_dir)) > 0.01
+                    except:
+                        needs_center_align = False
 
-                if has_moved or needs_param_update or needs_symbol_update:
+                if has_moved or needs_param_update or needs_symbol_update or needs_center_align:
                     symbol_changed = False
                     if needs_symbol_update:
                         try:
@@ -1960,10 +3019,11 @@ def main():
                             symbol_changed = False
                     if has_moved:
                         try:
-                            move_opening_to_point(opening, new_midpoint)
+                            move_opening_to_point(opening, target_location)
                         except:
                             has_moved = False
-                    set_opening_size(opening, target_shape, new_w, new_h, new_d)
+                    set_opening_size(opening, target_shape, new_w, new_h, new_d, matched_level, new_midpoint)
+                    align_opening_bbox_center(opening, new_midpoint, matched_wall_dir)
 
                     # Update metadata
                     find_and_set_parameter(opening, PARAM_SYSTEMS, get_mep_system_name(mep_el))
@@ -1973,8 +3033,8 @@ def main():
                     find_and_set_parameter(opening, PARAM_ELEVATIONS, elevation_string)
 
                     updated_count += 1
-                    print("Updated Opening ID: {} - Moved: {}, Resized: {}, Type Changed: {}".format(opening.Id, has_moved, needs_param_update, symbol_changed))
-                    updated_details.append((opening, mep_cat, new_midpoint, has_moved, needs_param_update or symbol_changed))
+                    print("Updated Opening ID: {} - Moved: {}, Resized: {}, Type Changed: {}, Center Aligned: {}".format(opening.Id, has_moved, needs_param_update, symbol_changed, needs_center_align))
+                    updated_details.append((opening, mep_cat, new_midpoint, has_moved or needs_center_align, needs_param_update or symbol_changed))
 
             print("\nSync completed. Updated {} openings.".format(updated_count))
 
@@ -2013,7 +3073,7 @@ def main():
                 for idx, (inst, cat, mid, moved, resized) in enumerate(updated_details):
                     mep_cat_name = str(cat).replace("OST_", "")
 
-                    shape = "ROUND" if "round" in inst.Symbol.Family.Name.lower() else "RECT"
+                    shape = get_shape_from_symbol(inst.Symbol)
 
                     p_w = inst.LookupParameter(param_width) or inst.LookupParameter("Width")
                     p_h = inst.LookupParameter(param_height) or inst.LookupParameter("Height")
@@ -2056,8 +3116,8 @@ def main():
                         idx + 1,
                         mark,
                         o.Id.ToString(),
-                        o.Symbol.Family.Name,
-                        o.Symbol.Name
+                        safe_family_name(o.Symbol),
+                        safe_symbol_name(o.Symbol)
                     ])
                 output.print_table(
                     table_data=orphaned_data,
