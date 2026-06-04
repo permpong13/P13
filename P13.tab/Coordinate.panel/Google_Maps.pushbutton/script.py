@@ -336,12 +336,34 @@ def get_model_bounds(doc):
 # ============================================================
 # หน้าต่างอินเตอร์เฟซผู้ใช้แบบ iOS Style (WPF/Form)
 # ============================================================
+def set_project_site_location(doc, latitude_deg, longitude_deg):
+    if latitude_deg < -90.0 or latitude_deg > 90.0:
+        raise ValueError("Latitude must be between -90 and 90 degrees.")
+    if longitude_deg < -180.0 or longitude_deg > 180.0:
+        raise ValueError("Longitude must be between -180 and 180 degrees.")
+
+    site_location = doc.SiteLocation
+    if site_location is None:
+        raise ValueError("Project Site Location is not available.")
+
+    transaction = DB.Transaction(doc, "Set Project Site Location")
+    try:
+        transaction.Start()
+        site_location.Latitude = math.radians(latitude_deg)
+        site_location.Longitude = math.radians(longitude_deg)
+        transaction.Commit()
+    except:
+        if transaction.GetStatus() == DB.TransactionStatus.Started:
+            transaction.RollBack()
+        raise
+
 class GoogleMapsForm(Form):
     def __init__(self, last_mode, last_province, detected_zone, last_import, last_size, last_auto_size, model_auto_size):
         self.selected_mode = None
         self.selected_province = None
         self.utm_zone = None
         self.import_map = False
+        self.set_revit_location = False
         self.map_size = 500.0
         self.auto_size = True
         
@@ -570,10 +592,11 @@ class GoogleMapsForm(Form):
         # 5. Action Buttons (Open Map / Cancel)
         self.btn_panel = TableLayoutPanel()
         self.btn_panel.Dock = DockStyle.Fill
-        self.btn_panel.ColumnCount = 2
+        self.btn_panel.ColumnCount = 3
         self.btn_panel.RowCount = 1
-        self.btn_panel.ColumnStyles.Add(ColumnStyle(SizeType.Percent, 50))
-        self.btn_panel.ColumnStyles.Add(ColumnStyle(SizeType.Percent, 50))
+        self.btn_panel.ColumnStyles.Add(ColumnStyle(SizeType.Percent, 34))
+        self.btn_panel.ColumnStyles.Add(ColumnStyle(SizeType.Percent, 33))
+        self.btn_panel.ColumnStyles.Add(ColumnStyle(SizeType.Percent, 33))
         
         self.btn_ok = Button()
         self.btn_ok.Text = "Show Map / เปิดแผนที่"
@@ -583,8 +606,19 @@ class GoogleMapsForm(Form):
         self.btn_ok.ForeColor = Color.White
         self.btn_ok.FlatStyle = FlatStyle.Flat
         self.btn_ok.FlatAppearance.BorderSize = 0
-        self.btn_ok.Click += self.on_ok_click
+        self.btn_ok.Click += self.on_show_map_click
         self.btn_panel.Controls.Add(self.btn_ok, 0, 0)
+        
+        self.btn_set_location = Button()
+        self.btn_set_location.Text = "Set Revit Location"
+        self.btn_set_location.Dock = DockStyle.Fill
+        self.btn_set_location.Font = FONT_BUTTON
+        self.btn_set_location.BackColor = Color.FromArgb(52, 199, 89)
+        self.btn_set_location.ForeColor = Color.White
+        self.btn_set_location.FlatStyle = FlatStyle.Flat
+        self.btn_set_location.FlatAppearance.BorderSize = 0
+        self.btn_set_location.Click += self.on_set_location_click
+        self.btn_panel.Controls.Add(self.btn_set_location, 1, 0)
         
         self.btn_cancel = Button()
         self.btn_cancel.Text = "Cancel / ยกเลิก"
@@ -595,7 +629,7 @@ class GoogleMapsForm(Form):
         self.btn_cancel.FlatStyle = FlatStyle.Flat
         self.btn_cancel.FlatAppearance.BorderSize = 0
         self.btn_cancel.Click += self.on_cancel_click
-        self.btn_panel.Controls.Add(self.btn_cancel, 1, 0)
+        self.btn_panel.Controls.Add(self.btn_cancel, 2, 0)
         
         self.mainLayout.Controls.Add(self.btn_panel, 0, 4)
         
@@ -612,6 +646,9 @@ class GoogleMapsForm(Form):
             )
             self.btn_cancel.Region = System.Drawing.Region.FromHrgn(
                 gdi32.CreateRoundRectRgn(0, 0, self.btn_cancel.Width, self.btn_cancel.Height, 8, 8)
+            )
+            self.btn_set_location.Region = System.Drawing.Region.FromHrgn(
+                gdi32.CreateRoundRectRgn(0, 0, self.btn_set_location.Width, self.btn_set_location.Height, 8, 8)
             )
         except: pass
 
@@ -638,8 +675,14 @@ class GoogleMapsForm(Form):
         if is_auto and self.model_auto_size is not None:
             self.tb_size.Text = "{:.1f}".format(self.model_auto_size)
 
-    def on_ok_click(self, sender, args):
-        if self.cb_import.Checked:
+    def on_show_map_click(self, sender, args):
+        self.apply_form_selection(False)
+
+    def on_set_location_click(self, sender, args):
+        self.apply_form_selection(True)
+
+    def apply_form_selection(self, set_revit_location):
+        if self.cb_import.Checked and not set_revit_location:
             try:
                 size_val = float(self.tb_size.Text.replace(",", "").strip())
                 if size_val <= 0: raise ValueError()
@@ -661,8 +704,9 @@ class GoogleMapsForm(Form):
             
         self.selected_province = self.cb_province.SelectedItem
         self.utm_zone = 47 if self.cb_zone.SelectedIndex == 0 else 48
-        self.import_map = self.cb_import.Checked
+        self.import_map = self.cb_import.Checked and not set_revit_location
         self.auto_size = self.cb_auto_size.Checked if self.cb_auto_size.Enabled else False
+        self.set_revit_location = set_revit_location
         self.DialogResult = DialogResult.OK
         self.Close()
 
@@ -740,6 +784,7 @@ def main():
     import_map = form.import_map
     map_size = form.map_size
     auto_size = form.auto_size
+    set_revit_location = form.set_revit_location
     
     # บันทึกประวัติการตั้งค่า
     cfg.last_mode = mode
@@ -814,6 +859,15 @@ def main():
         return
 
     # สร้างลิงก์แผนที่ Google Maps
+    site_location_status = ""
+    if set_revit_location:
+        try:
+            set_project_site_location(doc, lat, lon)
+            site_location_status = "\nRevit Location and Site updated successfully."
+        except Exception as ex:
+            forms.alert("Could not update Revit Location and Site: {}".format(ex), title="Error")
+            return
+
     google_maps_url = "https://www.google.com/maps/search/?api=1&query={:.7f},{:.7f}".format(lat, lon)
     
     # คัดลอกลิงก์ไปยัง Clipboard
@@ -980,7 +1034,8 @@ def main():
 
     # เปิดเบราว์เซอร์
     try:
-        webbrowser.open(google_maps_url)
+        if not set_revit_location:
+            webbrowser.open(google_maps_url)
     except Exception as ex:
         forms.alert("ไม่สามารถเปิดเบราว์เซอร์ได้: {}\n\nคุณสามารถนำลิงก์ด้านล่างนี้ไปเปิดเองได้:\n{}".format(ex, google_maps_url))
         return
@@ -1003,8 +1058,8 @@ def main():
         "🗺️ ค่าพิกัดแผนที่ (Google Maps):\n"
         "• Latitude (Y): {:.7f}\n"
         "• Longitude (X): {:.7f}\n"
-        "{}{}"
-    ).format(province, zone, x_m, x_ft, y_m, y_ft, easting, northing, lat, lon, copied_status, image_import_status)
+        "{}{}{}"
+    ).format(province, zone, x_m, x_ft, y_m, y_ft, easting, northing, lat, lon, copied_status, image_import_status, site_location_status)
 
     forms.alert(msg, title="Open Google Maps")
 
