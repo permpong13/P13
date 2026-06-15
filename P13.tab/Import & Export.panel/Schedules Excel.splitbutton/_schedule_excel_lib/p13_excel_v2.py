@@ -138,6 +138,21 @@ def find_parameter(element, parameter_id, parameter_name, doc):
         try: parameter = element.LookupParameter(clean_name)
         except Exception: parameter = None
 
+    # Check if the parameter found on the instance is actually a type parameter
+    if parameter is not None:
+        try:
+            type_id = element.GetTypeId()
+            if type_id and type_id != DB.ElementId.InvalidElementId:
+                is_instance_param = False
+                for p in element.Parameters:
+                    if p.Id == parameter.Id:
+                        is_instance_param = True
+                        break
+                if not is_instance_param:
+                    parameter = None  # Discard instance parameter to fetch it from the ElementType instead
+        except Exception:
+            pass
+
     if parameter is None:
         try:
             type_id = element.GetTypeId()
