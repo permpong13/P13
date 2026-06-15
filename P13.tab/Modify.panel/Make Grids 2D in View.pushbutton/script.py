@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 from Autodesk.Revit.DB import *
-from pyrevit import revit, forms
+from pyrevit import revit
 
 doc = revit.doc
 view = revit.active_view
@@ -13,5 +13,3 @@ with revit.Transaction("Change Grids to 2D"):
         # เปลี่ยน Datum Mode เป็น 2D สำหรับวิวนั้นๆ
         grid.SetDatumExtentType(DatumEnds.End0, view, DatumExtentType.ViewSpecific)
         grid.SetDatumExtentType(DatumEnds.End1, view, DatumExtentType.ViewSpecific)
-
-print("Changed {} grids to 2D in current view.".format(len(grids)))

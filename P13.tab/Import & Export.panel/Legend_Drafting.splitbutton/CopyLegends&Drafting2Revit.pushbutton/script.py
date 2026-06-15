@@ -27,6 +27,32 @@ def get_unique_name(existing_names, base_name):
     return new_name
 
 # --- สร้าง Class สำหรับควบคุมหน้าต่าง XAML ---
+# Source view collection helpers.
+def get_element_id_value(element_id):
+    try:
+        return element_id.Value
+    except AttributeError:
+        return element_id.IntegerValue
+
+def get_view_display_name(view, used_names):
+    view_name = revit.query.get_name(view)
+    display_name = view_name
+    if display_name in used_names:
+        display_name = "{} <{}>".format(view_name, get_element_id_value(view.Id))
+    used_names.add(display_name)
+    return display_name
+
+def get_copyable_source_views(doc):
+    source_view_types = [DB.ViewType.Legend, DB.ViewType.DraftingView]
+    views = []
+    for view in DB.FilteredElementCollector(doc).OfClass(DB.View).WhereElementIsNotElementType():
+        if view.IsTemplate:
+            continue
+        if view.ViewType in source_view_types:
+            views.append(view)
+    return sorted(views, key=lambda v: (str(v.ViewType), revit.query.get_name(v).lower(), get_element_id_value(v.Id)))
+
+# XAML window controller.
 class CustomUI(forms.WPFWindow):
     def __init__(self, xaml_file_name, open_docs, source_views):
         forms.WPFWindow.__init__(self, xaml_file_name)
@@ -35,8 +61,15 @@ class CustomUI(forms.WPFWindow):
         self.doc_dict = {d.Title: d for d in open_docs}
         
         # แยก Legend และ Drafting ออกจากกัน
-        self.legend_dict = {v.Name: v for v in source_views if v.ViewType == DB.ViewType.Legend}
-        self.drafting_dict = {v.Name: v for v in source_views if v.ViewType == DB.ViewType.DraftingView}
+        used_legend_names = set()
+        used_drafting_names = set()
+        self.legend_dict = {}
+        self.drafting_dict = {}
+        for view in source_views:
+            if view.ViewType == DB.ViewType.Legend:
+                self.legend_dict[get_view_display_name(view, used_legend_names)] = view
+            elif view.ViewType == DB.ViewType.DraftingView:
+                self.drafting_dict[get_view_display_name(view, used_drafting_names)] = view
         
         # ส่งรายชื่อเข้า ListBox ใน XAML เริ่มต้น
         self.DestDocsList.ItemsSource = sorted(self.doc_dict.keys())
@@ -128,8 +161,7 @@ def main():
         sys.exit(0)
 
     # หา Legends และ Drafting ทั้งหมดในไฟล์ปัจจุบัน
-    all_views = revit.query.get_all_views(doc=src_doc)
-    source_views = [v for v in all_views if v.ViewType in [DB.ViewType.Legend, DB.ViewType.DraftingView]]
+    source_views = get_copyable_source_views(src_doc)
     
     if not source_views:
         forms.alert("No Legends or Drafting Views found in this document.", title="P13 System")

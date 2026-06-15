@@ -1,0 +1,33 @@
+title: "Copy Sheets\nAcross Projects"
+
+tooltip: |
+  🇬🇧 [EN] Copy entire Sheets with all their annotations, titleblocks, and viewports from one open project to another.
+  Key Features:
+  • Copies detailing, text notes, filled regions, and titleblocks placed directly on sheets.
+  • Automatically handles viewports (Drafting Views, Legends) and Schedule views by copying or matching.
+  • Safe staging transaction model that prevents Revit copy-paste viewport errors.
+  • Auto-detects sheet number collisions and renames with a copy suffix (e.g., A-101_COPY1).
+  • Displays a clear log of successfully placed, skipped, or missing views.
+  
+  Usage:
+  1. Open both the Source and Target projects in the same Revit session.
+  2. Run this command from the active Source project.
+  3. Select sheets, target project, and options (Viewports, Schedules).
+  4. Review the final console report.
+
+  🇹🇭 [TH] คัดลอกแผ่นงาน (Sheet) ทั้งหมดพร้อมรายละเอียด, Titleblock, Viewport, และตารางงานข้ามโปรเจกต์
+  ฟังก์ชันหลัก:
+  • คัดลอกเส้นรายละเอียด, ข้อความ, Filled Region และ Titleblock ที่อยู่บน Sheet โดยตรง
+  • จัดการคัดลอกและจัดวาง Viewport (Drafting View, Legend) และตารางงาน (Schedule) ไว้ในตำแหน่งเดิม
+  • ระบบ Staging Transaction ช่วยป้องกัน Error ของ Revit API ขณะคัดลอก Viewport
+  • ตรวจสอบและเปลี่ยนชื่อ Sheet Number ที่ซ้ำกันอัตโนมัติโดยเติม Suffix กันรันไม่ผ่าน
+  • แสดงบันทึกรายงานผลอย่างชัดเจนสำหรับแต่ละ View (จัดวางสำเร็จ, ข้าม, หรือหาไม่เจอ)
+  
+  วิธีใช้งาน:
+  1. เปิดไฟล์ต้นฉบับและไฟล์ปลายทางในหน้าโปรแกรม Revit เดียวกัน
+  2. เรียกใช้งานคำสั่งนี้จากไฟล์ต้นฉบับ
+  3. เลือก Sheet, ไฟล์ปลายทาง และตั้งค่าการ Copy (Viewports, Schedules)
+  4. ตรวจสอบรายงานผลบนหน้าต่างคอนโซล
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Copy sheets, titleblocks, annotations, and viewports across projects. / คัดลอก Sheet, Titleblock, รายละเอียด และ Viewport ข้ามโปรเจกต์"
