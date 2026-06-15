@@ -276,6 +276,10 @@ def main():
         forms.alert("No writable changes were found.", title="Import Schedules")
         return
 
+    # Show the output window so the user can see the changes preview table
+    output = script.get_output()
+    output.show()
+
     answer = forms.alert(
         "Preview found {} value(s) to update.\n\nApply these changes to the current model?".format(len(changes)),
         title="Confirm Schedule Import",

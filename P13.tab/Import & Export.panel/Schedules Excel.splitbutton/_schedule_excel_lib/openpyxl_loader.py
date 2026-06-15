@@ -22,6 +22,18 @@ def _get_common_paths():
     if userprofile:
         for v in ["313", "312", "311", "310", "39"]:
             paths.append(os.path.join(userprofile, r"AppData\Local\Programs\Python\Python" + v, "python.exe"))
+    
+    # Check for virtual environments in pyRevit Extensions directory
+    appdata = os.environ.get("APPDATA")
+    if appdata:
+        ext_dir = os.path.join(appdata, r"pyRevit\Extensions")
+        if os.path.isdir(ext_dir):
+            for item in os.listdir(ext_dir):
+                item_path = os.path.join(ext_dir, item)
+                if os.path.isdir(item_path):
+                    python_cand = os.path.join(item_path, r".venv\Scripts\python.exe")
+                    if os.path.isfile(python_cand):
+                        paths.append(python_cand)
     return paths
 
 

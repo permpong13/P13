@@ -495,6 +495,10 @@ def main():
         changes, stats, errors = build_preview(data_sheets)
         print_preview(changes, stats, errors)
 
+        # Show the output window so the user can see the changes preview table
+        output = script.get_output()
+        output.show()
+
         if stats["sheets_with_metadata"] == 0:
             forms.alert(
                 "The selected file was read, but no P13 schedule metadata was found.\n\n"
@@ -516,7 +520,12 @@ def main():
             return
 
         confirm = forms.alert(
-            "Found {} value(s) to update.\n\nMissing elements: {}\nMissing parameters: {}\n\nApply these changes?".format(
+            "Found {} value(s) to update.\n\n"
+            "Status:\n"
+            "- Elements not found in Revit: {}\n"
+            "- Parameters not found in Revit: {}\n\n"
+            "Note: '0' not found means all data matched successfully.\n\n"
+            "Apply these changes to the current model?".format(
                 stats["changed"], stats["missing_elem"], stats["invalid_param"]
             ),
             title="Confirm Excel to Revit",

@@ -25,10 +25,25 @@ class ConfigManager(object):
         self.cfg = script.get_config("P13ScheduleExcel")
 
     def get_or_set_export_path(self):
+        def is_writable(folder):
+            if not folder or not os.path.exists(folder):
+                return False
+            try:
+                temp_file = os.path.join(folder, ".p13_write_test")
+                with open(temp_file, "w") as f:
+                    f.write("test")
+                os.remove(temp_file)
+                return True
+            except Exception:
+                return False
+
         export_path = getattr(self.cfg, "export_path", "")
-        if not export_path or not os.path.exists(export_path):
-            export_path = forms.pick_folder(title="Select Export Path")
+        if not export_path or not os.path.exists(export_path) or not is_writable(export_path):
+            export_path = forms.pick_folder(title="Select Export Path (Must be writable, e.g., Desktop or Documents)")
             if not export_path:
+                return None
+            if not is_writable(export_path):
+                forms.alert("The selected folder is not writable! Please choose another folder.", title="Path Error")
                 return None
             self.cfg.export_path = export_path
             script.save_config()
