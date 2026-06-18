@@ -229,8 +229,14 @@ def safe_float(text):
 
 
 def values_match(current_value, new_value, storage_type):
-    current_clean = to_text(current_value).split(" ")[0].strip()
-    new_clean = to_text(new_value).split(" ")[0].strip()
+    current_str = to_text(current_value).strip()
+    new_str = to_text(new_value).strip()
+    
+    if storage_type == DB.StorageType.String:
+        return current_str == new_str
+
+    current_clean = current_str.split(" ")[0].strip()
+    new_clean = new_str.split(" ")[0].strip()
     if current_clean == new_clean:
         return True
 
