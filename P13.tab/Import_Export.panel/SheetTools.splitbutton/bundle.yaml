@@ -1,0 +1,11 @@
+title: "Sheet\nTools"
+tooltip: |
+  Sheet creation and sheet copy tools.
+
+  Tools:
+  - Copy Sheets Across Projects
+  - Sheets from Excel
+
+layout:
+  - CopySheetsAcrossProjects
+  - SheetsFromExcelClipboard

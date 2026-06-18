@@ -23,6 +23,11 @@ OBSOLETE_RELATIVE_PATHS = [
         "SheetTools.stack",
         "Sheet_from_Excel.pushbutton"
     ),
+    os.path.join(
+        "P13.tab",
+        "Import_Export.panel",
+        "SheetTools.stack"
+    ),
 ]
 
 
