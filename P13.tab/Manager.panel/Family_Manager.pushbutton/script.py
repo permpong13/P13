@@ -233,6 +233,114 @@ class CustomInputDialog(forms.WPFWindow):
         self.result = None
         self.Close()
 
+class FindReplaceDialog(forms.WPFWindow):
+    def __init__(self, sample_text=""):
+        self.result = None
+        xaml_str = """
+        <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                Title="Replace Text in Type Names" Width="520" Height="420"
+                WindowStartupLocation="CenterScreen" ResizeMode="NoResize"
+                Topmost="True" Background="#F2F2F7">
+            <Window.Resources>
+                <Style TargetType="Button">
+                    <Setter Property="Template">
+                        <Setter.Value>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Setter.Value>
+                    </Setter>
+                    <Style.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Opacity" Value="0.82"/>
+                        </Trigger>
+                    </Style.Triggers>
+                </Style>
+            </Window.Resources>
+            <Grid Margin="18">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="Auto"/>
+                </Grid.RowDefinitions>
+
+                <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                    <TextBlock Text="Find and replace text in selected Type names." FontSize="15" FontWeight="SemiBold" Foreground="#1C1C1E"/>
+                    <TextBlock Text="Example: find xx and replace with YY." FontSize="12" Foreground="#6E6E73" Margin="0,4,0,0"/>
+                </StackPanel>
+
+                <Grid Grid.Row="1" Margin="0,0,0,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="14"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Find" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <TextBox x:Name="txtFind" Height="30" Padding="7,0" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Replace With" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                        <TextBox x:Name="txtReplace" Height="30" Padding="7,0" VerticalContentAlignment="Center"/>
+                    </StackPanel>
+                </Grid>
+
+                <WrapPanel Grid.Row="2" Margin="0,2,0,12">
+                    <CheckBox x:Name="checkMatchCase" Content="Match case" Margin="0,0,18,6"/>
+                    <CheckBox x:Name="checkWholeWord" Content="Whole word" Margin="0,0,18,6"/>
+                    <CheckBox x:Name="checkRegex" Content="Use regex" Margin="0,0,18,6"/>
+                </WrapPanel>
+
+                <Border Grid.Row="3" Background="White" BorderBrush="#E5E5EA" BorderThickness="1" CornerRadius="8" Padding="10">
+                    <StackPanel>
+                        <TextBlock Text="Selected Preview" FontWeight="SemiBold" Foreground="#1C1C1E" Margin="0,0,0,6"/>
+                        <TextBlock x:Name="txtPreview" TextWrapping="Wrap" Foreground="#3A3A3C"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,16,0,0">
+                    <Button x:Name="btnOk" Content="Replace" Width="96" Height="32" Background="#AF52DE" Foreground="White" BorderThickness="0" Margin="0,0,10,0" IsDefault="True"/>
+                    <Button x:Name="btnCancel" Content="Cancel" Width="90" Height="32" Background="#E5E5EA" Foreground="Black" BorderThickness="0" IsCancel="True"/>
+                </StackPanel>
+            </Grid>
+        </Window>
+        """
+
+        self.temp_xaml = os.path.join(tempfile.gettempdir(), "P13_FindReplaceDialog.xaml")
+        with codecs.open(self.temp_xaml, 'w', encoding='utf-8-sig') as f:
+            f.write(xaml_str)
+
+        forms.WPFWindow.__init__(self, self.temp_xaml)
+        self.txtPreview.Text = sample_text
+        self.txtFind.Focus()
+
+        self.btnOk.Click += self.ok_click
+        self.btnCancel.Click += self.cancel_click
+
+    def ok_click(self, sender, args):
+        find_text = self.txtFind.Text
+        if not find_text:
+            MessageBox.Show("Enter text to find.", "Find and Replace", MessageBoxButtons.OK, MessageBoxIcon.Warning)
+            return
+
+        self.result = {
+            "find": find_text,
+            "replace": self.txtReplace.Text or "",
+            "match_case": bool(self.checkMatchCase.IsChecked),
+            "whole_word": bool(self.checkWholeWord.IsChecked),
+            "use_regex": bool(self.checkRegex.IsChecked),
+        }
+        self.Close()
+
+    def cancel_click(self, sender, args):
+        self.result = None
+        self.Close()
+
 # ----------------------------------------------------------------------
 # Data Classes
 # ----------------------------------------------------------------------
@@ -317,7 +425,7 @@ class P13FamilyManager(forms.WPFWindow):
         if hasattr(self, 'RadioSelected'): self.RadioSelected.Checked += lambda s,a: self.set_scope("Selected")
         if hasattr(self, 'ComboCategory'): self.ComboCategory.SelectionChanged += self.category_selection_changed
         
-        for cb in ['CheckUsedOnly', 'CheckUnusedOnly', 'CheckInPlaceOnly', 'CheckSharedOnly', 'CheckNestedOnly', 'CheckHasParameters', 'CheckFavoritesOnly']:
+        for cb in ['CheckUsedOnly', 'CheckUnusedOnly', 'CheckInPlaceOnly', 'CheckSharedOnly', 'CheckNestedOnly', 'CheckHasParameters']:
             if hasattr(self, cb):
                 getattr(self, cb).Checked += self.filter_changed
                 getattr(self, cb).Unchecked += self.filter_changed
@@ -342,6 +450,7 @@ class P13FamilyManager(forms.WPFWindow):
         if hasattr(self, 'BtnRename'): self.BtnRename.Click += self.rename_click
         if hasattr(self, 'BtnAddPrefix'): self.BtnAddPrefix.Click += self.add_prefix_click
         if hasattr(self, 'BtnAddSuffix'): self.BtnAddSuffix.Click += self.add_suffix_click
+        if hasattr(self, 'BtnFindReplaceRename'): self.BtnFindReplaceRename.Click += self.find_replace_click
         if hasattr(self, 'BtnDuplicate'): self.BtnDuplicate.Click += self.duplicate_click
         if hasattr(self, 'BtnDeleteTypes'): self.BtnDeleteTypes.Click += self.delete_types_click
         
@@ -596,8 +705,6 @@ class P13FamilyManager(forms.WPFWindow):
         if hasattr(self, 'CheckSharedOnly') and self.CheckSharedOnly.IsChecked: res = [r for r in res if r.IsShared]
         if hasattr(self, 'CheckNestedOnly') and self.CheckNestedOnly.IsChecked: res = [r for r in res if r.IsNested]
         if hasattr(self, 'CheckHasParameters') and self.CheckHasParameters.IsChecked: res = [r for r in res if r.Parameters]
-        if hasattr(self, 'CheckFavoritesOnly') and self.CheckFavoritesOnly.IsChecked: res = [r for r in res if r.IsFavorite]
-        
         if self.TextSearch.Text:
             t = self.TextSearch.Text.lower()
             res = [r for r in res if t in r.FamilyName.lower() or t in r.TypeName.lower()]
@@ -750,33 +857,114 @@ class P13FamilyManager(forms.WPFWindow):
             self.load_data_async()
         except Exception as e: forms.alert("Error: {}".format(e))
 
+    def get_selected_rename_rows(self):
+        checked_items = [r for r in self.family_rows if r.IsSelected]
+        highlighted_items = []
+        try:
+            highlighted_items = list(self.DataGridFamilies.SelectedItems)
+        except Exception:
+            highlighted_items = []
+
+        selected = []
+        seen_ids = set()
+        for row in checked_items + highlighted_items:
+            type_id = row.TypeId or str(id(row))
+            if type_id in seen_ids:
+                continue
+            seen_ids.add(type_id)
+            selected.append(row)
+        return selected
+
+    def build_find_replace_name(self, type_name, options):
+        find_text = options["find"]
+        replace_text = options["replace"]
+
+        if options["use_regex"]:
+            pattern = find_text
+        else:
+            pattern = re.escape(find_text)
+
+        if options["whole_word"]:
+            pattern = r"\b{}\b".format(pattern)
+
+        flags = 0 if options["match_case"] else re.IGNORECASE
+        return re.sub(pattern, replace_text, type_name, flags=flags)
+
+    def get_find_replace_preview(self, rows):
+        preview_lines = []
+        for row in rows[:8]:
+            preview_lines.append(row.TypeName)
+
+        if len(rows) > 8:
+            preview_lines.append("...and {} more selected types".format(len(rows) - 8))
+
+        return "\n".join(preview_lines)
+
     def find_replace_click(self, sender, args):
-        sel = [r for r in self.family_rows if r.IsSelected]
+        sel = self.get_selected_rename_rows()
         if not sel: forms.alert("Please select items first."); return
-        
-        dialog1 = CustomInputDialog("Find & Replace", "Enter Text to Find:")
-        dialog1.ShowDialog()
-        find_str = dialog1.result
-        if not find_str: return
-        
-        dialog2 = CustomInputDialog("Find & Replace", "Replace with (Leave blank to remove text):")
-        dialog2.ShowDialog()
-        replace_str = dialog2.result
-        if replace_str is None: return 
-        
-        replace_str = get_valid_name(replace_str)
-        
-        with DB.Transaction(self.doc, "Find and Replace") as t:
-            t.Start()
-            for r in sel:
-                if r.TypeElement and find_str in r.TypeName:
-                    new_name = r.TypeName.replace(find_str, replace_str)
-                    try: 
-                        r.TypeElement.Name = new_name
-                    except Exception as e: 
-                        LOGGER.error("Find/Replace failed for {}: {}".format(r.TypeName, e))
-            t.Commit()
-        self.load_data_async()
+
+        dialog = FindReplaceDialog(self.get_find_replace_preview(sel))
+        dialog.ShowDialog()
+        options = dialog.result
+        if not options:
+            return
+
+        replace_text = get_valid_name(options["replace"])
+        options["replace"] = replace_text
+
+        success_count = 0
+        unchanged_count = 0
+        error_list = []
+
+        try:
+            if sel:
+                self.build_find_replace_name(sel[0].TypeName, options)
+        except Exception as pattern_error:
+            MessageBox.Show("Invalid find pattern:\n{}".format(pattern_error), "Find and Replace", MessageBoxButtons.OK, MessageBoxIcon.Error)
+            return
+
+        try:
+            with DB.Transaction(self.doc, "Find and Replace Type Names") as t:
+                t.Start()
+                for row in sel:
+                    if not row.TypeElement:
+                        continue
+
+                    new_name = self.build_find_replace_name(row.TypeName, options)
+                    new_name = get_valid_name(new_name)
+
+                    if new_name == row.TypeName:
+                        unchanged_count += 1
+                        continue
+
+                    try:
+                        old_name = row.TypeName
+                        row.TypeElement.Name = new_name
+                        row.TypeName = new_name
+                        success_count += 1
+                    except Exception as rename_error:
+                        error_list.append("{} -> {}: {}".format(old_name, new_name, rename_error))
+                        LOGGER.error("Find/Replace failed for {}: {}".format(row.TypeName, rename_error))
+                t.Commit()
+
+            if hasattr(self, 'LabelStatus'):
+                self.LabelStatus.Text = "Replaced text in {} types".format(success_count)
+
+            if error_list:
+                err_msg = "Renamed: {}\nUnchanged: {}\nFailed: {}\n\nError Examples:\n{}".format(
+                    success_count,
+                    unchanged_count,
+                    len(error_list),
+                    "\n".join(error_list[:10]),
+                )
+                MessageBox.Show(err_msg, "Find and Replace Result", MessageBoxButtons.OK, MessageBoxIcon.Information)
+            elif success_count == 0:
+                MessageBox.Show("No selected type names matched the find text.", "Find and Replace", MessageBoxButtons.OK, MessageBoxIcon.Information)
+
+            self.load_data_async()
+        except Exception as ex:
+            MessageBox.Show("Critical Error:\n{}".format(str(ex)), "Find and Replace", MessageBoxButtons.OK, MessageBoxIcon.Error)
 
     def advanced_search_click(self, sender, args):
         dialog = CustomInputDialog("Advanced Regex Search", "Enter Regex Pattern\n(e.g. ^Wall.*_01$ or \d{2}):")

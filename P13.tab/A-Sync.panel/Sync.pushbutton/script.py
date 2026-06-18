@@ -7,24 +7,81 @@ import urllib2
 import zipfile
 
 from pyrevit.loader import sessionmgr
+try:
+    from pyrevit import HOST_APP
+except Exception:
+    HOST_APP = None
 
 
 USER_REPO = "Permpong13/P13"
 GITHUB_API_URL = "https://api.github.com/repos/{}/zipball/main".format(USER_REPO)
-ADMIN_USERS = ["Permpong13"]
+ADMIN_USERS = [
+    "Permpong13",
+    "TEE\\Permpong13",
+]
 
 
 def get_current_username():
     return (os.environ.get("USERNAME") or os.environ.get("USER") or "").strip()
 
 
+def get_current_user_keys():
+    keys = set()
+
+    username = get_current_username()
+    if username:
+        keys.add(username.lower())
+
+    userdomain = (os.environ.get("USERDOMAIN") or "").strip()
+    if userdomain and username:
+        keys.add("{}\\{}".format(userdomain, username).lower())
+
+    userprofile = (os.environ.get("USERPROFILE") or "").strip()
+    if userprofile:
+        profile_name = os.path.basename(userprofile)
+        if profile_name:
+            keys.add(profile_name.lower())
+
+    try:
+        revit_username = (HOST_APP.username or "").strip() if HOST_APP else ""
+        if revit_username:
+            keys.add(revit_username.lower())
+    except Exception:
+        pass
+
+    return keys
+
+
 def is_admin_user():
-    current_user = get_current_username().lower()
-    return current_user in [name.lower() for name in ADMIN_USERS]
+    current_keys = get_current_user_keys()
+    admin_keys = set([name.lower() for name in ADMIN_USERS])
+    return bool(current_keys.intersection(admin_keys))
+
+
+def hide_ribbon_button(ui_button_cmp):
+    for attr_name in ["Visible", "visible", "Enabled", "enabled"]:
+        try:
+            if hasattr(ui_button_cmp, attr_name):
+                setattr(ui_button_cmp, attr_name, False)
+        except Exception:
+            pass
+
+    for nested_attr in ["ui_item", "control", "button"]:
+        try:
+            nested_item = getattr(ui_button_cmp, nested_attr, None)
+            if nested_item and hasattr(nested_item, "Visible"):
+                nested_item.Visible = False
+            if nested_item and hasattr(nested_item, "Enabled"):
+                nested_item.Enabled = False
+        except Exception:
+            pass
 
 
 def __selfinit__(script_cmp, ui_button_cmp, __rvt__):
-    return not is_admin_user()
+    if is_admin_user():
+        hide_ribbon_button(ui_button_cmp)
+        return False
+    return True
 
 
 def find_extension_root(start_path):
