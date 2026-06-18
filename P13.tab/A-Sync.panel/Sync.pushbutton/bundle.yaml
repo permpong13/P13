@@ -3,9 +3,15 @@ title: "A-Sync\nUpdate"
 tooltip: |
   Update the P13.extension toolset to the latest GitHub version.
 
+  Icon status:
+  - Green: this installation matches the latest GitHub version.
+  - Red: a newer GitHub version is available.
+  - Gray: update status could not be checked.
+
   Key features:
   - Downloads the latest tools from the configured GitHub repository.
   - Hidden for admin/developer users to prevent accidental source overwrite.
+  - Checks the installed script version against the GitHub main branch.
   - Copies files safely and skips locked files.
   - Reloads pyRevit after the update completes.
 
