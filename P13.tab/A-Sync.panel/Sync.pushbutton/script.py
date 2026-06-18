@@ -31,6 +31,20 @@ STATUS_ICONS = {
     STATUS_OUTDATED: "icon.outdated.png",
     STATUS_UNKNOWN: "icon.unknown.png",
 }
+OBSOLETE_RELATIVE_PATHS = [
+    os.path.join(
+        "P13.tab",
+        "Import_Export.panel",
+        "SheetTools.stack",
+        "CopySheets.pushbutton"
+    ),
+    os.path.join(
+        "P13.tab",
+        "Import_Export.panel",
+        "SheetTools.stack",
+        "Sheet_from_Excel.pushbutton"
+    ),
+]
 ADMIN_USERS = [
     "Permpong13",
     "TEE\\Permpong13",
@@ -205,6 +219,23 @@ def write_marker_sha(extension_root, remote_sha):
         pass
 
 
+def cleanup_obsolete_paths(extension_root):
+    extension_root = os.path.abspath(extension_root)
+
+    for relative_path in OBSOLETE_RELATIVE_PATHS:
+        target_path = os.path.abspath(os.path.join(extension_root, relative_path))
+        if not target_path.startswith(extension_root):
+            continue
+
+        try:
+            if os.path.isdir(target_path):
+                shutil.rmtree(target_path)
+            elif os.path.isfile(target_path):
+                os.remove(target_path)
+        except Exception:
+            pass
+
+
 def get_local_sha(extension_root):
     return read_marker_sha(extension_root) or get_local_git_sha(extension_root)
 
@@ -372,6 +403,7 @@ def sync_tools():
                 except Exception:
                     continue
 
+        cleanup_obsolete_paths(dest_path)
         write_marker_sha(dest_path, remote_sha)
         sessionmgr.reload_pyrevit()
 
