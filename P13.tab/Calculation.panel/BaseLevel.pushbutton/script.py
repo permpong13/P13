@@ -355,9 +355,8 @@ with forms.ProgressBar(title='กำลังตั้งค่า Base_Level...
             
         try:
             if hasattr(e, 'GroupId') and e.GroupId != DB.ElementId.InvalidElementId:
-                if not varies_across_groups:
-                    group_skipped_count += 1
-                    continue
+                group_skipped_count += 1
+                continue
 
             lvl_id = get_element_level_id(e)
             if not lvl_id: continue

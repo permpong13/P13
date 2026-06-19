@@ -166,21 +166,43 @@ output.print_md("### **ค้นพบหน้าต่างทั้งหม
 t = DB.Transaction(doc, "Set Window Top & Bottom Parameters")
 t.Start()
 
-# เปิดอนุญาตให้ Base_Level เขียนค่าลงใน Group ได้
-varies_across_groups = False
-iterator = doc.ParameterBindings.ForwardIterator()
-while iterator.MoveNext():
-    definition = iterator.Key
-    if definition.Name == "Base_Level" and isinstance(definition, DB.InternalDefinition):
-        try:
-            if not definition.VariesAcrossGroups: definition.SetAllowVaryBetweenGroups(doc, True)
-            varies_across_groups = definition.VariesAcrossGroups
-        except:
-            varies_across_groups = getattr(definition, 'VariesAcrossGroups', False)
-        break
+def get_element_id_value(element_id):
+    if hasattr(element_id, "Value"):
+        return element_id.Value
+    return element_id.IntegerValue
+
+
+def is_element_in_group(element):
+    try:
+        group_id = getattr(element, "GroupId", DB.ElementId.InvalidElementId)
+        return group_id and group_id != DB.ElementId.InvalidElementId
+    except Exception:
+        return False
+
+
+def allow_vary_between_groups(doc, parameter_names):
+    vary_status = dict((name, False) for name in parameter_names)
+    iterator = doc.ParameterBindings.ForwardIterator()
+    while iterator.MoveNext():
+        definition = iterator.Key
+        if definition.Name in vary_status and isinstance(definition, DB.InternalDefinition):
+            try:
+                if not definition.VariesAcrossGroups:
+                    definition.SetAllowVaryBetweenGroups(doc, True)
+                vary_status[definition.Name] = definition.VariesAcrossGroups
+            except Exception:
+                vary_status[definition.Name] = getattr(definition, "VariesAcrossGroups", False)
+    return vary_status
+
+
+group_vary_status = allow_vary_between_groups(
+    doc,
+    ["Base_Level", "Bottom of Windows", "Top of Windows"]
+)
 
 success_count = 0
 error_log = []
+skipped_group_count = 0
 total_elements = len(windows)
 is_cancelled = False
 
@@ -192,6 +214,8 @@ with forms.ProgressBar(title='กำลังคำนวณพารามิ�
             break
 
         try:
+            is_in_group = is_element_in_group(win)
+
             # --- 1. ดึง Base Level Elevation ---
             # หน้าต่างใช้ FAMILY_LEVEL_PARAM (level ที่ติดตั้ง)
             lvl_param = win.get_Parameter(DB.BuiltInParameter.FAMILY_LEVEL_PARAM)
@@ -283,16 +307,23 @@ with forms.ProgressBar(title='กำลังคำนวณพารามิ�
 
             # --- 5. เขียนค่าลง Parameter ---
 
+            if is_in_group:
+                skipped_group_count += 1
+                error_log.append(
+                    "Window ID {}: skipped because it is inside a model group.".format(
+                        get_element_id_value(win.Id)
+                    )
+                )
+                continue
+
             # (A) Base_Level (Text)
             p_base = win.LookupParameter("Base_Level")
             if p_base and not p_base.IsReadOnly:
-                is_in_group = hasattr(win, 'GroupId') and win.GroupId != DB.ElementId.InvalidElementId
-                if not (is_in_group and not varies_across_groups):
-                    if p_base.StorageType == DB.StorageType.String:
-                        elev_m = base_elev * 0.3048
-                        p_base.Set("{:.3f}".format(elev_m))
-                    elif p_base.StorageType == DB.StorageType.Double:
-                        p_base.Set(base_elev)
+                if p_base.StorageType == DB.StorageType.String:
+                    elev_m = base_elev * 0.3048
+                    p_base.Set("{:.3f}".format(elev_m))
+                elif p_base.StorageType == DB.StorageType.Double:
+                    p_base.Set(base_elev)
 
             # (B) Bottom of Windows
             p_bottom = win.LookupParameter("Bottom of Windows")
@@ -325,6 +356,14 @@ if is_cancelled:
     output.print_md("🛑 **ผู้ใช้กดยกเลิกการทำงานกลางคัน! (บันทึกเฉพาะส่วนที่ทำเสร็จแล้ว)**")
 
 output.print_md("✅ อัปเดตสำเร็จ: **{}** รายการ จากทั้งหมด {} รายการ".format(success_count, total_elements))
+
+if skipped_group_count:
+    output.print_md("### Grouped Windows")
+    output.print_md(
+        "Skipped **{}** grouped windows to prevent Revit from forcing the Ungroup workflow.".format(
+            skipped_group_count
+        )
+    )
 
 if error_log:
     output.print_md("### ⚠️ **ข้อผิดพลาดที่พบ**")

@@ -1,0 +1,16 @@
+title: "Keynote\nManager"
+
+tooltip: |
+  Manage the active project keynote file in a searchable hierarchy.
+
+  Key features:
+  - Browse categories and keynotes in one tree.
+  - Add, edit, delete, move, indent, and outdent keynote records.
+  - Search by key or text and highlight keynotes used in the model.
+  - Resolve local, external, and Desktop Connector keynote file paths.
+
+  Shift+Click resets the saved window layout before opening.
+
+author: "P13"
+description: "P13 keynote manager based on the pyRevit keynote database workflow."
+min_revit_version: 2024

@@ -175,22 +175,38 @@ if not structural_columns:
 t = DB.Transaction(doc, "Set Column Levels")
 t.Start()
 
-# เปิดอนุญาตให้ Base_Level เขียนค่าลงใน Group ได้ทันที
-varies_across_groups = False
-iterator = doc.ParameterBindings.ForwardIterator()
-while iterator.MoveNext():
-    definition = iterator.Key
-    if definition.Name == "Base_Level" and isinstance(definition, DB.InternalDefinition):
-        try:
-            if not definition.VariesAcrossGroups: definition.SetAllowVaryBetweenGroups(doc, True)
-            varies_across_groups = definition.VariesAcrossGroups
-        except:
-            varies_across_groups = getattr(definition, 'VariesAcrossGroups', False)
-        break
+def is_element_in_group(element):
+    try:
+        group_id = getattr(element, "GroupId", DB.ElementId.InvalidElementId)
+        return group_id and group_id != DB.ElementId.InvalidElementId
+    except Exception:
+        return False
+
+
+def allow_vary_between_groups(doc, parameter_names):
+    vary_status = dict((name, False) for name in parameter_names)
+    iterator = doc.ParameterBindings.ForwardIterator()
+    while iterator.MoveNext():
+        definition = iterator.Key
+        if definition.Name in vary_status and isinstance(definition, DB.InternalDefinition):
+            try:
+                if not definition.VariesAcrossGroups:
+                    definition.SetAllowVaryBetweenGroups(doc, True)
+                vary_status[definition.Name] = definition.VariesAcrossGroups
+            except Exception:
+                vary_status[definition.Name] = getattr(definition, "VariesAcrossGroups", False)
+    return vary_status
+
+
+group_vary_status = allow_vary_between_groups(
+    doc,
+    ["Base_Level", "Level_Bottom_of_Column", "Level_Top_of_Column"]
+)
 
 success_bottom_level = 0
 success_top_level = 0
 success_base_level = 0
+skipped_group_count = 0
 total_elements = len(structural_columns)
 
 # ทำงานผ่าน Progress Bar
@@ -200,6 +216,11 @@ with forms.ProgressBar(title='กำลังตั้งค่า Column Levels
             break
             
         try:
+            is_in_group = is_element_in_group(column)
+            if is_in_group:
+                skipped_group_count += 1
+                continue
+
             base_level_id = get_parameter_value(column, "Base Level")
             base_offset = get_parameter_value(column, "Base Offset")
             top_level_id = get_parameter_value(column, "Top Level")
@@ -214,21 +235,27 @@ with forms.ProgressBar(title='กำลังตั้งค่า Column Levels
                     bottom_param = column.LookupParameter("Level_Bottom_of_Column")
                     if bottom_param and bottom_param.StorageType == DB.StorageType.Double and not bottom_param.IsReadOnly:
                         try:
-                            bottom_param.Set(bottom_level_value)
-                            success_bottom_level += 1
+                            if is_in_group and not group_vary_status.get("Level_Bottom_of_Column", False):
+                                skipped_group_count += 1
+                            else:
+                                bottom_param.Set(bottom_level_value)
+                                success_bottom_level += 1
                         except: pass
                     
                     # ตั้งค่า Base_Level (รองรับทั้ง Double และ String เพื่อกัน Error)
                     base_elevation_param = column.LookupParameter("Base_Level")
                     if base_elevation_param and not base_elevation_param.IsReadOnly:
                         try:
-                            if base_elevation_param.StorageType == DB.StorageType.String:
-                                elev_m = base_level.Elevation * 0.3048
-                                base_elevation_param.Set("{:.3f}".format(elev_m))
-                                success_base_level += 1
-                            elif base_elevation_param.StorageType == DB.StorageType.Double:
-                                base_elevation_param.Set(base_level.Elevation)
-                                success_base_level += 1
+                            if is_in_group and not group_vary_status.get("Base_Level", False):
+                                skipped_group_count += 1
+                            else:
+                                if base_elevation_param.StorageType == DB.StorageType.String:
+                                    elev_m = base_level.Elevation * 0.3048
+                                    base_elevation_param.Set("{:.3f}".format(elev_m))
+                                    success_base_level += 1
+                                elif base_elevation_param.StorageType == DB.StorageType.Double:
+                                    base_elevation_param.Set(base_level.Elevation)
+                                    success_base_level += 1
                         except: pass
             
             # คำนวณ Level_Top_of_Column = Top Level Elevation + Top Offset
@@ -240,8 +267,11 @@ with forms.ProgressBar(title='กำลังตั้งค่า Column Levels
                     top_param = column.LookupParameter("Level_Top_of_Column")
                     if top_param and top_param.StorageType == DB.StorageType.Double and not top_param.IsReadOnly:
                         try:
-                            top_param.Set(top_level_value)
-                            success_top_level += 1
+                            if is_in_group and not group_vary_status.get("Level_Top_of_Column", False):
+                                skipped_group_count += 1
+                            else:
+                                top_param.Set(top_level_value)
+                                success_top_level += 1
                         except: pass
                         
         except Exception as e:
@@ -259,6 +289,8 @@ output.print_md("**โครงสร้างเสาทั้งหมด:** 
 output.print_md("✅ **ตั้งค่า Base_Level สำเร็จ:** {} รายการ".format(success_base_level))
 output.print_md("✅ **ตั้งค่า Level_Top_of_Column สำเร็จ:** {} รายการ".format(success_top_level))
 output.print_md("✅ **ตั้งค่า Level_Bottom_of_Column สำเร็จ:** {} รายการ".format(success_bottom_level))
+if skipped_group_count > 0:
+    output.print_md("Grouped columns skipped to prevent Revit from forcing the Ungroup workflow: {}".format(skipped_group_count))
 
 if success_bottom_level > 0 or success_top_level > 0:
     sample_columns = []

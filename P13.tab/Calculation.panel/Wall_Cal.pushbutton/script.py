@@ -163,20 +163,37 @@ t = DB.Transaction(doc, "Set Wall Top of Wall")
 t.Start()
 
 # เปิดอนุญาตให้ Base_Level เขียนค่าลงใน Group ได้ทันที
-varies_across_groups = False
-iterator = doc.ParameterBindings.ForwardIterator()
-while iterator.MoveNext():
-    definition = iterator.Key
-    if definition.Name == "Base_Level" and isinstance(definition, DB.InternalDefinition):
-        try:
-            if not definition.VariesAcrossGroups: definition.SetAllowVaryBetweenGroups(doc, True)
-            varies_across_groups = definition.VariesAcrossGroups
-        except:
-            varies_across_groups = getattr(definition, 'VariesAcrossGroups', False)
-        break
+def is_element_in_group(element):
+    try:
+        group_id = getattr(element, "GroupId", DB.ElementId.InvalidElementId)
+        return group_id and group_id != DB.ElementId.InvalidElementId
+    except Exception:
+        return False
+
+
+def allow_vary_between_groups(doc, parameter_names):
+    vary_status = dict((name, False) for name in parameter_names)
+    iterator = doc.ParameterBindings.ForwardIterator()
+    while iterator.MoveNext():
+        definition = iterator.Key
+        if definition.Name in vary_status and isinstance(definition, DB.InternalDefinition):
+            try:
+                if not definition.VariesAcrossGroups:
+                    definition.SetAllowVaryBetweenGroups(doc, True)
+                vary_status[definition.Name] = definition.VariesAcrossGroups
+            except Exception:
+                vary_status[definition.Name] = getattr(definition, "VariesAcrossGroups", False)
+    return vary_status
+
+
+group_vary_status = allow_vary_between_groups(
+    doc,
+    ["Base_Level", "Level_Bottom_of_Column", "Top of Wall"]
+)
 
 success_count = 0
 error_log = []
+skipped_group_count = 0
 total_elements = len(walls)
 is_cancelled = False
 
@@ -189,6 +206,11 @@ with forms.ProgressBar(title='กำลังคำนวณพารามิ�
             
         try:
             # --- 1. ดึง Base Level Elevation ---
+            is_in_group = is_element_in_group(wall)
+            if is_in_group:
+                skipped_group_count += 1
+                continue
+
             base_lvl_param = wall.get_Parameter(DB.BuiltInParameter.WALL_BASE_CONSTRAINT)
             if not base_lvl_param:
                 continue
@@ -224,9 +246,8 @@ with forms.ProgressBar(title='กำลังคำนวณพารามิ�
             p_base = wall.LookupParameter("Base_Level")
             if p_base and not p_base.IsReadOnly:
                 # เช็คสถานะ Group สำหรับพารามิเตอร์ Text
-                is_in_group = hasattr(wall, 'GroupId') and wall.GroupId != DB.ElementId.InvalidElementId
-                if is_in_group and not varies_across_groups:
-                    pass # หากติดล็อก Group ข้ามเฉพาะตัวแปรนี้ไป
+                if is_in_group and not group_vary_status.get("Base_Level", False):
+                    skipped_group_count += 1
                 else:
                     if p_base.StorageType == DB.StorageType.String:
                         elev_m = base_elev * 0.3048
@@ -237,13 +258,19 @@ with forms.ProgressBar(title='กำลังคำนวณพารามิ�
             # (B) Level_Bottom_of_Column
             p_bottom = wall.LookupParameter("Level_Bottom_of_Column")
             if p_bottom and not p_bottom.IsReadOnly:
-                p_bottom.Set(bottom_val)
+                if is_in_group and not group_vary_status.get("Level_Bottom_of_Column", False):
+                    skipped_group_count += 1
+                else:
+                    p_bottom.Set(bottom_val)
 
             # (C) Top of Wall (เป้าหมายหลัก)
             p_top = wall.LookupParameter("Top of Wall")
             if p_top and not p_top.IsReadOnly:
-                p_top.Set(top_of_wall_val)
-                success_count += 1
+                if is_in_group and not group_vary_status.get("Top of Wall", False):
+                    skipped_group_count += 1
+                else:
+                    p_top.Set(top_of_wall_val)
+                    success_count += 1
             elif not p_top:
                 error_log.append("Wall ID {}: ไม่พบ Parameter 'Top of Wall'".format(wall.Id.Value))
 
@@ -265,6 +292,9 @@ if is_cancelled:
     output.print_md("🛑 **ผู้ใช้กดยกเลิกการทำงานกลางคัน! (บันทึกเฉพาะส่วนที่ทำเสร็จแล้ว)**")
 
 output.print_md("✅ อัปเดตสำเร็จ: **{}** รายการ จากทั้งหมด {} รายการ".format(success_count, total_elements))
+
+if skipped_group_count > 0:
+    output.print_md("Grouped walls skipped to prevent Revit from forcing the Ungroup workflow: {}".format(skipped_group_count))
 
 if error_log:
     output.print_md("### ⚠️ **ข้อผิดพลาดที่พบ**")
