@@ -1,0 +1,31 @@
+title: "Pipe BOP\nCalculator"
+
+tooltip: |
+  🇬🇧 [EN] Powerful extension tool to calculate pipe start and end bottom elevations (B-Start & BOP.Cal).
+  Key Features:
+  • Uses existing B-Start and BOP.Cal parameters (Type: Length) bound to Pipes.
+  • Calculates absolute B.O.P. levels based on centerline geometry and outer diameter.
+  • Handles flat and sloped pipes correctly.
+  • Works in selection mode or on all pipes in the active view.
+
+  How to use:
+  1. Select one or more Pipes in the model (optional).
+  2. Click the tool.
+  3. The tool will check/create B-Start and BOP.Cal parameters.
+  4. The tool will write the calculated bottom-of-pipe elevations.
+
+  🇹🇭 [TH] เครื่องมือคำนวณและเขียนระดับท้องท่อ (Bottom of Pipe - B.O.P.) ด้านเริ่มและด้านจบของท่อเพื่อการ Tag
+  ฟังก์ชันหลัก:
+  • ตรวจสอบและสร้างพารามิเตอร์ B-Start และ BOP.Cal (ชนิด Length) สำหรับท่อโดยอัตโนมัติ
+  • คำนวณระดับท้องท่อจุดเริ่มต้น (ด้านสูง) และจุดสิ้นสุด (ด้านต่ำ) อ้างอิงจากโมเดลสามมิติจริง
+  • รองรับการคำนวณท่อลาดเอียงและท่อราบทุกชนิดในแบบจำลอง
+  • ทำงานร่วมกับท่อที่ถูกเลือก หรือรันทั้งหน้าต่างมุมมองที่เปิดใช้งานอยู่
+
+  วิธีใช้งาน:
+  1. เลือกท่อ (Pipes) หนึ่งชิ้นหรือหลายชิ้นในโมเดล (ไม่บังคับ)
+  2. คลิกที่เครื่องมือเพื่อสั่งทำงาน
+  3. ระบบจะตรวจสอบและสร้างพารามิเตอร์ B-Start และ BOP.Cal ให้โดยอัตโนมัติ (เฉพาะครั้งแรก)
+  4. ระบบจะคำนวณและกรอกระดับท้องท่อด้านที่สูงกว่าลงใน B-Start และด้านที่ต่ำกว่าลงใน BOP.Cal
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+description: "Calculate pipe start/end bottom elevations (B-Start & BOP.Cal) for pipe tagging. / คำนวณระดับท้องท่อจุดเริ่มต้นและจุดสิ้นสุดสำหรับการจัดทำ Tag ของท่อ"
