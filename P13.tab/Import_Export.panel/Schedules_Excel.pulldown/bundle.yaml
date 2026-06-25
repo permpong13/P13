@@ -1,4 +1,4 @@
-title: "Schedules\nExcel"
+title: "Schedules"
 tooltip: |
   Export and import Revit schedules through Excel or CSV.
 
@@ -6,6 +6,7 @@ tooltip: |
   - Export Schedules to Excel
   - Sync Schedules with Excel
   - Import Schedules from Excel
+  - Import Schedules (Cross-Document)
 
   Schedule round-trip files include hidden P13 metadata or CSV sidecar metadata for safer update-only imports.
   Exported values follow displayed Revit schedule cells; imports write only metadata-approved writable parameters.
@@ -16,3 +17,4 @@ layout:
   - Export Schedules to Excel
   - Sync Schedules with Excel
   - Import Schedules from Excel
+  - Import Schedules
