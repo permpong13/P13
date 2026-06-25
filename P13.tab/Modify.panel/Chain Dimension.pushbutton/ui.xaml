@@ -74,6 +74,21 @@
             <Setter Property="Background" Value="#243149"/>
             <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
         </Style>
+
+        <Style x:Key="TextLinkButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentBlueBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <TextBlock Text="{TemplateBinding Content}" TextDecorations="Underline"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border Padding="20">
@@ -111,7 +126,7 @@
                 <StackPanel>
                     <TextBlock Text="Selection Mode" FontSize="14" FontWeight="SemiBold"/>
                     <RadioButton x:Name="selectionWindow"
-                                 Content="Window select family instances"
+                                 Content="Window select elements"
                                  GroupName="SelectionMode"
                                  IsChecked="True"
                                  Click="selection_changed"/>
@@ -119,6 +134,31 @@
                                  Content="Pick dimension references manually"
                                  GroupName="SelectionMode"
                                  Click="selection_changed"/>
+
+                    <StackPanel x:Name="categoriesPanel" Margin="0,12,0,0">
+                        <Grid Margin="0,0,0,4">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Grid.Column="0" Text="Categories to Measure" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="Select All" Click="select_all_categories" Style="{StaticResource TextLinkButton}"/>
+                                <TextBlock Text=" | " Foreground="{StaticResource MutedBrush}" Margin="4,0" FontSize="11" VerticalAlignment="Center"/>
+                                <Button Content="Clear All" Click="clear_all_categories" Style="{StaticResource TextLinkButton}"/>
+                            </StackPanel>
+                        </Grid>
+                        <ListBox x:Name="CategoriesList" Height="100" SelectionMode="Multiple"
+                                 Background="#172033" Foreground="#E5E7EB" BorderBrush="#30415F" BorderThickness="1"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <ListBox.ItemContainerStyle>
+                                <Style TargetType="ListBoxItem">
+                                    <Setter Property="Padding" Value="4,2"/>
+                                    <Setter Property="Margin" Value="1"/>
+                                </Style>
+                            </ListBox.ItemContainerStyle>
+                        </ListBox>
+                    </StackPanel>
                 </StackPanel>
             </Border>
 
@@ -155,18 +195,20 @@
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Grid.Column="0"
-                           Text="Equality Formula is applied automatically after creation."
-                           Foreground="{StaticResource MutedBrush}"
-                           VerticalAlignment="Center"/>
+                <CheckBox Grid.Column="0"
+                          x:Name="applyEquality"
+                          Content="Apply Equality Formula (EQ)"
+                          Foreground="{StaticResource TextBrush}"
+                          IsChecked="True"
+                          VerticalAlignment="Center"/>
                 <Button Grid.Column="1"
-                        Content="Cancel"
-                        Style="{StaticResource SecondaryButton}"
-                        Click="cancel_clicked"/>
+                         Content="Cancel"
+                         Style="{StaticResource SecondaryButton}"
+                         Click="cancel_clicked"/>
                 <Button Grid.Column="3"
-                        Content="Start"
-                        Style="{StaticResource PrimaryButton}"
-                        Click="start_clicked"/>
+                         Content="Start"
+                         Style="{StaticResource PrimaryButton}"
+                         Click="start_clicked"/>
             </Grid>
         </Grid>
     </Border>

@@ -22,9 +22,44 @@ PARALLEL_TOLERANCE = 0.70
 UI_FILE = script.get_bundle_file("ui.xaml")
 
 
-class FamilyInstanceSelectionFilter(ISelectionFilter):
+def get_model_categories_in_view(doc, view):
+    collector = DB.FilteredElementCollector(doc, view.Id)
+    elements = collector.WhereElementIsNotElementType().ToElements()
+    
+    categories = {}
+    for elem in elements:
+        category = elem.Category
+        if isinstance(elem, DB.Grid):
+            category = elem.Category
+            if not category:
+                try:
+                    category = doc.Settings.Categories.get_Item(DB.BuiltInCategory.OST_Grids)
+                except Exception:
+                    pass
+
+        if category:
+            is_model = category.CategoryType == DB.CategoryType.Model
+            is_grid = get_id_value(category.Id) == get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Grids))
+            if is_model or is_grid:
+                category_name = category.Name
+                category_id = get_id_value(category.Id)
+                categories[category_name] = category_id
+            
+    return categories
+
+
+class CategorySelectionFilter(ISelectionFilter):
+    def __init__(self, allowed_category_ids):
+        self.allowed_category_ids = allowed_category_ids
+
     def AllowElement(self, element):
-        return isinstance(element, DB.FamilyInstance)
+        if isinstance(element, DB.Grid):
+            grid_category_id = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Grids))
+            return grid_category_id in self.allowed_category_ids
+
+        if not element.Category:
+            return False
+        return get_id_value(element.Category.Id) in self.allowed_category_ids
 
     def AllowReference(self, reference, point):
         return False
@@ -36,15 +71,34 @@ class ChainDimensionWindow(forms.WPFWindow):
         self.selection_mode = None
         self.direction_mode = None
         self.target_mode = None
+        self.selected_category_ids = []
+        self.apply_equality = True
+
+        # Collect model categories present in the active view
+        self.categories_map = get_model_categories_in_view(doc, view)
+        self.categories_list = sorted(self.categories_map.keys())
+        self.CategoriesList.ItemsSource = self.categories_list
+        self.CategoriesList.SelectAll()
+
         self.selection_changed(None, None)
 
     def selection_changed(self, sender, args):
         if self.selectionManual.IsChecked:
             self.targetPanel.IsEnabled = False
             self.targetPanel.Opacity = 0.42
+            self.categoriesPanel.IsEnabled = False
+            self.categoriesPanel.Opacity = 0.42
         else:
             self.targetPanel.IsEnabled = True
             self.targetPanel.Opacity = 1.0
+            self.categoriesPanel.IsEnabled = True
+            self.categoriesPanel.Opacity = 1.0
+
+    def select_all_categories(self, sender, args):
+        self.CategoriesList.SelectAll()
+
+    def clear_all_categories(self, sender, args):
+        self.CategoriesList.UnselectAll()
 
     def start_clicked(self, sender, args):
         self.selection_mode = (
@@ -66,6 +120,19 @@ class ChainDimensionWindow(forms.WPFWindow):
             self.target_mode = "Both sides of each family"
         else:
             self.target_mode = "Start side of each family"
+
+        # Capture selected category IDs
+        self.selected_category_ids = []
+        for item in self.CategoriesList.SelectedItems:
+            if item in self.categories_map:
+                self.selected_category_ids.append(self.categories_map[item])
+
+        if self.selection_mode == "Window Select Families" and len(self.selected_category_ids) == 0:
+            forms.alert("Please select at least one category to measure.", title="Warning")
+            return
+
+        # Capture equality checkbox state
+        self.apply_equality = self.applyEquality.IsChecked
 
         self.DialogResult = True
         self.Close()
@@ -404,23 +471,46 @@ def pick_reference_points():
     return reference_points
 
 
-def pick_family_instances_by_rectangle():
+def pick_elements_by_rectangle(category_ids):
     selected_elements = uidoc.Selection.PickElementsByRectangle(
-        FamilyInstanceSelectionFilter(),
-        "Drag a window around the family instances to dimension.",
+        CategorySelectionFilter(category_ids),
+        "Drag a window around the elements to dimension.",
     )
 
-    family_instances = [element for element in selected_elements if isinstance(element, DB.FamilyInstance)]
-    if len(family_instances) < MIN_REFERENCE_COUNT:
-        forms.alert("Select at least two family instances.", exitscript=True)
+    elements = []
+    for element in selected_elements:
+        if isinstance(element, DB.Grid):
+            grid_category_id = get_id_value(DB.ElementId(DB.BuiltInCategory.OST_Grids))
+            if grid_category_id in category_ids:
+                elements.append(element)
+        elif element.Category and get_id_value(element.Category.Id) in category_ids:
+            elements.append(element)
 
-    return family_instances
+    if len(elements) < MIN_REFERENCE_COUNT:
+        forms.alert("Select at least two elements.", exitscript=True)
+
+    return elements
 
 
-def get_family_dimension_targets(family_instances, mode, dimension_direction, target_mode):
+def get_element_dimension_targets(elements, mode, dimension_direction, target_mode):
     reference_points = []
 
-    for family_instance in family_instances:
+    for element in elements:
+        # Handle Gridlines explicitly
+        if isinstance(element, DB.Grid):
+            try:
+                reference = DB.Reference(element)
+                curve = element.Curve
+                if curve:
+                    point = project_point_to_view_plane(curve.Evaluate(0.5, True))
+                else:
+                    point = get_bbox_center(element)
+                if reference and point:
+                    reference_points.append((reference, point))
+            except Exception:
+                pass
+            continue
+
         side_requests = []
         if target_mode == "Start side of each family":
             side_requests = [False]
@@ -431,19 +521,19 @@ def get_family_dimension_targets(family_instances, mode, dimension_direction, ta
 
         for use_end_side in side_requests:
             reference = get_family_side_reference(
-                family_instance,
+                element,
                 mode,
                 dimension_direction,
                 use_end_side,
             )
-            point = get_bbox_side_point(family_instance, dimension_direction, use_end_side)
+            point = get_bbox_side_point(element, dimension_direction, use_end_side)
             if reference and point:
                 reference_points.append((reference, point))
 
     if len(reference_points) < MIN_REFERENCE_COUNT:
         forms.alert(
-            "Could not find enough dimension references on the selected families. "
-            "Use Pick References Manually, or add named reference planes to the family.",
+            "Could not find enough dimension references on the selected elements. "
+            "Use Pick References Manually, or add named reference planes to the families.",
             exitscript=True,
         )
 
@@ -529,28 +619,30 @@ def main():
     selection_mode = options_window.selection_mode
     mode = options_window.direction_mode
     target_mode = options_window.target_mode
+    selected_category_ids = options_window.selected_category_ids
+    apply_equality = options_window.apply_equality
 
     if selection_mode == "Window Select Families":
         try:
-            family_instances = pick_family_instances_by_rectangle()
+            elements = pick_elements_by_rectangle(selected_category_ids)
         except OperationCanceledException:
             script.exit()
 
-        family_centers = []
-        for family_instance in family_instances:
-            center = get_bbox_center(family_instance)
+        element_centers = []
+        for element in elements:
+            center = get_bbox_center(element)
             if center:
-                family_centers.append(center)
+                element_centers.append(center)
 
-        if len(family_centers) < MIN_REFERENCE_COUNT:
-            forms.alert("Could not read enough selected family locations.", exitscript=True)
+        if len(element_centers) < MIN_REFERENCE_COUNT:
+            forms.alert("Could not read enough selected element locations.", exitscript=True)
 
-        dimension_direction = get_dimension_direction(mode, family_centers)
+        dimension_direction = get_dimension_direction(mode, element_centers)
         if not dimension_direction:
             forms.alert("Could not calculate a valid dimension direction.", exitscript=True)
 
-        reference_points = get_family_dimension_targets(
-            family_instances,
+        reference_points = get_element_dimension_targets(
+            elements,
             mode,
             dimension_direction,
             target_mode,
@@ -581,7 +673,8 @@ def main():
     try:
         with revit.Transaction("Create Chain Dimension"):
             dimension = doc.Create.NewDimension(view, dimension_line, ref_array)
-            apply_equality_formula_display(dimension)
+            if apply_equality:
+                apply_equality_formula_display(dimension)
             doc.Regenerate()
     except Exception as create_error:
         forms.alert(
