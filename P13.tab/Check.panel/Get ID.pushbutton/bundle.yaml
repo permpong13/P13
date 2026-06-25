@@ -1,0 +1,7 @@
+title: "Get\nID"
+
+tooltip: |
+  Get Element IDs of currently selected elements and copy them to the clipboard.
+
+author: "P13"
+description: "Get Element IDs of currently selected elements."

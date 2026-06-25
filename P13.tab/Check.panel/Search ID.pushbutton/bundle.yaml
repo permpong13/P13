@@ -1,0 +1,7 @@
+title: "Search\nID"
+
+tooltip: |
+  Search and select elements by their Element IDs or Unique IDs/GUIDs.
+
+author: "P13"
+description: "Search and select elements by their Element IDs."
