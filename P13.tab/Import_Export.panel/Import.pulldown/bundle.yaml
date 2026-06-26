@@ -1,0 +1,13 @@
+title: "Import"
+tooltip: |
+  Import Detail Items and Families from CSV or Excel files.
+
+  Tools:
+  - CSV to Detail Items
+  - CSV to Families
+  - Excel to Families
+
+layout:
+  - Import Detail Items from CSV
+  - Import Families from CSV
+  - Import Families from Excel

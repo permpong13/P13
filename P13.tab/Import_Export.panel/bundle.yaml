@@ -1,6 +1,6 @@
 title: "Import & Export"
 layout:
   - Schedules_Excel
+  - Import
   - Legend_Drafting
-  - ImportLegend
   - Sheet
