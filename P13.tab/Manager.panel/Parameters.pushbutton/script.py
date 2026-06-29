@@ -44,13 +44,23 @@ THEMES = {
         'BgMain': '#F5F5F5', 'BgPanel': '#FFFFFF', 'Border': '#DDDDDD',
         'FgMain': '#000000', 'FgMuted': '#808080', 'BtnBg': '#EEEEEE',
         'GridAlt': '#F9F9F9', 'ThemeIcon': '🌙 Dark Mode',
-        'HeaderBg': '#007ACC', 'HeaderText': '#FFFFFF', 'TabBg': '#FFFFFF'
+        'HeaderBg': '#007ACC', 'HeaderText': '#FFFFFF', 'TabBg': '#FFFFFF',
+        'StatusBg': '#007ACC', 'StatusFg': '#FFFFFF'
     },
-    True: { # Dark Mode
-        'BgMain': '#1E1E1E', 'BgPanel': '#252526', 'Border': '#3F3F46',
-        'FgMain': '#F1F1F1', 'FgMuted': '#A0A0A0', 'BtnBg': '#3E3E42',
-        'GridAlt': '#2D2D30', 'ThemeIcon': '☀️ Light Mode',
-        'HeaderBg': '#2D2D30', 'HeaderText': '#007ACC', 'TabBg': '#2D2D30'
+    True: { # Dark Mode - Futuristic Cyber Obsidian
+        'BgMain': '#0B0F19',       # Deep space navy-black
+        'BgPanel': '#111827',      # Slate dark gray-blue
+        'Border': '#1F2937',       # Dark border
+        'FgMain': '#E5E7EB',       # Near-white text
+        'FgMuted': '#9CA3AF',      # Slate muted text
+        'BtnBg': '#1F2937',        # Slate button background
+        'GridAlt': '#151D30',      # Darker slate blue for alternating grid row
+        'ThemeIcon': '☀️ Light Mode',
+        'HeaderBg': '#1F2937',     # Sleek dark header
+        'HeaderText': '#00F0FF',   # Glowing Cyber Cyan accent
+        'TabBg': '#111827',        # Tab background matching panel
+        'StatusBg': '#111827',     # Status bar matches panel
+        'StatusFg': '#00F0FF'      # Glowing cyber cyan text
     }
 }
 
@@ -143,7 +153,7 @@ class EnhancedParameterManager:
                     'name': name, 'type': self._get_param_type(defn), 'group': group,
                     'binding': 'Instance' if isinstance(bind, DB.InstanceBinding) else 'Type',
                     'categories': [c.Name for c in bind.Categories if hasattr(c, 'Name')],
-                    'is_used': self._is_parameter_used_accurate(name, isinstance(bind, DB.InstanceBinding), bind.Categories),
+                    'is_used': None,
                     'definition': defn, 'is_instance': isinstance(bind, DB.InstanceBinding),
                     'is_shared': isinstance(defn, DB.ExternalDefinition),
                     'guid': defn.GUID.ToString() if hasattr(defn, "GUID") else None,
@@ -263,7 +273,10 @@ class ParamRow(object):
     @IsChecked.setter
     def IsChecked(self, value): self._is_checked = value
     @property
-    def UsedStatus(self): return "✔️ Yes" if self.p_dict['is_used'] else "❌ No"
+    def UsedStatus(self):
+        val = self.p_dict.get('is_used')
+        if val is None: return "❔ Unknown"
+        return "✔️ Yes" if val else "❌ No"
     @property
     def Name(self): return self.p_dict['name']
     @property
@@ -363,8 +376,8 @@ CAT_SELECTOR_XAML = """
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
             <TextBlock Grid.Row="0" Text="Search Categories:" FontWeight="Bold" Margin="0,0,0,5"/>
-            <TextBox Grid.Row="1" Name="txtSearchCat" Height="25" Padding="3" Margin="0,0,0,10" Background="[[BgMain]]" Foreground="Black"/>
-            <DataGrid Grid.Row="2" Name="dgCats" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" HeadersVisibility="Column" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="Black">
+            <TextBox Grid.Row="1" Name="txtSearchCat" Height="25" Padding="3" Margin="0,0,0,10" Background="[[BgMain]]" Foreground="[[FgMain]]"/>
+            <DataGrid Grid.Row="2" Name="dgCats" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" HeadersVisibility="Column" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="[[FgMain]]">
                 <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="[[BtnBg]]"/><Setter Property="Foreground" Value="[[FgMain]]"/><Setter Property="Padding" Value="5"/><Setter Property="BorderThickness" Value="0,0,1,1"/><Setter Property="BorderBrush" Value="[[Border]]"/></Style></DataGrid.ColumnHeaderStyle>
                 <DataGrid.Columns>
                     <DataGridTemplateColumn Header="☑" Width="40" SortMemberPath="IsChecked"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -417,13 +430,13 @@ NEW_PARAM_XAML = """
     <Border Background="[[BgPanel]]" Padding="15">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <StackPanel Grid.Row="0" Margin="0,0,0,10"><TextBlock Text="Parameter Name:" FontWeight="Bold" Margin="0,0,0,2"/><TextBox Name="txtName" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
+            <StackPanel Grid.Row="0" Margin="0,0,0,10"><TextBlock Text="Parameter Name:" FontWeight="Bold" Margin="0,0,0,2"/><TextBox Name="txtName" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
             <Grid Grid.Row="1" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Data Type:" FontWeight="Bold" Margin="0,0,0,2"/><ComboBox Name="cmbType" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
-                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Binding:" FontWeight="Bold" Margin="0,0,0,2"/><ComboBox Name="cmbBinding" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
+                <StackPanel Grid.Column="0" Margin="0,0,5,0"><TextBlock Text="Data Type:" FontWeight="Bold" Margin="0,0,0,2"/><ComboBox Name="cmbType" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
+                <StackPanel Grid.Column="1" Margin="5,0,0,0"><TextBlock Text="Binding:" FontWeight="Bold" Margin="0,0,0,2"/><ComboBox Name="cmbBinding" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
             </Grid>
-            <StackPanel Grid.Row="2" Margin="0,0,0,10"><TextBlock Text="Group Under:" FontWeight="Bold" Margin="0,0,0,2"/><ComboBox Name="cmbGroup" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
+            <StackPanel Grid.Row="2" Margin="0,0,0,10"><TextBlock Text="Group Under:" FontWeight="Bold" Margin="0,0,0,2"/><ComboBox Name="cmbGroup" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
             <StackPanel Grid.Row="3" Margin="0,0,0,15"><TextBlock Text="Categories:" FontWeight="Bold" Margin="0,0,0,2"/>
                 <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                     <TextBlock Name="txtCatCount" Grid.Column="0" Text="0 Categories Selected" VerticalAlignment="Center" Foreground="[[FgMuted]]"/>
@@ -476,9 +489,9 @@ EDIT_XAML = """
     <Border Background="[[BgPanel]]" Padding="15">
         <Grid>
             <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
-            <StackPanel Grid.Row="0" Margin="0,0,0,15"><TextBlock Text="Parameter Name:" FontWeight="Bold"/><TextBox Name="txtName" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
-            <StackPanel Grid.Row="1" Margin="0,0,0,15"><TextBlock Text="Group Under:" FontWeight="Bold"/><ComboBox Name="cmbGroup" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
-            <StackPanel Grid.Row="2" Margin="0,0,0,15"><TextBlock Text="Binding:" FontWeight="Bold"/><ComboBox Name="cmbBinding" Height="25" Padding="3" Background="[[BgMain]]" Foreground="Black"/></StackPanel>
+            <StackPanel Grid.Row="0" Margin="0,0,0,15"><TextBlock Text="Parameter Name:" FontWeight="Bold"/><TextBox Name="txtName" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
+            <StackPanel Grid.Row="1" Margin="0,0,0,15"><TextBlock Text="Group Under:" FontWeight="Bold"/><ComboBox Name="cmbGroup" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
+            <StackPanel Grid.Row="2" Margin="0,0,0,15"><TextBlock Text="Binding:" FontWeight="Bold"/><ComboBox Name="cmbBinding" Height="25" Padding="3" Background="[[BgMain]]" Foreground="[[FgMain]]"/></StackPanel>
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Bottom">
                 <Button Name="btnSave" Content="💾 Save" Width="100" Height="30" Margin="0,0,10,0" Background="#4CAF50" Foreground="White" FontWeight="Bold"/>
                 <Button Name="btnCancel" Content="❌ Cancel" Width="80" Height="30" Background="[[BtnBg]]" Foreground="[[FgMain]]"/>
@@ -527,7 +540,7 @@ XAML_LAYOUT = """
             <Grid>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Left">
                     <TextBlock Text="🔍 Search:" VerticalAlignment="Center" FontWeight="Bold" Margin="0,0,5,0" Foreground="[[HeaderText]]"/>
-                    <TextBox Name="txtSearch" Width="250" Height="25" Padding="3" VerticalContentAlignment="Center" Background="[[BgMain]]" Foreground="Black"/>
+                    <TextBox Name="txtSearch" Width="250" Height="25" Padding="3" VerticalContentAlignment="Center" Background="[[BgMain]]" Foreground="[[FgMain]]"/>
                     <Button Name="btnClearSearch" Content="✖" Width="25" Height="25" Background="Transparent" BorderBrush="Transparent" Foreground="[[FgMuted]]" Margin="2,0,0,0"/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
@@ -540,7 +553,7 @@ XAML_LAYOUT = """
         </Border>
 
         <TabControl Name="mainTabs" Grid.Row="1" Margin="10" Background="[[TabBg]]" BorderBrush="[[Border]]">
-            <TabItem Header="  Parameters  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="Black">
+            <TabItem Header="  Parameters  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="[[FgMain]]">
                 <Grid Background="[[BgPanel]]"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5" Background="[[BgPanel]]">
                         <Button Content="➕ New Parameter" Name="btnNewParam" Width="130" Height="30" Margin="0,0,10,0" Background="[[BtnBg]]" Foreground="#4CAF50" FontWeight="Bold"/>
@@ -553,9 +566,10 @@ XAML_LAYOUT = """
                         <Button Content="✏️ Quick Edit" Name="btnEditSingle" Width="90" Height="30" Margin="0,0,5,0" Background="[[BtnBg]]" Foreground="[[FgMain]]"/>
                         <Button Content="⚙️ Batch Group" Name="btnEditGroup" Width="90" Height="30" Margin="0,0,15,0" Background="[[BtnBg]]" Foreground="[[FgMain]]"/>
                         <Button Content="🗑️ Delete" Name="btnDelete" Width="80" Height="30" Margin="0,0,5,0" Background="[[BtnBg]]" Foreground="#F44336"/>
+                        <Button Content="🔍 Scan Usage" Name="btnScanUsage" Width="95" Height="30" Margin="0,0,5,0" Background="[[BtnBg]]" Foreground="[[FgMain]]" ToolTip="Scan parameter usage in model"/>
                         <Button Content="🧹 Clean Unused" Name="btnClean" Width="100" Height="30" Background="[[BtnBg]]" Foreground="[[FgMain]]"/>
                     </StackPanel>
-                    <DataGrid Name="dgParams" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" Margin="5" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="Black" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
+                    <DataGrid Name="dgParams" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" Margin="5" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="[[FgMain]]" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
                         <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="[[BtnBg]]"/><Setter Property="Foreground" Value="[[FgMain]]"/><Setter Property="Padding" Value="5"/><Setter Property="BorderThickness" Value="0,0,1,1"/><Setter Property="BorderBrush" Value="[[Border]]"/></Style></DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="☑" Width="40" SortMemberPath="IsChecked"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -570,14 +584,14 @@ XAML_LAYOUT = """
                 </Grid>
             </TabItem>
 
-            <TabItem Header="  Categories  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="Black">
+            <TabItem Header="  Categories  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="[[FgMain]]">
                 <Grid Background="[[BgPanel]]"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                     <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="5" Background="[[BgPanel]]">
                         <Button Content="➕ Batch Add Categories" Name="btnAddCat" Width="160" Height="30" Margin="0,0,5,0" Background="[[BtnBg]]" Foreground="#4CAF50" FontWeight="Bold"/>
                         <Button Content="➖ Batch Remove" Name="btnRemoveCat" Width="120" Height="30" Margin="0,0,15,0" Background="[[BtnBg]]" Foreground="#F44336"/>
                         <TextBlock Text="💡 Tip: You can click on column headers to sort them A-Z." VerticalAlignment="Center" Foreground="[[FgMuted]]" FontStyle="Italic"/>
                     </StackPanel>
-                    <DataGrid Name="dgCategories" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" Margin="5" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="Black" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
+                    <DataGrid Name="dgCategories" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" Margin="5" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="[[FgMain]]" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
                         <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="[[BtnBg]]"/><Setter Property="Foreground" Value="[[FgMain]]"/><Setter Property="Padding" Value="5"/><Setter Property="BorderThickness" Value="0,0,1,1"/><Setter Property="BorderBrush" Value="[[Border]]"/></Style></DataGrid.ColumnHeaderStyle>
                         <DataGrid.Columns>
                             <DataGridTemplateColumn Header="☑" Width="40" SortMemberPath="IsChecked"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -588,7 +602,7 @@ XAML_LAYOUT = """
                 </Grid>
             </TabItem>
 
-            <TabItem Header="  Families  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="Black">
+            <TabItem Header="  Families  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="[[FgMain]]">
                 <Border Background="[[BgPanel]]" Padding="10">
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
@@ -597,7 +611,7 @@ XAML_LAYOUT = """
                             <TextBlock Name="txtFamilyFolder" Text="No folder selected..." VerticalAlignment="Center" Margin="10,0,0,0" Foreground="[[FgMuted]]"/>
                             <TextBlock Text="💡 Tip: Make sure your Shared Parameters .txt file is loaded in Revit first." VerticalAlignment="Center" Margin="20,0,0,0" Foreground="#007ACC" FontStyle="Italic"/>
                         </StackPanel>
-                        <DataGrid Name="dgFamilies" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="Black" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
+                        <DataGrid Name="dgFamilies" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="[[FgMain]]" SelectionMode="Extended" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
                             <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="[[BtnBg]]"/><Setter Property="Foreground" Value="[[FgMain]]"/><Setter Property="Padding" Value="5"/><Setter Property="BorderThickness" Value="0,0,1,1"/><Setter Property="BorderBrush" Value="[[Border]]"/></Style></DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
                                 <DataGridTemplateColumn Header="☑" Width="40" SortMemberPath="IsChecked"><DataGridTemplateColumn.CellTemplate><DataTemplate><CheckBox IsChecked="{Binding IsChecked, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" HorizontalAlignment="Center" VerticalAlignment="Center"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
@@ -612,18 +626,18 @@ XAML_LAYOUT = """
                 </Border>
             </TabItem>
 
-            <TabItem Header="  Templates  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="Black">
+            <TabItem Header="  Templates  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="[[FgMain]]">
                 <Border Background="[[BgPanel]]" Padding="10">
                     <Grid>
                         <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                         <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,10">
                             <TextBlock Text="Preset Templates:" FontWeight="Bold" VerticalAlignment="Center" Margin="0,0,10,0" Foreground="[[FgMain]]"/>
-                            <ComboBox Name="cmbTemplates" Width="200" Height="30" Margin="0,0,10,0" VerticalContentAlignment="Center" Background="[[BgMain]]" Foreground="Black"/>
+                            <ComboBox Name="cmbTemplates" Width="200" Height="30" Margin="0,0,10,0" VerticalContentAlignment="Center" Background="[[BgMain]]" Foreground="[[FgMain]]"/>
                             <Button Content="💾 Save Selected as Template" Name="btnSaveTemplate" Width="190" Height="30" Background="[[BtnBg]]" Foreground="[[FgMain]]" Margin="0,0,5,0"/>
                             <Button Content="📥 Apply Template to Project" Name="btnApplyTemplate" Width="190" Height="30" Background="[[BtnBg]]" Foreground="#4CAF50" FontWeight="Bold" Margin="0,0,15,0"/>
                             <Button Content="🗑️ Delete Template" Name="btnDeleteTemplate" Width="120" Height="30" Background="[[BtnBg]]" Foreground="#F44336"/>
                         </StackPanel>
-                        <DataGrid Name="dgTemplates" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="Black" SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
+                        <DataGrid Name="dgTemplates" Grid.Row="1" AutoGenerateColumns="False" CanUserAddRows="False" CanUserSortColumns="True" AlternatingRowBackground="[[GridAlt]]" Background="[[BgPanel]]" RowBackground="[[BgPanel]]" Foreground="[[FgMain]]" SelectionMode="Single" SelectionUnit="FullRow" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="[[Border]]" VerticalGridLinesBrush="[[Border]]">
                             <DataGrid.ColumnHeaderStyle><Style TargetType="DataGridColumnHeader"><Setter Property="Background" Value="[[BtnBg]]"/><Setter Property="Foreground" Value="[[FgMain]]"/><Setter Property="Padding" Value="5"/><Setter Property="BorderThickness" Value="0,0,1,1"/><Setter Property="BorderBrush" Value="[[Border]]"/></Style></DataGrid.ColumnHeaderStyle>
                             <DataGrid.Columns>
                                 <DataGridTextColumn Header="Parameter Name" Binding="{Binding Name}" IsReadOnly="True" Width="250" SortMemberPath="Name"/>
@@ -636,7 +650,7 @@ XAML_LAYOUT = """
                 </Border>
             </TabItem>
 
-            <TabItem Header="  Transfer  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="Black">
+            <TabItem Header="  Transfer  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="[[FgMain]]">
                 <Grid Background="[[BgPanel]]">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="🔄 Transfer Project Parameters" FontSize="20" FontWeight="Bold" Margin="0,0,0,10" HorizontalAlignment="Center" Foreground="[[FgMain]]"/>
@@ -646,7 +660,7 @@ XAML_LAYOUT = """
                 </Grid>
             </TabItem>
 
-            <TabItem Header="  Shared Editor  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="Black">
+            <TabItem Header="  Shared Editor  " FontSize="14" FontWeight="SemiBold" Background="[[BgPanel]]" Foreground="[[FgMain]]">
                 <Grid Background="[[BgPanel]]">
                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                         <TextBlock Text="📁 Shared Parameter File (.txt) Editor" FontSize="20" FontWeight="Bold" Margin="0,0,0,10" HorizontalAlignment="Center" Foreground="[[FgMain]]"/>
@@ -666,7 +680,7 @@ XAML_LAYOUT = """
                 <Button Content="❌ Uncheck Highlighted" Name="btnUncheckSelected" Width="140" Height="25" Margin="0,0,15,0" Background="[[BtnBg]]" Foreground="#F44336" BorderBrush="[[Border]]"/>
             </StackPanel>
         </Border>
-        <StatusBar Grid.Row="3" Background="#007ACC" Foreground="White"><StatusBarItem><TextBlock Text="Ready" Name="txtStatus"/></StatusBarItem></StatusBar>
+        <StatusBar Grid.Row="3" Background="[[StatusBg]]" Foreground="[[StatusFg]]"><StatusBarItem><TextBlock Text="Ready" Name="txtStatus" Foreground="[[StatusFg]]"/></StatusBarItem></StatusBar>
     </Grid>
 </Window>
 """
@@ -708,6 +722,7 @@ class ParameterManagerWindow:
         self.window.FindName("btnEditSingle").Click += self.quick_edit_action
         self.window.FindName("btnEditGroup").Click += self.edit_group_action
         self.window.FindName("btnDelete").Click += self.delete_action
+        self.window.FindName("btnScanUsage").Click += self.scan_usage_action
         self.window.FindName("btnClean").Click += self.clean_action
         self.window.FindName("btnAddCat").Click += self.add_cat_action
         self.window.FindName("btnRemoveCat").Click += self.remove_cat_action
@@ -1065,8 +1080,37 @@ class ParameterManagerWindow:
                 t.Start(); self.mgr.delete_multiple_parameters([r.p_dict for r in sel]); t.Commit()
             self.refresh_data()
 
+    def scan_usage_action(self, sender, e):
+        rows_to_scan = [r for r in self.obs_params if not r.p_dict.get('is_global') and r.p_dict['binding'] != 'Unbound']
+        if not rows_to_scan:
+            forms.alert("ไม่มีพารามิเตอร์ที่จะต้องทำการสแกน", title="Scan Usage")
+            return
+        
+        with forms.ProgressBar(title="กำลังสแกนการใช้งาน Parameter ในโมเดล...", cancellable=True) as pb:
+            for idx, row in enumerate(rows_to_scan):
+                if pb.cancelled:
+                    break
+                p = row.p_dict
+                p['is_used'] = self.mgr._is_parameter_used_accurate(
+                    p['name'], p['is_instance'], p['definition'].Categories if p['definition'] else None
+                )
+                pb.update_progress(idx + 1, len(rows_to_scan))
+        
+        self.refresh_ui()
+
     def clean_action(self, sender, e):
-        uu = [r for r in self.obs_params if not r.p_dict['is_used']]
+        unscanned = [r for r in self.obs_params if r.p_dict['is_used'] is None and not r.p_dict.get('is_global') and r.p_dict['binding'] != 'Unbound']
+        if unscanned:
+            opt = forms.alert(
+                "มีพารามิเตอร์ที่ยังไม่ได้สแกนสถานะการใช้งาน ต้องการสแกนก่อนตรวจสอบเพื่อความถูกต้องใช่หรือไม่?",
+                options=["สแกนก่อน", "ยกเลิก"]
+            )
+            if opt == "สแกนก่อน":
+                self.scan_usage_action(None, None)
+            else:
+                return
+
+        uu = [r for r in self.obs_params if r.p_dict['is_used'] == False]
         if not uu: return forms.alert("ไม่พบตัวที่ไม่ได้ใช้")
         if forms.alert("ลบ " + str(len(uu)) + " ตัวที่ไม่ใช้?", options=["ลบ", "ยกเลิก"]) == "ลบ":
             with DB.Transaction(doc, "Clean") as t:
@@ -1109,8 +1153,23 @@ class ParameterManagerWindow:
                 forms.alert("เพิ่มสำเร็จ")
 
     def report_action(self, sender, e):
+        unscanned = [r for r in self.obs_params if r.p_dict['is_used'] is None and not r.p_dict.get('is_global') and r.p_dict['binding'] != 'Unbound']
+        if unscanned:
+            opt = forms.alert(
+                "มีพารามิเตอร์ที่ยังไม่ได้สแกนสถานะการใช้งาน ต้องการสแกนก่อนสร้างรายงานหรือไม่?",
+                options=["สแกนก่อน", "สร้างรายงานทันที", "ยกเลิก"]
+            )
+            if opt == "สแกนก่อน":
+                self.scan_usage_action(None, None)
+            elif opt == "ยกเลิก":
+                return
+
         p = [r.p_dict for r in self.obs_params]
-        msg = "📊 รายงาน: ทั้งหมด " + str(len(p)) + " | ใช้ " + str(sum(1 for x in p if x['is_used']))
+        used_count = sum(1 for x in p if x['is_used'] == True)
+        unscanned_count = sum(1 for x in p if x['is_used'] is None)
+        msg = "📊 รายงาน: ทั้งหมด {} | ใช้ {} | ยังไม่สแกน {} | ไม่ใช้ {}".format(
+            len(p), used_count, unscanned_count, sum(1 for x in p if x['is_used'] == False)
+        )
         if forms.alert(msg + "\nExport เป็น Text?", options=["Export", "ปิด"]) == "Export":
             path = forms.save_file(file_ext='txt', init_dir=getattr(cfg, 'export_path', ''))
             if path:
