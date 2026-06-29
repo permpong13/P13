@@ -12,7 +12,7 @@ clr.AddReference("System")
 import System.Drawing
 import System.Windows.Forms
 
-from pyrevit import forms, DB
+from pyrevit import forms, DB, script
 from Autodesk.Revit.UI import Selection
 from Autodesk.Revit.UI.Selection import ObjectType
 
@@ -44,9 +44,13 @@ FONT_BUTTON = Font("Segoe UI Semibold", 13)
 # ฟอร์มกรอกพิกัด N / E แบบ iOS Style (Redesigned with Layouts)
 # ============================================================
 class iOSStyleNEInputForm(Form):
-    def __init__(self):
+    def __init__(self, last_n, last_e, cur_n, cur_e):
         self.north = None
         self.east = None
+        self.last_n = last_n
+        self.last_e = last_e
+        self.cur_n = cur_n
+        self.cur_e = cur_e
         self.InitializeComponent()
 
     def InitializeComponent(self):
@@ -97,7 +101,10 @@ class iOSStyleNEInputForm(Form):
 
         # ==================== 2. Description Section ====================
         self.lbl_desc = Label()
-        self.lbl_desc.Text = "กรุณากรอกพิกัด N/E ที่ต้องการในหน่วยเมตร"
+        desc_text = "กรุณากรอกพิกัด N/E ที่ต้องการในหน่วยเมตร"
+        if self.cur_n is not None and self.cur_e is not None:
+            desc_text += "\n\n📌 พิกัดปัจจุบัน:\nN: {:.3f} ม.\nE: {:.3f} ม.".format(self.cur_n, self.cur_e)
+        self.lbl_desc.Text = desc_text
         self.lbl_desc.Dock = DockStyle.Fill
         self.lbl_desc.Font = FONT_REGULAR
         self.lbl_desc.ForeColor = IOS_TEXT_GRAY
@@ -138,6 +145,8 @@ class iOSStyleNEInputForm(Form):
         
         # --- Row 1: Northing Input ---
         self.tb_n = self._create_input_row(self.innerInputTable, 0, "Northing (N)")
+        if self.last_n != "":
+            self.tb_n.Text = str(self.last_n)
 
         # --- Row 2: Separator ---
         sep_panel = Panel()
@@ -153,6 +162,8 @@ class iOSStyleNEInputForm(Form):
 
         # --- Row 3: Easting Input ---
         self.tb_e = self._create_input_row(self.innerInputTable, 2, "Easting (E)")
+        if self.last_e != "":
+            self.tb_e.Text = str(self.last_e)
 
         self.inputGroupContainer.Controls.Add(self.innerInputTable)
         self.mainLayout.Controls.Add(self.inputGroupContainer, 0, 2)
@@ -433,28 +444,32 @@ def main():
     if doc is None:
         forms.alert("ไม่พบไฟล์ Revit ที่เปิดอยู่", exitscript=True)
 
+    # 1. ตรวจสอบว่าเลือกชิ้นงานไว้ก่อนหรือไม่
     sel_ids = list(uidoc.Selection.GetElementIds())
+    elements = []
+    if sel_ids:
+        elements = [doc.GetElement(eid) for eid in sel_ids]
+        elements = [e for e in elements if e is not None and e.Category is not None]
 
-    if not sel_ids:
-        try:
-            ref = uidoc.Selection.PickObject(ObjectType.Element, "เลือก Family หรือ Element ที่ต้องการย้าย")
-            if ref:
-                sel_ids = [ref.ElementId]
-        except:
-            forms.alert("ไม่ได้เลือก Element ใด ๆ", exitscript=True)
-
-    if not sel_ids:
-        forms.alert("ไม่ได้เลือก Element ใด ๆ", exitscript=True)
-
-    elements = [doc.GetElement(eid) for eid in sel_ids]
-    elements = [e for e in elements if e is not None and e.Category is not None]
-
-    if not elements:
-        forms.alert("ไม่พบ Element ที่สามารถใช้งานได้", exitscript=True)
-
+    # 2. ดึงข้อมูลพิกัดฐาน (Base Point)
     angle, bp_ewest, bp_nsouth = get_base_point_info(doc)
-    
-    form = iOSStyleNEInputForm()
+
+    # 3. คำนวณพิกัดปัจจุบันหากเลือกชิ้นงานไว้ก่อนหน้า
+    cur_n, cur_e = None, None
+    cur_x, cur_y, cur_z = None, None, None
+    if elements:
+        first_elem = elements[0]
+        cur_x, cur_y, cur_z = get_element_xy(first_elem)
+        if cur_x is not None and cur_y is not None:
+            cur_n, cur_e = forward_transform(cur_x, cur_y, angle, bp_ewest, bp_nsouth)
+
+    # 4. โหลดค่าพิกัดล่าสุดที่เคยกรอก (Remember Configuration)
+    cfg = script.get_config("MoveToNE")
+    last_n = getattr(cfg, "last_n", "")
+    last_e = getattr(cfg, "last_e", "")
+
+    # 5. แสดงหน้าต่างกรอกพิกัดเป้าหมาย
+    form = iOSStyleNEInputForm(last_n, last_e, cur_n, cur_e)
     result = form.ShowDialog()
 
     if result != DialogResult.OK:
@@ -463,17 +478,38 @@ def main():
     target_n = form.north
     target_e = form.east
 
+    # บันทึกพิกัดที่พิมพ์ลง Config
+    cfg.last_n = target_n
+    cfg.last_e = target_e
+    script.save_config()
+
+    # 6. หากไม่ได้เลือกชิ้นงานไว้ล่วงหน้า ให้เลือกตอนนี้
+    if not elements:
+        try:
+            refs = uidoc.Selection.PickObjects(
+                ObjectType.Element, 
+                "เลือก Family หรือ Element ที่ต้องการย้าย"
+            )
+            if refs:
+                sel_ids = [ref.ElementId for ref in refs]
+                elements = [doc.GetElement(eid) for eid in sel_ids]
+                elements = [e for e in elements if e is not None and e.Category is not None]
+        except Exception:
+            # ผู้ใช้ยกเลิกการเลือก
+            return
+
+    if not elements:
+        forms.alert("ไม่ได้เลือก Element ใด ๆ", exitscript=True)
+
+    # ดึงค่าตำแหน่งอ้างอิงเพื่อใช้คำนวณเวกเตอร์การเคลื่อนที่
     first_elem = elements[0]
     cur_x, cur_y, cur_z = get_element_xy(first_elem)
-    
-    if cur_x is None:
-        forms.alert("Element แรกไม่มี Location ที่สามารถย้ายได้", exitscript=True)
+    if cur_x is None or cur_y is None:
+        forms.alert("Element ที่เลือกไม่มี Location ที่สามารถย้ายได้", exitscript=True)
 
     new_x, new_y = reverse_transform(target_n, target_e, angle, bp_ewest, bp_nsouth)
-
     new_point = DB.XYZ(new_x, new_y, cur_z)
     cur_point = DB.XYZ(cur_x, cur_y, cur_z)
-    
     move_vec = new_point - cur_point
 
     with DB.Transaction(doc, "Move Elements to N/E") as t:

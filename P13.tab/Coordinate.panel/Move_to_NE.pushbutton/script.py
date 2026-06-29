@@ -404,50 +404,68 @@ def main():
     if doc is None:
         forms.alert("No open Revit document found.", exitscript=True)
 
+    # 1. Check if elements are pre-selected
     sel_ids = list(uidoc.Selection.GetElementIds())
+    elements = []
+    if sel_ids:
+        elements = [doc.GetElement(eid) for eid in sel_ids]
+        elements = [e for e in elements if e is not None and e.Category is not None]
 
-    if not sel_ids:
-        try:
-            ref = uidoc.Selection.PickObject(ObjectType.Element, "Select a Family or Element to move")
-            if ref: sel_ids = [ref.ElementId]
-        except:
-            forms.alert("No elements selected.", exitscript=True)
-
-    if not sel_ids: forms.alert("No elements selected.", exitscript=True)
-
-    elements = [doc.GetElement(eid) for eid in sel_ids]
-    elements = [e for e in elements if e is not None and e.Category is not None]
-
-    if not elements: forms.alert("No usable elements found.", exitscript=True)
-
-    # คำนวณพิกัดปัจจุบัน
+    # 2. Get base point info
     angle, bp_ewest, bp_nsouth = get_base_point_info(doc)
-    first_elem = elements[0]
-    cur_x, cur_y, cur_z = get_element_xy(first_elem)
-    
-    if cur_x is None:
-        forms.alert("The first element does not have a valid location to move.", exitscript=True)
-        
-    cur_n, cur_e = forward_transform(cur_x, cur_y, angle, bp_ewest, bp_nsouth)
-    
-    # โหลดค่าพิกัดล่าสุดที่เคยกรอก (Remember Configuration)
+
+    # 3. Determine current coordinates if elements are selected
+    cur_n, cur_e = None, None
+    cur_x, cur_y, cur_z = None, None, None
+    if elements:
+        first_elem = elements[0]
+        cur_x, cur_y, cur_z = get_element_xy(first_elem)
+        if cur_x is not None and cur_y is not None:
+            cur_n, cur_e = forward_transform(cur_x, cur_y, angle, bp_ewest, bp_nsouth)
+
+    # 4. Load last coordinates from config
     cfg = script.get_config("MoveToNE")
     last_n = getattr(cfg, "last_n", "")
     last_e = getattr(cfg, "last_e", "")
 
-    # สร้างและแสดงหน้าต่าง
+    # 5. Show Dialog to input target coordinates
     form = iOSStyleNEInputForm(last_n, last_e, cur_n, cur_e)
     result = form.ShowDialog()
 
-    if result != DialogResult.OK: return
+    if result != DialogResult.OK:
+        return
 
     target_n = form.north
     target_e = form.east
-    
-    # บันทึกพิกัดที่พิมพ์ลง Config
+
+    # Save target coordinates to config
     cfg.last_n = target_n
     cfg.last_e = target_e
     script.save_config()
+
+    # 6. If no elements were pre-selected, prompt user to select elements now
+    if not elements:
+        try:
+            refs = uidoc.Selection.PickObjects(
+                ObjectType.Element, 
+                "Select family instances or elements to move"
+            )
+            if refs:
+                sel_ids = [ref.ElementId for ref in refs]
+                elements = [doc.GetElement(eid) for eid in sel_ids]
+                elements = [e for e in elements if e is not None and e.Category is not None]
+        except Exception:
+            # User canceled selection or closed/escaped
+            return
+
+    if not elements:
+        forms.alert("No elements selected.", exitscript=True)
+
+    # Get location of the reference element (first element) to calculate move vector
+    first_elem = elements[0]
+    cur_x, cur_y, cur_z = get_element_xy(first_elem)
+    if cur_x is None or cur_y is None:
+        forms.alert("The selected element does not have a valid location to move.", exitscript=True)
 
     new_x, new_y = reverse_transform(target_n, target_e, angle, bp_ewest, bp_nsouth)
     new_point = DB.XYZ(new_x, new_y, cur_z)
