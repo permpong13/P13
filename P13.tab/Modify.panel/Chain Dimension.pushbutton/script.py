@@ -78,7 +78,7 @@ class ChainDimensionWindow(forms.WPFWindow):
         self.categories_map = get_model_categories_in_view(doc, view)
         self.categories_list = sorted(self.categories_map.keys())
         self.CategoriesList.ItemsSource = self.categories_list
-        self.CategoriesList.SelectAll()
+        self.CategoriesList.UnselectAll()
 
         self.selection_changed(None, None)
 
