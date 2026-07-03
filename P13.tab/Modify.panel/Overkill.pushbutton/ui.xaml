@@ -1,0 +1,252 @@
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Overkill View"
+        Width="540"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        Background="#101827"
+        Foreground="#E5E7EB"
+        FontFamily="Segoe UI">
+    <Window.Resources>
+        <SolidColorBrush x:Key="PanelBrush" Color="#172033"/>
+        <SolidColorBrush x:Key="PanelSoftBrush" Color="#1E2A42"/>
+        <SolidColorBrush x:Key="BorderBrushP13" Color="#30415F"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="#38BDF8"/>
+        <SolidColorBrush x:Key="DangerBrush" Color="#FB7185"/>
+        <SolidColorBrush x:Key="TextBrush" Color="#E5E7EB"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#94A3B8"/>
+
+        <Style TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+
+        <Style x:Key="ModeRadio" TargetType="RadioButton">
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+
+        <Style x:Key="ModeCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource PanelSoftBrush}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushP13}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Padding" Value="14,11"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <Style x:Key="PrimaryButton" TargetType="Button">
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="MinWidth" Value="132"/>
+            <Setter Property="Padding" Value="18,0"/>
+            <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
+            <Setter Property="Foreground" Value="#07131F"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonShell"
+                                Background="{TemplateBinding Background}"
+                                CornerRadius="7">
+                            <ContentPresenter HorizontalAlignment="Center"
+                                              VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonShell" Property="Opacity" Value="0.88"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonShell" Property="Opacity" Value="0.70"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource PrimaryButton}">
+            <Setter Property="Background" Value="#243149"/>
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+        </Style>
+    </Window.Resources>
+
+    <Border Padding="22">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Border Width="52" Height="52" CornerRadius="11" Background="#173A54">
+                    <Grid>
+                        <Path Stroke="#F8FAFC" StrokeThickness="2.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Data="M 11 16 L 37 36 M 12 34 L 37 15 M 10 25 L 40 25"/>
+                        <Path Stroke="#38BDF8" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Data="M 20 11 L 20 41"/>
+                        <Path Stroke="#FB7185" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                              Data="M 32 35 L 40 43 M 40 35 L 32 43"/>
+                    </Grid>
+                </Border>
+                <StackPanel Grid.Column="1" Margin="14,0,0,0" VerticalAlignment="Center">
+                    <TextBlock Text="Overkill View" FontSize="22" FontWeight="SemiBold"/>
+                    <TextBlock Text="Remove duplicate drafting content from the active view."
+                               Foreground="{StaticResource MutedBrush}"
+                               Margin="0,3,0,0"/>
+                    <TextBlock x:Name="activeViewText"
+                               Foreground="{StaticResource AccentBrush}"
+                               FontSize="11"
+                               Margin="0,3,0,0"
+                               TextTrimming="CharacterEllipsis"/>
+                </StackPanel>
+            </Grid>
+
+            <Border Grid.Row="1"
+                    Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource BorderBrushP13}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="14"
+                    Margin="0,18,0,0">
+                <StackPanel>
+                    <TextBlock Text="Cleanup Scope" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"/>
+
+                    <Border Style="{StaticResource ModeCard}" MouseLeftButtonDown="select_everything">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="modeEverything" GroupName="CleanupMode" IsChecked="True"
+                                         Style="{StaticResource ModeRadio}" Click="mode_changed"/>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Complete cleanup" FontWeight="SemiBold"/>
+                                <TextBlock Text="Lines, dimensions, tags, and text notes in one transaction"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource ModeCard}" MouseLeftButtonDown="select_lines">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="modeLines" GroupName="CleanupMode"
+                                         Style="{StaticResource ModeRadio}" Click="mode_changed"/>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Lines only" FontWeight="SemiBold"/>
+                                <TextBlock Text="Detail Lines, Model Lines, and Room Separation Lines"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource ModeCard}" MouseLeftButtonDown="select_dimensions">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="modeDimensions" GroupName="CleanupMode"
+                                         Style="{StaticResource ModeRadio}" Click="mode_changed"/>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Dimensions only" FontWeight="SemiBold"/>
+                                <TextBlock Text="Exact duplicates with matching type and references"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource ModeCard}" MouseLeftButtonDown="select_tags">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="modeTags" GroupName="CleanupMode"
+                                         Style="{StaticResource ModeRadio}" Click="mode_changed"/>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Tags only" FontWeight="SemiBold"/>
+                                <TextBlock Text="Exact duplicates with matching target, type, and position"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource ModeCard}" Margin="0" MouseLeftButtonDown="select_text_notes">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="modeTextNotes" GroupName="CleanupMode"
+                                         Style="{StaticResource ModeRadio}" Click="mode_changed"/>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Text notes only" FontWeight="SemiBold"/>
+                                <TextBlock Text="Exact duplicates with matching content, formatting, position, and leaders"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </StackPanel>
+            </Border>
+
+            <Border x:Name="lineOptionsPanel"
+                    Grid.Row="2"
+                    Background="{StaticResource PanelBrush}"
+                    BorderBrush="{StaticResource BorderBrushP13}"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="14"
+                    Margin="0,10,0,0">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="Preserve line-weight differences" FontWeight="SemiBold"/>
+                        <TextBlock Text="Lines with different effective weights will not be merged."
+                                   Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,3,0,0"/>
+                    </StackPanel>
+                    <CheckBox x:Name="considerLineWeights"
+                              Grid.Column="1"
+                              IsChecked="True"
+                              VerticalAlignment="Center"
+                              Margin="16,0,2,0"/>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="3" Margin="0,18,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="10"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock Text="Duplicate elements will be deleted."
+                               Foreground="{StaticResource DangerBrush}" FontSize="11" FontWeight="SemiBold"/>
+                    <TextBlock Text="The complete operation can be undone in Revit."
+                               Foreground="{StaticResource MutedBrush}" FontSize="11" Margin="0,2,0,0"/>
+                </StackPanel>
+                <Button Grid.Column="1" Content="Cancel" Style="{StaticResource SecondaryButton}" Click="cancel_clicked"/>
+                <Button Grid.Column="3" Content="Run Cleanup" Style="{StaticResource PrimaryButton}" Click="run_clicked"/>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>
