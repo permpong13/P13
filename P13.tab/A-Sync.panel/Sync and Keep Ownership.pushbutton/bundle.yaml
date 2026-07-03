@@ -1,0 +1,17 @@
+title: "Sync\nOwner"
+
+tooltip: |
+  Synchronize the active workshared model with Central without releasing ownership.
+
+  Keeps ownership of:
+  - Checked-out elements
+  - Family worksets
+  - Project standards worksets
+  - User-created worksets
+  - View worksets
+
+  The local file is saved before and after synchronization.
+  Use this command only when continued exclusive editing is required.
+
+author: "P13"
+description: "Synchronize with Central while keeping all current element and workset ownership."
