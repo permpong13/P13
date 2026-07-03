@@ -52,6 +52,14 @@ class SuperFilterWindow(forms.WPFWindow):
         self.selection_ids = uidoc.Selection.GetElementIds()
         self.node_children = {}
         self.leaf_checkboxes = [] 
+
+        # Use preselection only when at least three elements were selected
+        # before S-Filter opened. Otherwise keep the original visible-view scope.
+        use_current_selection = self.selection_ids.Count > 2
+        if hasattr(self, 'rad_current_sel'):
+            self.rad_current_sel.IsChecked = use_current_selection
+        if hasattr(self, 'rad_visible_view'):
+            self.rad_visible_view.IsChecked = not use_current_selection
         
         # ผูกปุ่ม Actions หลัก
         if hasattr(self, 'btn_run'): self.btn_run.Click += self.run_select
@@ -197,11 +205,17 @@ class SuperFilterWindow(forms.WPFWindow):
                 return
 
             # ✨ ฟีเจอร์: Progress Bar (แถบโหลดข้อมูล) ทำงานร่วมกับการจัดกลุ่ม
-            with forms.ProgressBar(title='S-Filter: กำลังจัดกลุ่มข้อมูลโปรดรอสักครู่...', cancellable=False) as pb:
+            load_cancelled = False
+            with forms.ProgressBar(
+                    title='S-Filter: Loading and grouping elements...',
+                    cancellable=True) as pb:
                 for i, el in enumerate(elements):
                     # อัปเดตแถบโหลดทุกๆ 50 ชิ้น ป้องกันโปรแกรมค้าง
-                    if i % 50 == 0:
+                    if i % 25 == 0:
                         pb.update_progress(i, total_elements)
+                        if pb.cancelled:
+                            load_cancelled = True
+                            break
                         
                     cat_name = el.Category.Name if el.Category else "Uncategorized"
                     type_name = "{} : {}".format(el.Symbol.Family.Name, el.Name) if (isinstance(el, FamilyInstance) and el.Symbol) else getattr(el, 'Name', type(el).__name__)
@@ -235,6 +249,14 @@ class SuperFilterWindow(forms.WPFWindow):
                     if key1 not in tree_dict: tree_dict[key1] = {}
                     if key2 not in tree_dict[key1]: tree_dict[key1][key2] = []
                     tree_dict[key1][key2].append(el.Id)
+
+            if load_cancelled:
+                self.ui_treeview.Items.Clear()
+                self.node_children = {}
+                self.leaf_checkboxes = []
+                if hasattr(self, 'lbl_status_count'):
+                    self.lbl_status_count.Text = "Cancelled"
+                return
 
             # นำข้อมูลที่จัดกลุ่มเสร็จแล้วไปสร้างหน้าต่าง TreeView
             if hasattr(self, 'lbl_status_count'): self.lbl_status_count.Text = str(len(elements))
