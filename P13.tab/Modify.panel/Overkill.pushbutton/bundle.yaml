@@ -4,15 +4,16 @@ tooltip: |
   Remove duplicate and overlapping annotations from the active view.
 
   Key features:
-  - Clean lines, dimensions, tags, and text notes together or process one category only.
+  - Clean lines, dimensions, tags, text notes, and detail items together or process one category only.
   - Merge collinear Detail Lines, Model Lines, and Room Separation Lines.
   - Remove duplicate dimensions only when their position, type, and references match.
   - Remove duplicate tags only when their target, position, and type match.
   - Remove duplicate text notes only when content, formatting, position, and leaders match.
+  - Remove duplicate Detail Items when family type, position, geometry, and orientation match.
   - Optionally preserve line-weight differences while evaluating overlapping lines.
-  - Report the number of removed lines, dimensions, tags, and text notes after cleanup.
+  - Report the number of removed lines, dimensions, tags, text notes, and detail items after cleanup.
 
   Scope: Entire active view.
 
 author: "P13"
-description: "Remove duplicate lines, dimensions, tags, and text notes from the active view."
+description: "Remove duplicate lines, dimensions, tags, text notes, and detail items from the active view."

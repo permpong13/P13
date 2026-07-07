@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Remove overlapping lines, dimensions, and tags from the active view."""
+"""Remove overlapping drafting and annotation elements from the active view."""
 
 # pylint: disable=E0401,C0103
 import math
@@ -397,15 +397,79 @@ def overkill_text_notes(doc, view_id):
     return delete_elements(doc, duplicate_ids)
 
 
-def show_results(lines_removed, dimensions_removed, tags_removed, text_notes_removed):
+def transform_key(transform):
+    """Return a stable identity for a detail-item instance transform."""
+    return (
+        rounded_xyz(transform.Origin, COORDINATE_DIGITS),
+        rounded_xyz(transform.BasisX, DIRECTION_DIGITS),
+        rounded_xyz(transform.BasisY, DIRECTION_DIGITS),
+        rounded_xyz(transform.BasisZ, DIRECTION_DIGITS),
+    )
+
+
+def location_key(element):
+    """Return point- or curve-based placement data for a detail item."""
+    location = element.Location
+    if isinstance(location, DB.LocationPoint):
+        return ('Point', rounded_xyz(location.Point, COORDINATE_DIGITS))
+    if isinstance(location, DB.LocationCurve):
+        curve = location.Curve
+        return (
+            'Curve',
+            rounded_xyz(curve.GetEndPoint(0), COORDINATE_DIGITS),
+            rounded_xyz(curve.GetEndPoint(1), COORDINATE_DIGITS),
+        )
+    return None
+
+
+def overkill_detail_items(doc, view_id):
+    """Remove coincident Detail Item instances of the same family type."""
+    detail_items = (
+        DB.FilteredElementCollector(doc, view_id)
+        .OfCategory(DB.BuiltInCategory.OST_DetailComponents)
+        .WhereElementIsNotElementType()
+        .ToElements()
+    )
+    unique_items = {}
+    duplicate_ids = []
+
+    for detail_item in detail_items:
+        try:
+            if not isinstance(detail_item, DB.FamilyInstance):
+                continue
+
+            key = (
+                element_id_value(detail_item.GetTypeId()),
+                transform_key(detail_item.GetTransform()),
+                location_key(detail_item),
+            )
+            if key in unique_items:
+                duplicate_ids.append(detail_item.Id)
+            else:
+                unique_items[key] = detail_item.Id
+        except Exception as error:
+            logger.debug('Skipped detail item %s: %s', detail_item.Id, error)
+
+    return delete_elements(doc, duplicate_ids)
+
+
+def show_results(lines_removed, dimensions_removed, tags_removed,
+                 text_notes_removed, detail_items_removed):
     """Display a concise English-only completion report."""
     message = (
         'View Cleanup Results:\n'
         '- Lines removed: {}\n'
         '- Dimensions removed: {}\n'
         '- Tags removed: {}\n'
-        '- Text notes removed: {}'
-    ).format(lines_removed, dimensions_removed, tags_removed, text_notes_removed)
+        '- Text notes removed: {}\n'
+        '- Detail items removed: {}'
+    ).format(
+        lines_removed,
+        dimensions_removed,
+        tags_removed,
+        text_notes_removed,
+        detail_items_removed,
+    )
     forms.alert(message, title='Overkill Complete', warn_icon=False)
 
 
@@ -444,6 +508,10 @@ class OverkillWindow(forms.WPFWindow):
         self.modeTextNotes.IsChecked = True
         self.mode_changed(sender, args)
 
+    def select_detail_items(self, sender, args):
+        self.modeDetailItems.IsChecked = True
+        self.mode_changed(sender, args)
+
     def run_clicked(self, sender, args):
         if self.modeLines.IsChecked:
             self.cleanup_mode = 'Lines'
@@ -453,6 +521,8 @@ class OverkillWindow(forms.WPFWindow):
             self.cleanup_mode = 'Tags'
         elif self.modeTextNotes.IsChecked:
             self.cleanup_mode = 'TextNotes'
+        elif self.modeDetailItems.IsChecked:
+            self.cleanup_mode = 'DetailItems'
         else:
             self.cleanup_mode = 'Everything'
 
@@ -478,6 +548,7 @@ def main():
     dimensions_removed = 0
     tags_removed = 0
     text_notes_removed = 0
+    detail_items_removed = 0
 
     with revit.Transaction('View Overkill Cleanup'):
         if cleanup_mode in ('Everything', 'Lines'):
@@ -492,8 +563,16 @@ def main():
             tags_removed = overkill_tags(doc, active_view.Id)
         if cleanup_mode in ('Everything', 'TextNotes'):
             text_notes_removed = overkill_text_notes(doc, active_view.Id)
+        if cleanup_mode in ('Everything', 'DetailItems'):
+            detail_items_removed = overkill_detail_items(doc, active_view.Id)
 
-    show_results(lines_removed, dimensions_removed, tags_removed, text_notes_removed)
+    show_results(
+        lines_removed,
+        dimensions_removed,
+        tags_removed,
+        text_notes_removed,
+        detail_items_removed,
+    )
 
 
 if __name__ == '__main__':
