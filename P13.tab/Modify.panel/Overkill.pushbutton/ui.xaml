@@ -133,7 +133,7 @@
                                          Style="{StaticResource ModeRadio}" Click="mode_changed"/>
                             <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                 <TextBlock Text="Complete cleanup" FontWeight="SemiBold"/>
-                                <TextBlock Text="Lines, dimensions, tags, and text notes in one transaction"
+                                <TextBlock Text="Lines, dimensions, tags, text notes, and detail items in one transaction"
                                            Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Grid>
@@ -187,7 +187,7 @@
                         </Grid>
                     </Border>
 
-                    <Border Style="{StaticResource ModeCard}" Margin="0" MouseLeftButtonDown="select_text_notes">
+                    <Border Style="{StaticResource ModeCard}" MouseLeftButtonDown="select_text_notes">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="Auto"/>
@@ -198,6 +198,22 @@
                             <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                 <TextBlock Text="Text notes only" FontWeight="SemiBold"/>
                                 <TextBlock Text="Exact duplicates with matching content, formatting, position, and leaders"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+
+                    <Border Style="{StaticResource ModeCard}" Margin="0" MouseLeftButtonDown="select_detail_items">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="modeDetailItems" GroupName="CleanupMode"
+                                         Style="{StaticResource ModeRadio}" Click="mode_changed"/>
+                            <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                <TextBlock Text="Detail items only" FontWeight="SemiBold"/>
+                                <TextBlock Text="Coincident instances with matching family type and placement geometry"
                                            Foreground="{StaticResource MutedBrush}" FontSize="12" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Grid>
