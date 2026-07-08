@@ -1,15 +1,23 @@
 # P13.extension
 
-P13.extension is a pyRevit toolset for BIM automation in Autodesk Revit 2026. It groups production utilities for model checking, shared coordinates, annotation cleanup, data exchange, model management, MEP workflows, and repetitive documentation tasks into one Revit ribbon tab.
+![Autodesk Revit](https://img.shields.io/badge/Autodesk%20Revit-2024%20%7C%202025%20%7C%202026-0696D7)
+![pyRevit](https://img.shields.io/badge/Powered%20by-pyRevit-orange)
+![Platform](https://img.shields.io/badge/Platform-Windows-0078D4)
+
+P13.extension is a multi-version pyRevit toolset for BIM automation in Autodesk Revit 2024, 2025, and 2026. It groups production utilities for model checking, shared coordinates, annotation cleanup, data exchange, model management, MEP workflows, and repetitive documentation tasks into one Revit ribbon tab.
 
 The extension is developed and maintained by Permpong Taweekul (P13) for practical use in live BIM projects.
 
-## Compatibility
+## Revit compatibility
 
-- Autodesk Revit 2026
-- pyRevit with Revit 2026 support
+- Autodesk Revit 2024, 2025, and 2026
+- Optimized and fully tested with Autodesk Revit 2026
+- Most tools are designed for cross-version Revit API compatibility
+- Behavior of some advanced commands may vary in Revit 2024–2025
+- A pyRevit installation compatible with the selected Revit version
 - Windows
-- Revit 2026 / .NET 8 runtime
+
+Revit 2025–2026 use the .NET 8 runtime, while Revit 2024 uses the earlier .NET Framework runtime. P13.extension contains compatibility handling for many API differences, but Autodesk Revit 2026 remains the primary development and validation environment.
 
 Some commands integrate with Microsoft Excel or other project-specific data sources. Those commands may require the relevant desktop application, file access, or project parameters.
 
@@ -225,7 +233,7 @@ The following catalog explains what the commands currently included in the **P13
 
 ## Installation
 
-1. Install a pyRevit version that supports Revit 2026.
+1. Install a pyRevit version that supports your Autodesk Revit version (2024–2026).
 2. Clone or download this repository.
 3. Place `P13.extension` in the pyRevit extensions directory:
 
@@ -281,6 +289,6 @@ BIM Automation Engineer and Software Developer
 
 ## ภาษาไทย
 
-P13.extension คือชุดเครื่องมือ pyRevit สำหรับ Autodesk Revit 2026 พัฒนาขึ้นเพื่อลดงานซ้ำ เพิ่มความถูกต้องของข้อมูล และสนับสนุนกระบวนการ BIM ในงานจริง ครอบคลุมงานตรวจสอบโมเดล พิกัด การจัดการข้อมูล การนำเข้าและส่งออก Excel งานเอกสาร งาน MEP และเครื่องมือจัดการโครงการ
+P13.extension คือชุดเครื่องมือ pyRevit สำหรับ Autodesk Revit 2024–2026 โดยพัฒนาและทดสอบหลักกับ Revit 2026 เพื่อช่วยลดงานซ้ำ เพิ่มความถูกต้องของข้อมูล และสนับสนุนกระบวนการ BIM ในงานจริง ครอบคลุมงานตรวจสอบโมเดล พิกัด การจัดการข้อมูล การนำเข้าและส่งออก Excel งานเอกสาร งาน MEP และเครื่องมือจัดการโครงการ
 
 ผู้ใช้งานสามารถสนับสนุนการพัฒนาและดูแลเครื่องมือได้ผ่าน [PayPal.Me ของ @PERMPONGTAWEEKUL](https://www.paypal.me/PERMPONGTAWEEKUL) หรือเปิดคำสั่ง **P13 > Z-Support > Donate Support** ภายใน Revit
