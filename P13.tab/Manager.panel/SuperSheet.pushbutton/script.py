@@ -793,6 +793,15 @@ class SuperSheetsUltimate(Window):
             if self.chkRegionEdgesMask.IsChecked: opt.RegionEdgesMaskCoincidentLines = True
         except: pass
 
+    def _clear_revit_selection_for_export(self):
+        try:
+            uidoc = revit.uidoc
+            if uidoc:
+                uidoc.Selection.SetElementIds(List[DB.ElementId]())
+                uidoc.RefreshActiveView()
+        except:
+            pass
+
     def _safe_dialog_handler(self, sender, args):
         try:
             is_update_dialog = False
@@ -846,6 +855,7 @@ class SuperSheetsUltimate(Window):
                 return
 
         uiapp = HOST_APP.uiapp
+        self._clear_revit_selection_for_export()
         try: uiapp.DialogBoxShowing += self._safe_dialog_handler
         except: pass
 
