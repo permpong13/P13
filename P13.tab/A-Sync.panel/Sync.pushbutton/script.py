@@ -23,6 +23,8 @@ GITHUB_COMMIT_API_URL = "https://api.github.com/repos/{}/commits/main".format(US
 VERSION_MARKER_FILE = ".p13_sync_version"
 REMOTE_CACHE_FILE = "P13_sync_remote_status.json"
 REMOTE_CACHE_SECONDS = 300
+FILE_OPERATION_RETRIES = 5
+FILE_OPERATION_RETRY_SECONDS = 0.4
 STATUS_LATEST = "latest"
 STATUS_OUTDATED = "outdated"
 STATUS_UNKNOWN = "unknown"
@@ -368,6 +370,87 @@ def __selfinit__(script_cmp, ui_button_cmp, __rvt__):
     return True
 
 
+def get_extracted_extension_root(temp_dir):
+    extracted_roots = [
+        os.path.join(temp_dir, item_name)
+        for item_name in os.listdir(temp_dir)
+        if os.path.isdir(os.path.join(temp_dir, item_name))
+    ]
+
+    if len(extracted_roots) != 1:
+        raise RuntimeError("The downloaded update has an invalid folder structure.")
+
+    extracted_root = extracted_roots[0]
+    required_paths = [
+        os.path.join(extracted_root, "extension.json"),
+        os.path.join(extracted_root, "P13.tab"),
+    ]
+    if not all(os.path.exists(required_path) for required_path in required_paths):
+        raise RuntimeError("The downloaded update is not a valid P13.extension package.")
+
+    return extracted_root
+
+
+def remove_path_with_retries(target_path):
+    if not os.path.exists(target_path):
+        return
+
+    for attempt in range(FILE_OPERATION_RETRIES):
+        try:
+            if os.path.isdir(target_path):
+                shutil.rmtree(target_path)
+            else:
+                os.remove(target_path)
+            return
+        except Exception:
+            if attempt == FILE_OPERATION_RETRIES - 1:
+                raise
+            time.sleep(FILE_OPERATION_RETRY_SECONDS)
+
+
+def move_path_with_retries(source_path, target_path):
+    for attempt in range(FILE_OPERATION_RETRIES):
+        try:
+            shutil.move(source_path, target_path)
+            return
+        except Exception:
+            if attempt == FILE_OPERATION_RETRIES - 1:
+                raise
+            time.sleep(FILE_OPERATION_RETRY_SECONDS)
+
+
+def prepare_staging_extension(extracted_root, staging_path):
+    remove_path_with_retries(staging_path)
+    shutil.copytree(extracted_root, staging_path)
+
+
+def replace_extension(staging_path, dest_path, backup_path):
+    remove_path_with_retries(backup_path)
+
+    old_extension_moved = False
+    try:
+        if os.path.exists(dest_path):
+            move_path_with_retries(dest_path, backup_path)
+            old_extension_moved = True
+
+        move_path_with_retries(staging_path, dest_path)
+    except Exception:
+        try:
+            if os.path.exists(dest_path):
+                remove_path_with_retries(dest_path)
+            if old_extension_moved and os.path.exists(backup_path):
+                move_path_with_retries(backup_path, dest_path)
+        except Exception as rollback_error:
+            print("Update rollback error: {}".format(rollback_error))
+        raise
+
+    if os.path.exists(backup_path):
+        try:
+            remove_path_with_retries(backup_path)
+        except Exception as cleanup_error:
+            print("Update cleanup warning: {}".format(cleanup_error))
+
+
 def sync_tools():
     if is_admin_user():
         print("Admin mode: sync update is hidden for this user.")
@@ -377,38 +460,38 @@ def sync_tools():
     dest_path = find_extension_root(current_path)
     remote_sha = get_cached_remote_sha()
 
-    temp_zip = os.path.join(os.environ["TEMP"], "P13_update.zip")
-    temp_dir = os.path.join(os.environ["TEMP"], "P13_temp_extract")
+    temp_root = os.environ.get("TEMP") or os.environ.get("TMP")
+    if not temp_root:
+        print("Update error: A temporary folder could not be found.")
+        return
+
+    temp_zip = os.path.join(temp_root, "P13_update.zip")
+    temp_dir = os.path.join(temp_root, "P13_temp_extract")
+    extension_parent = os.path.dirname(dest_path)
+    staging_path = os.path.join(extension_parent, "P13.update-staging")
+    backup_path = os.path.join(extension_parent, "P13.update-backup")
 
     try:
-        if os.path.exists(temp_dir):
-            shutil.rmtree(temp_dir)
+        remove_path_with_retries(temp_dir)
+        if os.path.exists(temp_zip):
+            remove_path_with_retries(temp_zip)
 
-        response = urllib2.urlopen(GITHUB_API_URL)
-        with open(temp_zip, "wb") as zip_file:
-            zip_file.write(response.read())
+        response = urllib2.urlopen(GITHUB_API_URL, timeout=30)
+        try:
+            with open(temp_zip, "wb") as zip_file:
+                zip_file.write(response.read())
+        finally:
+            response.close()
 
         with zipfile.ZipFile(temp_zip, "r") as zip_ref:
+            invalid_file = zip_ref.testzip()
+            if invalid_file:
+                raise RuntimeError("The downloaded update archive is corrupted.")
             zip_ref.extractall(temp_dir)
 
-        extracted_folder = os.path.join(temp_dir, os.listdir(temp_dir)[0])
-
-        for root, dirs, files in os.walk(extracted_folder):
-            rel_path = os.path.relpath(root, extracted_folder)
-            target_dir = os.path.join(dest_path, rel_path)
-
-            if not os.path.exists(target_dir):
-                os.makedirs(target_dir)
-
-            for file_name in files:
-                src_file = os.path.join(root, file_name)
-                dst_file = os.path.join(target_dir, file_name)
-                try:
-                    shutil.copy2(src_file, dst_file)
-                except Exception:
-                    continue
-
-        cleanup_obsolete_paths(dest_path)
+        extracted_folder = get_extracted_extension_root(temp_dir)
+        prepare_staging_extension(extracted_folder, staging_path)
+        replace_extension(staging_path, dest_path, backup_path)
         write_marker_sha(dest_path, remote_sha)
         sessionmgr.reload_pyrevit()
 
@@ -418,9 +501,9 @@ def sync_tools():
     finally:
         try:
             if os.path.exists(temp_zip):
-                os.remove(temp_zip)
+                remove_path_with_retries(temp_zip)
             if os.path.exists(temp_dir):
-                shutil.rmtree(temp_dir)
+                remove_path_with_retries(temp_dir)
         except Exception:
             pass
 
