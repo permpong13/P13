@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import json
 import shutil
+import stat
 import subprocess
 import time
 import urllib2
@@ -391,6 +392,14 @@ def get_extracted_extension_root(temp_dir):
     return extracted_root
 
 
+def remove_readonly_path(function, target_path, exception_info):
+    try:
+        os.chmod(target_path, stat.S_IWRITE)
+        function(target_path)
+    except Exception:
+        raise exception_info[1]
+
+
 def remove_path_with_retries(target_path):
     if not os.path.exists(target_path):
         return
@@ -398,8 +407,9 @@ def remove_path_with_retries(target_path):
     for attempt in range(FILE_OPERATION_RETRIES):
         try:
             if os.path.isdir(target_path):
-                shutil.rmtree(target_path)
+                shutil.rmtree(target_path, onerror=remove_readonly_path)
             else:
+                os.chmod(target_path, stat.S_IWRITE)
                 os.remove(target_path)
             return
         except Exception:
@@ -411,7 +421,9 @@ def remove_path_with_retries(target_path):
 def move_path_with_retries(source_path, target_path):
     for attempt in range(FILE_OPERATION_RETRIES):
         try:
-            shutil.move(source_path, target_path)
+            # Both paths are siblings, so rename is atomic and never falls back
+            # to a partial copy/delete operation when Windows denies access.
+            os.rename(source_path, target_path)
             return
         except Exception:
             if attempt == FILE_OPERATION_RETRIES - 1:
@@ -436,9 +448,9 @@ def replace_extension(staging_path, dest_path, backup_path):
         move_path_with_retries(staging_path, dest_path)
     except Exception:
         try:
-            if os.path.exists(dest_path):
-                remove_path_with_retries(dest_path)
             if old_extension_moved and os.path.exists(backup_path):
+                if os.path.exists(dest_path):
+                    remove_path_with_retries(dest_path)
                 move_path_with_retries(backup_path, dest_path)
         except Exception as rollback_error:
             print("Update rollback error: {}".format(rollback_error))
