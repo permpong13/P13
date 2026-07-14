@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <title>V-Filters Manager icon source</title>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 10h48L38 31v15l-12 8V31L8 10z" fill="#18A7C7" stroke="#17202A" stroke-width="4"/>
+    <path d="M17 18h30" stroke="#FFFFFF" stroke-width="3"/>
+    <path d="M21 24h22" stroke="#FFFFFF" stroke-width="3"/>
+    <circle cx="42" cy="44" r="10" fill="#FFFFFF" stroke="#17202A" stroke-width="4"/>
+    <path d="M37 41h10M37 47h10" stroke="#17202A" stroke-width="2.5"/>
+    <circle cx="40" cy="41" r="2" fill="#F2B134" stroke="#17202A" stroke-width="1.5"/>
+    <circle cx="45" cy="47" r="2" fill="#F2B134" stroke="#17202A" stroke-width="1.5"/>
+  </g>
+</svg>
