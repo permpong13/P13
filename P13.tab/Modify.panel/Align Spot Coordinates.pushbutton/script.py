@@ -19,6 +19,7 @@ __doc__ = (
 LEADER_HORIZONTAL_OFFSET_MM = 1.2
 LEADER_VERTICAL_OFFSET_MM = 1.825
 MAX_VALID_VERTICAL_OFFSET_MM = 4.0
+DISTRIBUTION_SHOULDER_MM = 5.0
 
 
 class SpotCoordinateSelectionFilter(ISelectionFilter):
@@ -184,6 +185,73 @@ def align_spots(spots, mode, active_view):
     return aligned, skipped
 
 
+def copy_writable_parameters(source, target):
+    """Copy compatible writable instance parameter values to a recreated spot."""
+    for source_parameter in source.Parameters:
+        try:
+            target_parameter = target.LookupParameter(source_parameter.Definition.Name)
+            if (
+                target_parameter is None
+                or target_parameter.IsReadOnly
+                or source_parameter.StorageType != target_parameter.StorageType
+            ):
+                continue
+
+            storage_type = source_parameter.StorageType
+            if storage_type == DB.StorageType.Double:
+                target_parameter.Set(source_parameter.AsDouble())
+            elif storage_type == DB.StorageType.Integer:
+                target_parameter.Set(source_parameter.AsInteger())
+            elif storage_type == DB.StorageType.String:
+                value = source_parameter.AsString()
+                if value is not None:
+                    target_parameter.Set(value)
+            elif storage_type == DB.StorageType.ElementId:
+                target_parameter.Set(source_parameter.AsElementId())
+        except Exception:
+            continue
+
+
+def recreate_spot_at_text_position(spot, target_text, active_view):
+    """Recreate a Spot Coordinate so Revit rebuilds its inaccessible bend."""
+    if spot.References is None or spot.References.Size == 0:
+        raise Exception("Spot Coordinate has no reference")
+
+    reference = spot.References.get_Item(0)
+    origin = spot.Origin
+    text_to_end = spot.TextPosition - spot.LeaderEndPosition
+    target_end = target_text - text_to_end
+    right_axis = active_view.RightDirection
+    toward_origin = coordinate(origin - target_end, right_axis)
+    direction = 1.0 if toward_origin >= 0.0 else -1.0
+    shoulder_feet = DISTRIBUTION_SHOULDER_MM * active_view.Scale / 304.8
+    bend = target_end + right_axis.Multiply(direction * shoulder_feet)
+
+    new_spot = doc.Create.NewSpotCoordinate(
+        active_view,
+        reference,
+        origin,
+        bend,
+        target_end,
+        origin,
+        spot.HasLeader,
+    )
+    new_spot.ChangeTypeId(spot.GetTypeId())
+    copy_writable_parameters(spot, new_spot)
+
+    try:
+        overrides = active_view.GetElementOverrides(spot.Id)
+        active_view.SetElementOverrides(new_spot.Id, overrides)
+    except Exception:
+        pass
+
+    was_pinned = spot.Pinned
+    old_id = spot.Id
+    doc.Delete(old_id)
+    new_spot.Pinned = was_pinned
+    return new_spot
+
+
 def distribute_spots(spots, mode, active_view):
     """Evenly distribute text drag points between the two outermost spots."""
     axis = (
@@ -207,15 +275,22 @@ def distribute_spots(spots, mode, active_view):
         doc.Regenerate()
 
         # Keep both outermost Spot Coordinates fixed, matching Revit's
-        # distribute behavior. Only intermediate annotations are repositioned.
+        # distribute behavior. Recreate only intermediate annotations because
+        # Revit 2026 does not expose the bend point and rejects vertical changes
+        # to LeaderEndPosition when Leader Shoulder is enabled.
         for index, spot in enumerate(ordered_spots[1:-1], start=1):
             try:
-                if spot.Pinned or not spot.IsTextPositionAdjustable():
+                if (
+                    spot.Pinned
+                    or not spot.IsTextPositionAdjustable()
+                    or spot.GroupId.Value != -1
+                ):
                     skipped.append(spot.Id.Value)
                     continue
                 target = first_value + (spacing * index)
                 current = coordinate(spot.TextPosition, axis)
-                move_text_and_leader(spot, axis, target - current)
+                target_text = aligned_position(spot.TextPosition, axis, target)
+                recreate_spot_at_text_position(spot, target_text, active_view)
                 moved += 1
             except Exception:
                 skipped.append(spot.Id.Value)

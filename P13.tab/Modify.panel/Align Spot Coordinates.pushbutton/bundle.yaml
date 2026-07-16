@@ -2,6 +2,7 @@ title: "Align Spot\nCoordinates"
 tooltip: |
   Align selected Spot Coordinate text positions to the left, right, top, or bottom.
   Distribute three or more Spot Coordinates with equal horizontal or vertical spacing.
+  Revit 2026 requires intermediate Spot Coordinates to be recreated during distribution; their Element IDs will change.
   Reset one or more Spot Coordinate text positions using Revit's native reset.
   Repair stretched leaders and keep them attached to their coordinate text.
 
