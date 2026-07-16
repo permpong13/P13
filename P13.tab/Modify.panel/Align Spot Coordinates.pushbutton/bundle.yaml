@@ -1,0 +1,9 @@
+title: "Align Spot\nCoordinates"
+tooltip: |
+  Align selected Spot Coordinate text positions to the left, right, top, or bottom.
+  Distribute three or more Spot Coordinates with equal horizontal or vertical spacing.
+  Reset one or more Spot Coordinate text positions using Revit's native reset.
+  Repair stretched leaders and keep them attached to their coordinate text.
+
+  Preselect Spot Coordinates or run the command and pick them in the active view.
+author: "Permpong Taweekul"
