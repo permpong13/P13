@@ -7,11 +7,18 @@ import shutil
 import stat
 import subprocess
 import time
-import urllib2
+import traceback
 import zipfile
+
+try:
+    import urllib2
+except ImportError:
+    # IronPython 3 exposes the Python 3 module name instead of urllib2.
+    from urllib import request as urllib2
 
 from pyrevit.coreutils import ribbon
 from pyrevit.loader import sessionmgr
+from pyrevit import forms
 try:
     from pyrevit import HOST_APP
 except Exception:
@@ -24,8 +31,10 @@ GITHUB_COMMIT_API_URL = "https://api.github.com/repos/{}/commits/main".format(US
 VERSION_MARKER_FILE = ".p13_sync_version"
 REMOTE_CACHE_FILE = "P13_sync_remote_status.json"
 REMOTE_CACHE_SECONDS = 300
-FILE_OPERATION_RETRIES = 5
-FILE_OPERATION_RETRY_SECONDS = 0.4
+FILE_OPERATION_RETRIES = 12
+FILE_OPERATION_RETRY_SECONDS = 0.75
+SYNC_LOG_FILE = "P13_sync_error.log"
+HTTP_USER_AGENT = "P13-pyRevit-Sync/1.0 (+https://github.com/{})".format(USER_REPO)
 STATUS_LATEST = "latest"
 STATUS_OUTDATED = "outdated"
 STATUS_UNKNOWN = "unknown"
@@ -135,12 +144,51 @@ def get_temp_path(file_name):
     return os.path.join(temp_dir, file_name)
 
 
+def write_sync_log(message):
+    log_path = get_temp_path(SYNC_LOG_FILE)
+    try:
+        with open(log_path, "a") as log_file:
+            log_file.write("\n[{0}]\n{1}\n".format(time.strftime("%Y-%m-%d %H:%M:%S"), message))
+    except Exception:
+        pass
+    return log_path
+
+
+def report_sync_error(message, exception):
+    details = "{0}\n{1}\n{2}".format(message, exception, traceback.format_exc())
+    log_path = write_sync_log(details)
+    print("{0} Log: {1}".format(message, log_path))
+    exception_text = str(exception).strip()
+    if len(exception_text) > 240:
+        exception_text = exception_text[:237] + "..."
+    try:
+        forms.alert(
+            "{0}\n\nReason: {1}\n\nDiagnostic log: {2}".format(
+                message,
+                exception_text or "Unknown error",
+                log_path,
+            ),
+            title="P13 Sync",
+            warn_icon=True,
+        )
+    except Exception:
+        pass
+
+
 def get_json_from_url(url, timeout=5):
-    response = urllib2.urlopen(url, timeout=timeout)
-    return json.loads(response.read())
+    request = urllib2.Request(url)
+    request.add_header("User-Agent", HTTP_USER_AGENT)
+    request.add_header("Accept", "application/vnd.github+json")
+    response = None
+    try:
+        response = urllib2.urlopen(request, timeout=timeout)
+        return json.loads(response.read())
+    finally:
+        if response is not None:
+            response.close()
 
 
-def get_cached_remote_sha():
+def get_cached_remote_sha(allow_network=True):
     cache_path = get_temp_path(REMOTE_CACHE_FILE)
     try:
         if os.path.exists(cache_path):
@@ -153,6 +201,9 @@ def get_cached_remote_sha():
                     return cached_sha
     except Exception:
         pass
+
+    if not allow_network:
+        return ""
 
     try:
         remote_data = get_json_from_url(GITHUB_COMMIT_API_URL)
@@ -248,8 +299,8 @@ def get_local_sha(extension_root):
     return read_marker_sha(extension_root) or get_local_git_sha(extension_root)
 
 
-def get_update_status(extension_root):
-    remote_sha = get_cached_remote_sha()
+def get_update_status(extension_root, allow_network=True):
+    remote_sha = get_cached_remote_sha(allow_network=allow_network)
     local_sha = get_local_sha(extension_root)
 
     if not remote_sha:
@@ -365,7 +416,10 @@ def __selfinit__(script_cmp, ui_button_cmp, __rvt__):
         return False
 
     extension_root = get_extension_root()
-    status, local_sha, remote_sha = get_update_status(extension_root)
+    # Do not perform a network request while Revit is loading the ribbon.
+    # A cached result is still used when available; the explicit Sync command
+    # performs the live GitHub check.
+    status, local_sha, remote_sha = get_update_status(extension_root, allow_network=False)
     set_status_icon(script_cmp, ui_button_cmp, status)
     set_ribbon_tooltip(ui_button_cmp, status, local_sha, remote_sha)
     return True
@@ -415,7 +469,7 @@ def remove_path_with_retries(target_path):
         except Exception:
             if attempt == FILE_OPERATION_RETRIES - 1:
                 raise
-            time.sleep(FILE_OPERATION_RETRY_SECONDS)
+            time.sleep(FILE_OPERATION_RETRY_SECONDS * (attempt + 1))
 
 
 def move_path_with_retries(source_path, target_path):
@@ -428,7 +482,7 @@ def move_path_with_retries(source_path, target_path):
         except Exception:
             if attempt == FILE_OPERATION_RETRIES - 1:
                 raise
-            time.sleep(FILE_OPERATION_RETRY_SECONDS)
+            time.sleep(FILE_OPERATION_RETRY_SECONDS * (attempt + 1))
 
 
 def prepare_staging_extension(extracted_root, staging_path):
@@ -483,12 +537,16 @@ def sync_tools():
     staging_path = os.path.join(extension_parent, "P13.update-staging")
     backup_path = os.path.join(extension_parent, "P13.update-backup")
 
+    update_completed = False
     try:
         remove_path_with_retries(temp_dir)
         if os.path.exists(temp_zip):
             remove_path_with_retries(temp_zip)
 
-        response = urllib2.urlopen(GITHUB_API_URL, timeout=30)
+        request = urllib2.Request(GITHUB_API_URL)
+        request.add_header("User-Agent", HTTP_USER_AGENT)
+        request.add_header("Accept", "application/vnd.github+json")
+        response = urllib2.urlopen(request, timeout=30)
         try:
             with open(temp_zip, "wb") as zip_file:
                 zip_file.write(response.read())
@@ -505,10 +563,10 @@ def sync_tools():
         prepare_staging_extension(extracted_folder, staging_path)
         replace_extension(staging_path, dest_path, backup_path)
         write_marker_sha(dest_path, remote_sha)
-        sessionmgr.reload_pyrevit()
+        update_completed = True
 
     except Exception as exc:
-        print("Update error: {}".format(exc))
+        report_sync_error("Update failed.", exc)
 
     finally:
         try:
@@ -518,6 +576,22 @@ def sync_tools():
                 remove_path_with_retries(temp_dir)
         except Exception:
             pass
+
+    if not update_completed:
+        return
+
+    try:
+        sessionmgr.reload_pyrevit()
+    except Exception as exc:
+        log_path = write_sync_log(
+            "Update completed, but pyRevit reload failed.\n{0}\n{1}".format(
+                exc,
+                traceback.format_exc(),
+            )
+        )
+        print(
+            "Update completed. Reload pyRevit manually. Log: {0}".format(log_path)
+        )
 
 
 if __name__ == "__main__":
