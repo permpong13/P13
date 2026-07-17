@@ -1,0 +1,5 @@
+title: "Set Color"
+tooltip: |
+  Select any RGB/HEX color and apply it to the selected elements' line graphics.
+  Select elements before running or select them after starting the command.
+author: "Permpong13"

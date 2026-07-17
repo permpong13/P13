@@ -1,0 +1,6 @@
+title: "Spot Distribute"
+tooltip: "Distribute Spot Coordinates with equal spacing."
+layout:
+  - Align Spot Bot
+  - Distribute Spot Hor
+  - Distribute Spot Ver

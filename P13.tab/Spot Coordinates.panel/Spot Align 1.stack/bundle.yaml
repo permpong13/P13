@@ -1,0 +1,6 @@
+title: "Spot Align"
+tooltip: "Align Spot Coordinates horizontally and vertically."
+layout:
+  - Align-L
+  - Align-R
+  - Align-T

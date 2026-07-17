@@ -1,0 +1,5 @@
+title: "Reset"
+tooltip: |
+  Clear line color overrides and restore the active view's original graphics.
+  Select elements before running or select them after starting the command.
+author: "Permpong13"
