@@ -1,18 +1,30 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=import-error,invalid-name,broad-except
-"""Advanced Paste State: Active View/List Prompt & Auto-Pull Missing Filters"""
+"""Apply portable view-filter presets, including cross-project filters."""
 import os
 import time
 import json
 import System
 from pyrevit import forms, script, revit, DB, HOST_APP
 
-my_config = script.get_config()
-default_safe_path = System.Environment.GetFolderPath(System.Environment.SpecialFolder.MyDocuments)
-export_path = getattr(my_config, 'export_path', default_safe_path)
+my_config = script.get_config("p13_filter_state")
+legacy_config = script.get_config()
 
-def set_id(val):
-    return DB.ElementId(System.Int64(val)) if val and val != -1 else DB.ElementId.InvalidElementId
+
+def get_export_path():
+    """Return the shared preset folder and remember a user-selected fallback."""
+    configured_path = getattr(my_config, "export_path", None)
+    if not configured_path:
+        configured_path = getattr(legacy_config, "export_path", None)
+    if configured_path and os.path.isdir(configured_path):
+        return configured_path
+
+    selected_path = forms.pick_folder(title="Select the folder containing Filter presets")
+    if not selected_path:
+        return None
+    my_config.export_path = selected_path
+    script.save_config()
+    return selected_path
 
 def safe_drafting_pattern_id(doc, val):
     if val is None or val == -1: return DB.ElementId.InvalidElementId
@@ -23,9 +35,122 @@ def safe_drafting_pattern_id(doc, val):
             return pid
     return DB.ElementId.InvalidElementId
 
+
+def find_line_pattern_id(doc, pattern_name, legacy_id):
+    """Resolve line patterns by name across projects, with legacy-ID fallback."""
+    if pattern_name:
+        for element in DB.FilteredElementCollector(doc).OfClass(DB.LinePatternElement):
+            if element.Name == pattern_name:
+                return element.Id
+    if legacy_id not in (None, -1):
+        candidate = doc.GetElement(DB.ElementId(System.Int64(legacy_id)))
+        if candidate and isinstance(candidate, DB.LinePatternElement):
+            return candidate.Id
+    return DB.ElementId.InvalidElementId
+
+
+def find_drafting_pattern_id(doc, pattern_name, legacy_id):
+    """Resolve drafting fill patterns by name across projects."""
+    if pattern_name:
+        for element in DB.FilteredElementCollector(doc).OfClass(DB.FillPatternElement):
+            fill_pattern = element.GetFillPattern()
+            if element.Name == pattern_name and fill_pattern.Target == DB.FillPatternTarget.Drafting:
+                return element.Id
+    return safe_drafting_pattern_id(doc, legacy_id)
+
+
+def collect_project_filters(doc):
+    """Collect every view-filter element supported by this Revit build."""
+    filters_by_name = {}
+    filter_classes = [DB.ParameterFilterElement]
+    if hasattr(DB, "SelectionFilterElement"):
+        filter_classes.append(DB.SelectionFilterElement)
+    for filter_class in filter_classes:
+        for filter_element in DB.FilteredElementCollector(doc).OfClass(filter_class):
+            filters_by_name[filter_element.Name] = filter_element.Id
+    return filters_by_name
+
+
+def find_source_document(app, current_doc, filter_data):
+    """Find the exact open source document recorded by Copy-F."""
+    source_path = filter_data.get("source_document_path")
+    source_title = filter_data.get("source_document_title")
+    fallback_documents = []
+    for candidate in app.Documents:
+        if candidate.IsLinked or candidate.Equals(current_doc):
+            continue
+        fallback_documents.append(candidate)
+        try:
+            if source_path and candidate.PathName and candidate.PathName.lower() == source_path.lower():
+                return candidate
+        except Exception:
+            pass
+        if source_title and candidate.Title == source_title:
+            return candidate
+
+    # Preserve compatibility with presets created before source metadata existed.
+    filter_name = filter_data.get("name")
+    filter_classes = [DB.ParameterFilterElement]
+    if hasattr(DB, "SelectionFilterElement"):
+        filter_classes.append(DB.SelectionFilterElement)
+    for candidate in fallback_documents:
+        for filter_class in filter_classes:
+            for filter_element in DB.FilteredElementCollector(candidate).OfClass(filter_class):
+                if filter_element.Name == filter_name:
+                    return candidate
+    return None
+
+
+def find_source_filter(source_doc, filter_data):
+    """Find a source filter by stable UniqueId, falling back to its name."""
+    unique_id = filter_data.get("source_filter_unique_id")
+    if unique_id:
+        try:
+            source_filter = source_doc.GetElement(unique_id)
+            if source_filter:
+                return source_filter
+        except Exception:
+            pass
+    filter_name = filter_data.get("name")
+    filter_classes = [DB.ParameterFilterElement]
+    if hasattr(DB, "SelectionFilterElement"):
+        filter_classes.append(DB.SelectionFilterElement)
+    for filter_class in filter_classes:
+        for source_filter in DB.FilteredElementCollector(source_doc).OfClass(filter_class):
+            if source_filter.Name == filter_name:
+                return source_filter
+    return None
+
+
+def copy_missing_filter(source_doc, source_filter, target_doc):
+    """Copy a filter definition inside a real target-document transaction."""
+    transaction = DB.Transaction(target_doc, "Copy Filter from Source Project")
+    transaction.Start()
+    try:
+        source_ids = System.Collections.Generic.List[DB.ElementId]()
+        source_ids.Add(source_filter.Id)
+        copied_ids = DB.ElementTransformUtils.CopyElements(
+            source_doc,
+            source_ids,
+            target_doc,
+            DB.Transform.Identity,
+            DB.CopyPasteOptions()
+        )
+        transaction.Commit()
+        if copied_ids and copied_ids.Count > 0:
+            return copied_ids[0]
+    except Exception:
+        if transaction.GetStatus() == DB.TransactionStatus.Started:
+            transaction.RollBack()
+        raise
+    return None
+
 class FilterPasteAction:
     def paste(self):
         doc = revit.doc
+        export_path = get_export_path()
+        if not export_path:
+            return
         app = HOST_APP.app # ใช้ HOST_APP แทน revit.app เพื่อดึง Application Services
         
         # 1. โหลดไฟล์ JSON
@@ -75,32 +200,39 @@ class FilterPasteAction:
         tg.Start()
         try:
             # --- ระบบ Auto-Pull ดึงโครงสร้างข้ามไฟล์ ---
-            all_proj_filters = {f.Name: f.Id for f in DB.FilteredElementCollector(doc).OfClass(DB.ParameterFilterElement)}
+            all_proj_filters = collect_project_filters(doc)
             missing_names = [n for n in sel_names if n not in all_proj_filters]
             
             if missing_names:
-                open_docs = [d for d in app.Documents if not d.IsLinked and d.Title != doc.Title]
                 pulled_count = 0
-                for missing_name in list(missing_names):
-                    for other_doc in open_docs:
-                        other_filter = next((f for f in DB.FilteredElementCollector(other_doc).OfClass(DB.ParameterFilterElement) if f.Name == missing_name), None)
-                        if other_filter:
-                            try:
-                                copied_ids = DB.ElementTransformUtils.CopyElements(
-                                    other_doc, 
-                                    System.Collections.Generic.List[DB.ElementId]([other_filter.Id]), 
-                                    doc, 
-                                    DB.Transform.Identity, 
-                                    DB.CopyPasteOptions()
-                                )
-                                if copied_ids:
-                                    all_proj_filters[missing_name] = copied_ids[0]
-                                    pulled_count += 1
-                                    break
-                            except Exception: pass
+                pull_errors = []
+                selected_data = [item for item in data if item.get("name") in missing_names]
+                for filter_data in selected_data:
+                    missing_name = filter_data.get("name")
+                    source_doc = find_source_document(app, doc, filter_data)
+                    if not source_doc:
+                        pull_errors.append("{}: source project is not open".format(missing_name))
+                        continue
+                    source_filter = find_source_filter(source_doc, filter_data)
+                    if not source_filter:
+                        pull_errors.append("{}: filter was not found in source project".format(missing_name))
+                        continue
+                    try:
+                        copied_id = copy_missing_filter(source_doc, source_filter, doc)
+                        if copied_id:
+                            all_proj_filters[missing_name] = copied_id
+                            pulled_count += 1
+                    except Exception as copy_error:
+                        pull_errors.append("{}: {}".format(missing_name, copy_error))
                 
                 if pulled_count > 0:
-                    forms.toast("Auto-pulled {} missing filter(s) from other open files!".format(pulled_count))
+                    forms.toast("Copied {} missing filter(s) from the source project.".format(pulled_count))
+                if pull_errors:
+                    forms.alert(
+                        "Some filters could not be copied:\n\n{}\n\nKeep the source project open and try again."
+                        .format("\n".join(pull_errors)),
+                        title="Cross-Project Filter Copy"
+                    )
             # ----------------------------------------
 
             for v in target_views:
@@ -136,15 +268,15 @@ class FilterPasteAction:
                             if ovs.get("proj_line_weight") and int(ovs.get("proj_line_weight", 0)) > 0: new_ovr.SetProjectionLineWeight(int(ovs["proj_line_weight"]))
                             if ovs.get("cut_line_weight") and int(ovs.get("cut_line_weight", 0)) > 0: new_ovr.SetCutLineWeight(int(ovs["cut_line_weight"]))
                                 
-                            try: new_ovr.SetProjectionLinePatternId(set_id(ovs.get("proj_line_pattern", -1)))
+                            try: new_ovr.SetProjectionLinePatternId(find_line_pattern_id(doc, ovs.get("proj_line_pattern_name"), ovs.get("proj_line_pattern", -1)))
                             except Exception: pass
-                            try: new_ovr.SetCutLinePatternId(set_id(ovs.get("cut_line_pattern", -1)))
+                            try: new_ovr.SetCutLinePatternId(find_line_pattern_id(doc, ovs.get("cut_line_pattern_name"), ovs.get("cut_line_pattern", -1)))
                             except Exception: pass
 
-                            new_ovr.SetSurfaceForegroundPatternId(safe_drafting_pattern_id(doc, ovs.get("surf_fg_pattern_id", -1)))
-                            if hasattr(new_ovr, 'SetSurfaceBackgroundPatternId'): new_ovr.SetSurfaceBackgroundPatternId(safe_drafting_pattern_id(doc, ovs.get("surf_bg_pattern_id", -1)))
-                            new_ovr.SetCutForegroundPatternId(safe_drafting_pattern_id(doc, ovs.get("cut_fg_pattern_id", -1)))
-                            if hasattr(new_ovr, 'SetCutBackgroundPatternId'): new_ovr.SetCutBackgroundPatternId(safe_drafting_pattern_id(doc, ovs.get("cut_bg_pattern_id", -1)))
+                            new_ovr.SetSurfaceForegroundPatternId(find_drafting_pattern_id(doc, ovs.get("surf_fg_pattern_name"), ovs.get("surf_fg_pattern_id", -1)))
+                            if hasattr(new_ovr, 'SetSurfaceBackgroundPatternId'): new_ovr.SetSurfaceBackgroundPatternId(find_drafting_pattern_id(doc, ovs.get("surf_bg_pattern_name"), ovs.get("surf_bg_pattern_id", -1)))
+                            new_ovr.SetCutForegroundPatternId(find_drafting_pattern_id(doc, ovs.get("cut_fg_pattern_name"), ovs.get("cut_fg_pattern_id", -1)))
+                            if hasattr(new_ovr, 'SetCutBackgroundPatternId'): new_ovr.SetCutBackgroundPatternId(find_drafting_pattern_id(doc, ovs.get("cut_bg_pattern_name"), ovs.get("cut_bg_pattern_id", -1)))
                             
                             v.SetFilterOverrides(fid, new_ovr)
 
