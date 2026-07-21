@@ -2,7 +2,10 @@
 from __future__ import print_function
 
 __title__ = "Chain\nDimension"
-__doc__ = "Create one chained dimension from picked references or window-selected family instances."
+__doc__ = (
+    "Create one chained dimension from picked references or window-selected family instances. "
+    "Actual-spacing mode preserves element positions and supports unequal gaps."
+)
 __author__ = "P13"
 
 import math
@@ -72,7 +75,7 @@ class ChainDimensionWindow(forms.WPFWindow):
         self.direction_mode = None
         self.target_mode = None
         self.selected_category_ids = []
-        self.apply_equality = True
+        self.apply_equality = False
 
         # Collect model categories present in the active view
         self.categories_map = get_model_categories_in_view(doc, view)
@@ -131,8 +134,20 @@ class ChainDimensionWindow(forms.WPFWindow):
             forms.alert("Please select at least one category to measure.", title="Warning")
             return
 
-        # Capture equality checkbox state
-        self.apply_equality = self.applyEquality.IsChecked
+        # Equality is an actual Revit constraint and can move selected elements.
+        # Keep it opt-in so ordinary dimension creation always preserves positions.
+        self.apply_equality = self.spacingEqual.IsChecked
+
+        if self.apply_equality:
+            proceed = forms.alert(
+                "Equal spacing adds a Revit EQ constraint. Revit may move unlocked "
+                "elements so every dimension segment becomes equal.\n\nContinue?",
+                title="Equal Spacing Warning",
+                yes=True,
+                no=True,
+            )
+            if not proceed:
+                return
 
         self.DialogResult = True
         self.Close()
@@ -567,14 +582,9 @@ def select_and_show_element(element):
         pass
 
 
-def apply_equality_formula_display(dimension):
+def set_equality_formula_display(dimension):
     if not dimension:
         return
-
-    try:
-        dimension.AreSegmentsEqual = True
-    except Exception:
-        pass
 
     equality_display_param = None
     try:
@@ -593,6 +603,32 @@ def apply_equality_formula_display(dimension):
             equality_display_param.Set(2)
         except Exception:
             pass
+
+
+def apply_equality_constraint(dimension):
+    if not dimension:
+        return
+
+    try:
+        dimension.AreSegmentsEqual = True
+    except Exception:
+        pass
+
+
+def create_chain_dimension(
+    dimension_line,
+    ref_array,
+    apply_equality,
+):
+    """Create the dimension; only the explicit EQ mode may reposition elements."""
+    dimension = doc.Create.NewDimension(view, dimension_line, ref_array)
+    # Match the requested instance property without applying an EQ constraint.
+    # Revit still shows actual values for unequal segments, while the property
+    # remains set to Equality Formula for dimensions that qualify for it.
+    set_equality_formula_display(dimension)
+    if apply_equality:
+        apply_equality_constraint(dimension)
+    return dimension
 
 
 def main():
@@ -670,11 +706,14 @@ def main():
     dimension_line = build_dimension_line(sorted_points, placement_point, dimension_direction)
     ref_array = create_reference_array(sorted_reference_points)
 
+    dimension = None
     try:
         with revit.Transaction("Create Chain Dimension"):
-            dimension = doc.Create.NewDimension(view, dimension_line, ref_array)
-            if apply_equality:
-                apply_equality_formula_display(dimension)
+            dimension = create_chain_dimension(
+                dimension_line,
+                ref_array,
+                apply_equality,
+            )
             doc.Regenerate()
     except Exception as create_error:
         forms.alert(

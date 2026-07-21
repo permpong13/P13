@@ -7,9 +7,12 @@ tooltip: |
   - Drag a window around multiple family instances and dimension their start side, end side, or both sides.
   - Pick several faces, edges, endpoints, or element reference points in the active view.
   - Choose horizontal, vertical, or aligned dimension direction.
+  - Preserve actual spacing by default, including unequal gaps between selected items.
+  - Sets the created dimension's Equality Display property to Equality Formula.
+  - Optionally apply an EQ constraint after an explicit movement warning.
   - Place the dimension line with one click after selecting the references.
   - Automatically sorts picked references along the selected direction before creating the dimension.
-  - Uses the active dimension type, including Equality Display settings such as Equality Formula.
+  - Uses the active dimension type and does not reposition elements unless EQ is explicitly selected.
 
 author: "P13"
-description: "Create chained dimensions from window-selected family instances or picked references in the active view."
+description: "Create chained dimensions with actual unequal spacing preserved by default, or optionally apply an EQ constraint."

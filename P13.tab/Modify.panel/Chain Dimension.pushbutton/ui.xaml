@@ -115,7 +115,7 @@
                 </Border>
                 <StackPanel Grid.Column="1" Margin="14,0,0,0">
                     <TextBlock Text="Chain Dimension" FontSize="22" FontWeight="SemiBold"/>
-                    <TextBlock Text="Create equality formula dimensions from picked references or window-selected families."
+                    <TextBlock Text="Create chained dimensions while preserving actual element spacing by default."
                                Foreground="{StaticResource MutedBrush}"
                                Margin="0,4,0,0"
                                TextWrapping="Wrap"/>
@@ -188,19 +188,36 @@
                 </Border>
             </Grid>
 
-            <Grid Grid.Row="3" Margin="0,18,0,0">
+            <StackPanel Grid.Row="3" Margin="0,12,0,0">
+                <Border Style="{StaticResource P13Card}" Margin="0">
+                    <StackPanel>
+                        <TextBlock Text="Spacing Behavior" FontSize="14" FontWeight="SemiBold"/>
+                        <RadioButton x:Name="spacingActual"
+                                     Content="Preserve actual spacing (supports unequal gaps)"
+                                     GroupName="SpacingBehavior"
+                                     IsChecked="True"/>
+                        <TextBlock Text="Sets Equality Display to Equality Formula without equalizing or repositioning elements."
+                                   Foreground="{StaticResource MutedBrush}"
+                                   Margin="22,3,0,0"
+                                   TextWrapping="Wrap"/>
+                        <RadioButton x:Name="spacingEqual"
+                                     Content="Make all segments equal (EQ constraint)"
+                                     GroupName="SpacingBehavior"
+                                     Margin="0,12,0,0"/>
+                        <TextBlock Text="May move unlocked elements. A confirmation will be shown before continuing."
+                                   Foreground="#FBBF24"
+                                   Margin="22,3,0,0"
+                                   TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <Grid Margin="0,18,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="10"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <CheckBox Grid.Column="0"
-                          x:Name="applyEquality"
-                          Content="Apply Equality Formula (EQ)"
-                          Foreground="{StaticResource TextBrush}"
-                          IsChecked="True"
-                          VerticalAlignment="Center"/>
                 <Button Grid.Column="1"
                          Content="Cancel"
                          Style="{StaticResource SecondaryButton}"
@@ -209,7 +226,8 @@
                          Content="Start"
                          Style="{StaticResource PrimaryButton}"
                          Click="start_clicked"/>
-            </Grid>
+                </Grid>
+            </StackPanel>
         </Grid>
     </Border>
 </Window>

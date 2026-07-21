@@ -1,0 +1,16 @@
+title: "Grid Bubble\nManager"
+
+tooltip: |
+  Manage grid bubbles in the active view without changing grid geometry.
+
+  Key features:
+  - Use the current selection, window selection, all visible grids, or continuous picking.
+  - Show both ends, hide both ends, choose left/bottom or right/top, smart-place one bubble, or cycle through all four states.
+  - Determine grid ends from the active view instead of unreliable creation direction.
+  - Use the crop boundary to choose a smart outside endpoint.
+  - Support straight, arc, diagonal, and multi-segment grids.
+  - Process batch selections in one undoable transaction and report skipped or failed grids.
+  - Remember the most recently used options.
+
+author: "P13"
+description: "Batch-manage grid bubbles by view direction, crop boundary, or current state."
