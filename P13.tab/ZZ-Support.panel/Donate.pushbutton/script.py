@@ -20,9 +20,13 @@ class DonateWindow(forms.WPFWindow):
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Support p13.extension"
         Width="700"
-        Height="650"
+        Height="700"
+        MinWidth="620"
+        MinHeight="620"
         WindowStartupLocation="CenterScreen"
-        ResizeMode="NoResize"
+        ResizeMode="CanResize"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
         Background="#F2F2F7">
     <Window.Resources>
         <Style TargetType="Button">
@@ -103,20 +107,28 @@ class DonateWindow(forms.WPFWindow):
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Border Grid.Column="0" Background="White" BorderBrush="#E5E5EA" BorderThickness="1" CornerRadius="10" Padding="14">
-                <StackPanel HorizontalAlignment="Center">
+            <Border Grid.Column="0" Background="White" BorderBrush="#E5E5EA" BorderThickness="1" CornerRadius="10" Padding="14" ClipToBounds="True">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock Text="PayPal" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                    <Border Width="290" Height="340" ClipToBounds="False">
-                        <Image Source="{paypal}" Stretch="Uniform"/>
+                    <Border Width="270" Height="300" ClipToBounds="True">
+                        <Image Source="{paypal}"
+                               Stretch="Uniform"
+                               StretchDirection="DownOnly"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>
             </Border>
 
-            <Border Grid.Column="2" Background="White" BorderBrush="#E5E5EA" BorderThickness="1" CornerRadius="10" Padding="14">
-                <StackPanel HorizontalAlignment="Center">
+            <Border Grid.Column="2" Background="White" BorderBrush="#E5E5EA" BorderThickness="1" CornerRadius="10" Padding="14" ClipToBounds="True">
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
                     <TextBlock Text="PromptPay" FontSize="16" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                    <Border Width="290" Height="340" ClipToBounds="False">
-                        <Image Source="{promptpay}" Stretch="Uniform"/>
+                    <Border Width="270" Height="300" ClipToBounds="True">
+                        <Image Source="{promptpay}"
+                               Stretch="Uniform"
+                               StretchDirection="DownOnly"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>
             </Border>

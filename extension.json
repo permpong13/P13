@@ -1,5 +1,6 @@
 {
     "name": "P13",
-    "author": "เพิ่มพงษ์ ทวีกุล (P13)",
-    "description": "BIM Automation for Revit 2026"
+    "author": "P13",
+    "version": "0.3.0",
+    "description": "BIM automation and secured local MCP tools for Revit 2026"
 }

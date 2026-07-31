@@ -1,3 +1,29 @@
 *.pyc 
 __pycache__/ 
 .tmp.driveupload/ 
+.venv/
+.codex-cli/
+*.log
+*.err.log
+*.backup-*.json
+.env
+*.pem
+*.key
+mcp_config.json
+
+# Per-user/runtime data must remain outside public releases.
+ai_jobs/
+ai_history/
+audit/
+logs/
+dimension_learning.json
+*.request.json
+*.result.json
+
+# Legacy SuperSheet files can contain client names, project metadata, and paths.
+P13.tab/Manager.panel/SuperSheet.pushbutton/Google_profiles_backup.json
+P13.tab/Manager.panel/SuperSheet.pushbutton/OHM2.json
+P13.tab/Manager.panel/SuperSheet.pushbutton/OHM COCO.xml
+P13.tab/Manager.panel/SuperSheet.pushbutton/p13_last_settings.json
+P13.tab/Manager.panel/SuperSheet.pushbutton/p13_supersheet_config.json
+P13.tab/Manager.panel/SuperSheet.pushbutton/profiles.json

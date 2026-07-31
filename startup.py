@@ -3,11 +3,15 @@ from __future__ import print_function
 
 import os
 import shutil
+import logging
+import sys
+import threading
+import time
+from datetime import datetime
 
 from pyrevit.api import AdWindows
 
 
-ADMIN_USERS = ["Permpong13"]
 TAB_TITLE = "P13"
 PANEL_TITLE = "A-Sync"
 OBSOLETE_RELATIVE_PATHS = [
@@ -29,6 +33,7 @@ OBSOLETE_RELATIVE_PATHS = [
         "SheetTools.stack"
     ),
 ]
+logger = logging.getLogger(__name__)
 
 
 def get_current_username():
@@ -36,8 +41,11 @@ def get_current_username():
 
 
 def is_admin_user():
-    current_user = get_current_username().lower()
-    return current_user in [name.lower() for name in ADMIN_USERS]
+    # A Git checkout is a development installation. Release packages do not
+    # contain .git, so end users retain the normal update controls without a
+    # hardcoded developer username or Windows domain in public source code.
+    extension_root = find_extension_root(os.path.dirname(os.path.abspath(__file__)))
+    return os.path.isdir(os.path.join(extension_root, ".git"))
 
 
 def hide_admin_sync_panel():
@@ -90,5 +98,147 @@ def cleanup_obsolete_paths():
             pass
 
 
+def ensure_extension_lib_path():
+    extension_root = find_extension_root(os.path.dirname(os.path.abspath(__file__)))
+    library_path = os.path.join(extension_root, "lib")
+    if os.path.isdir(library_path) and library_path not in sys.path:
+        sys.path.insert(0, library_path)
+
+
+def make_pyrevit_routes_worker_safe():
+    """Make pyRevit Routes safe for concurrent MCP clients and .NET 8.
+
+    Python's BaseHTTPRequestHandler writes every response to sys.stderr through
+    log_message(). In pyRevit on .NET 8, stderr is the WPF script console. A
+    Routes worker therefore attempts to construct that window outside Revit's
+    STA thread and can terminate the host process. Disabling only this access
+    log leaves routing, responses, and P13 diagnostics unchanged.
+
+    pyRevit Routes also owns one global ExternalEvent handler that is reused by
+    every HTTP worker. Without serialization, a second MCP request can replace
+    the first request while Revit is still executing it. This patch queues route
+    handling and replaces the original CPU-intensive infinite waits with bounded
+    waits. It applies to the shared Routes server so P13 and other MCP clients
+    can coexist without corrupting one another's requests.
+    """
+    try:
+        from pyrevit.routes.server.server import (
+            HTTPServer,
+            HttpRequestHandler,
+            ThreadedHttpServer,
+        )
+
+        def write_worker_diagnostic(context, error):
+            try:
+                from p13_mcp.security import redact_sensitive_text
+
+                log_directory = os.path.join(
+                    os.environ.get("APPDATA") or os.path.expanduser("~"),
+                    "pyRevit",
+                    "P13",
+                )
+                if not os.path.isdir(log_directory):
+                    os.makedirs(log_directory)
+                log_path = os.path.join(log_directory, "pyrevit_routes_worker.log")
+                timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H:%M:%SZ")
+                safe_context = redact_sensitive_text(context or "pyRevit Routes worker").replace("\r", " ").replace("\n", " ")
+                safe_error = redact_sensitive_text(error or "Unknown error").replace("\r", " ").replace("\n", " ")
+                with open(log_path, "a") as log_file:
+                    log_file.write("{} | {} | {}\n".format(timestamp, safe_context, safe_error))
+            except Exception:
+                pass
+
+        def silent_log_message(self, format_string, *arguments):
+            return None
+
+        def safe_shutdown(self):
+            HTTPServer.shutdown(self)
+            self.server_close()
+
+        def silent_handle_error(self, request, client_address):
+            write_worker_diagnostic(
+                "pyRevit Routes worker exception for {}".format(client_address),
+                sys.exc_info()[1],
+            )
+
+        # Keep one lock on the handler class so re-running startup does not
+        # create separate queues around an already patched method.
+        if not hasattr(HttpRequestHandler, "_p13_route_lock"):
+            HttpRequestHandler._p13_route_lock = threading.Lock()
+
+        if not hasattr(HttpRequestHandler, "_p13_original_handle_route"):
+            HttpRequestHandler._p13_original_handle_route = HttpRequestHandler._handle_route
+
+            def serialized_handle_route(self, method):
+                route_lock = HttpRequestHandler._p13_route_lock
+                acquired = False
+                deadline = time.time() + 300.0
+                while time.time() < deadline:
+                    if route_lock.acquire(False):
+                        acquired = True
+                        break
+                    time.sleep(0.02)
+
+                if not acquired:
+                    raise RuntimeError(
+                        "pyRevit Routes is busy. Close any abandoned AI task and try again."
+                    )
+
+                try:
+                    return HttpRequestHandler._p13_original_handle_route(self, method)
+                finally:
+                    route_lock.release()
+
+            HttpRequestHandler._handle_route = serialized_handle_route
+
+        if not hasattr(HttpRequestHandler, "_p13_original_call_host_event_sync"):
+            HttpRequestHandler._p13_original_call_host_event_sync = (
+                HttpRequestHandler._call_host_event_sync
+            )
+
+            def efficient_call_host_event_sync(self, request_handler, event_handler):
+                self._call_host_event(request_handler, event_handler)
+
+                event_deadline = time.time() + 180.0
+                while event_handler.IsPending:
+                    if time.time() >= event_deadline:
+                        raise RuntimeError(
+                            "Revit did not accept the MCP ExternalEvent within 180 seconds."
+                        )
+                    time.sleep(0.01)
+
+                completion_deadline = time.time() + 180.0
+                while not request_handler.done:
+                    if time.time() >= completion_deadline:
+                        raise RuntimeError(
+                            "The MCP route did not finish within 180 seconds."
+                        )
+                    time.sleep(0.01)
+
+            HttpRequestHandler._call_host_event_sync = efficient_call_host_event_sync
+
+        HttpRequestHandler.log_message = silent_log_message
+        ThreadedHttpServer.shutdown = safe_shutdown
+        ThreadedHttpServer.handle_error = silent_handle_error
+    except Exception as error:
+        logger.warning("P13 could not apply the pyRevit Routes worker safety patch: %s", str(error))
+
+
+def register_p13_mcp_routes():
+    """Register P13 MCP routes without affecting normal P13 startup on failure."""
+    try:
+        from pyrevit import routes
+        from p13_mcp import API_NAME
+        from p13_mcp.routes import register_routes
+
+        api = routes.API(API_NAME)
+        register_routes(api)
+    except Exception as error:
+        logger.warning("P13 MCP routes were not registered: %s", str(error))
+
+
 cleanup_obsolete_paths()
 hide_admin_sync_panel()
+ensure_extension_lib_path()
+make_pyrevit_routes_worker_safe()
+register_p13_mcp_routes()

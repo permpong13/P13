@@ -12,6 +12,7 @@ __author__ = "P13"
 from Autodesk.Revit.Exceptions import OperationCanceledException
 from Autodesk.Revit.UI.Selection import ISelectionFilter, ObjectType
 from pyrevit import revit, DB, forms, script
+from p13_grid_bubbles import process_grids as process_grids_shared
 
 
 doc = revit.doc
@@ -427,37 +428,14 @@ def get_grid_label(grid):
 
 
 def process_grids(grids, action_mode, orient_by_view, transaction_name):
-    result = new_result()
-    crop_bounds = get_crop_bounds()
-
-    with revit.Transaction(transaction_name):
-        for grid in grids:
-            subtransaction = DB.SubTransaction(doc)
-            try:
-                subtransaction.Start()
-                status, message = apply_action_to_grid(
-                    grid,
-                    action_mode,
-                    orient_by_view,
-                    crop_bounds,
-                )
-                subtransaction.Commit()
-                result[status] += 1
-                if message:
-                    result["messages"].append(
-                        "{}: {}".format(get_grid_label(grid), message)
-                    )
-            except Exception as error:
-                try:
-                    subtransaction.RollBack()
-                except Exception:
-                    pass
-                result["failed"] += 1
-                result["messages"].append(
-                    "{}: {}".format(get_grid_label(grid), error)
-                )
-
-    return result
+    return process_grids_shared(
+        doc,
+        view,
+        grids,
+        action_mode,
+        orient_by_view,
+        transaction_name,
+    )
 
 
 def process_continuous_picks(action_mode, orient_by_view):

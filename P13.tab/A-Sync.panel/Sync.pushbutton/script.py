@@ -62,12 +62,47 @@ OBSOLETE_RELATIVE_PATHS = [
         "SheetTools.stack"
     ),
 ]
-ADMIN_USERS = [
-    "Permpong13",
-    "TEE\\Permpong13",
+PRIVATE_SETTING_MIGRATIONS = [
+    (
+        os.path.join(
+            "P13.tab", "Manager.panel", "SuperSheet.pushbutton",
+            "p13_supersheet_config.json"
+        ),
+        os.path.join("SuperSheet", "profiles.json"),
+    ),
+    (
+        os.path.join(
+            "P13.tab", "Manager.panel", "SuperSheet.pushbutton",
+            "p13_last_settings.json"
+        ),
+        os.path.join("SuperSheet", "last_settings.json"),
+    ),
+    (
+        os.path.join(
+            "P13.tab", "Manager.panel", "SuperSheet.pushbutton",
+            "Google_profiles_backup.json"
+        ),
+        os.path.join("SuperSheet", "Legacy", "Google_profiles_backup.json"),
+    ),
+    (
+        os.path.join(
+            "P13.tab", "Manager.panel", "SuperSheet.pushbutton", "OHM2.json"
+        ),
+        os.path.join("SuperSheet", "Legacy", "OHM2.json"),
+    ),
+    (
+        os.path.join(
+            "P13.tab", "Manager.panel", "SuperSheet.pushbutton", "OHM COCO.xml"
+        ),
+        os.path.join("SuperSheet", "Legacy", "OHM COCO.xml"),
+    ),
+    (
+        os.path.join(
+            "P13.tab", "Manager.panel", "SuperSheet.pushbutton", "profiles.json"
+        ),
+        os.path.join("SuperSheet", "Legacy", "profiles.json"),
+    ),
 ]
-
-
 def get_current_username():
     return (os.environ.get("USERNAME") or os.environ.get("USER") or "").strip()
 
@@ -100,9 +135,9 @@ def get_current_user_keys():
 
 
 def is_admin_user():
-    current_keys = get_current_user_keys()
-    admin_keys = set([name.lower() for name in ADMIN_USERS])
-    return bool(current_keys.intersection(admin_keys))
+    # Treat source checkouts as development installations without publishing a
+    # developer's Windows username or domain. Release packages omit .git.
+    return os.path.isdir(os.path.join(get_extension_root(), ".git"))
 
 
 def hide_ribbon_button(ui_button_cmp):
@@ -293,6 +328,21 @@ def cleanup_obsolete_paths(extension_root):
                 os.remove(target_path)
         except Exception:
             pass
+
+
+def migrate_private_settings(extension_root):
+    """Preserve legacy user data before replacing the extension directory."""
+    appdata_path = os.environ.get("APPDATA") or os.path.expanduser("~")
+    private_root = os.path.join(appdata_path, "pyRevit", "P13")
+    for relative_source, relative_target in PRIVATE_SETTING_MIGRATIONS:
+        source_path = os.path.join(extension_root, relative_source)
+        target_path = os.path.join(private_root, relative_target)
+        if not os.path.isfile(source_path) or os.path.isfile(target_path):
+            continue
+        target_directory = os.path.dirname(target_path)
+        if not os.path.isdir(target_directory):
+            os.makedirs(target_directory)
+        shutil.copy2(source_path, target_path)
 
 
 def get_local_sha(extension_root):
@@ -561,6 +611,7 @@ def sync_tools():
 
         extracted_folder = get_extracted_extension_root(temp_dir)
         prepare_staging_extension(extracted_folder, staging_path)
+        migrate_private_settings(dest_path)
         replace_extension(staging_path, dest_path, backup_path)
         write_marker_sha(dest_path, remote_sha)
         update_completed = True

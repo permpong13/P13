@@ -1,21 +1,22 @@
 title: "Template\nManager"
+# Thai reference: จัดการ View Template
 
 tooltip: |
-  🇬🇧 [EN] Ultimate View Template management and batch application tool (All-in-One).
-  Key Features:
-  • Usage Analysis & Dashboard: Scans all View Templates, separates Used from Unused, and displays instance counts.
-  • Batch Operations: Bulk Rename (Prefix/Find & Replace) and Duplicate templates with custom suffixes.
-  • Safe Cleanup: Preview and selectively delete unused templates to safely reduce file size.
-  • Export to Excel (CSV): Generates usage reports and automatically remembers your chosen export folder (Prompts if no path is set).
-  • Quick Apply: Quickly select and apply View Templates to multiple views simultaneously.
+  Audit, manage, compare, apply, import, and export Revit view templates from one professional workspace.
 
-  🇹🇭 [TH] เครื่องมือจัดการและใช้งาน View Template ระดับโปรแบบ All-in-One
-  ฟังก์ชันหลัก:
-  • วิเคราะห์การใช้งาน (Dashboard): ตรวจสอบ View Template ทั้งหมด แยกรายการที่ถูกใช้งาน/ไม่ได้ใช้งาน พร้อมนับจำนวนอ้างอิง
-  • จัดการแบบกลุ่ม (Batch Actions): เปลี่ยนชื่อพร้อมกัน (Prefix/Find & Replace) และคัดลอก (Duplicate) Template
-  • ทำความสะอาดอย่างปลอดภัย: เลือกลบเฉพาะ Template ที่ไม่ได้ใช้งาน (Unused) เพื่อลดขนาดไฟล์โปรเจกต์
-  • ส่งออกรายงาน (Export to Excel): บันทึกข้อมูลเป็น CSV พร้อมระบบจดจำโฟลเดอร์ (หากไม่มีค่าเดิมจะแสดงหน้าต่างให้เลือก Path ใหม่ทันที)
-  • Quick Apply (ฟีเจอร์เดิม): ระบบเลือกและนำ View Template ไปใช้กับหลายๆ View พร้อมกันได้อย่างรวดเร็ว
+  Features:
+  - Usage Dashboard: Show total, in-use, unused, selected, linked-view, and controlled-parameter counts.
+  - Live Discovery: Search by name, type, status, or Element ID and filter by usage status and view type.
+  - Safe Batch Actions: Duplicate, rename, and delete unused templates with conflict checks, previews, rollback, and result counts.
+  - Compatible Apply: Apply one template only to compatible views selected by the user.
+  - Parameter Control: Include or exclude all available template parameters in a validated batch operation.
+  - Audit Tools: List linked views and compare parameter differences between two templates.
+  - Project Exchange: Import non-conflicting templates from another open Revit project.
+  - UTF-8 CSV Audit: Export complete template usage reports and remember the selected folder.
+  - Dark Futuristic UI: Use a resizable Windows-style interface with draggable header and standard window controls.
+# Thai reference: ตรวจสอบจำนวนการใช้งาน ค้นหาและกรอง Template; Duplicate/Rename/Delete แบบปลอดภัย; Apply เฉพาะ View ที่รองรับ; จัดการ Include/Exclude Parameters; เปรียบเทียบค่า; Import จาก Project ที่เปิดอยู่; Export รายงาน CSV UTF-8 พร้อมจำโฟลเดอร์; UI Dark แบบ Windows
 
-author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Manage, rename, duplicate, export, and quick apply View Templates. / จัดการ เปลี่ยนชื่อ ลบ ส่งออก และตั้งค่า View Templates แบบรวดเร็ว"
+author: "P13"
+# Thai reference: ผู้พัฒนา P13
+description: "Professional Revit view template auditing, batch management, application, exchange, and reporting."
+# Thai reference: เครื่องมือระดับ Pro สำหรับตรวจสอบ จัดการ ใช้งาน แลกเปลี่ยน และออกรายงาน View Template ของ Revit

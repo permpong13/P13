@@ -1,0 +1,23 @@
+title: "P13 AI\nConsole"
+
+tooltip: |
+  เครื่องมือส่งคำสั่งภาษาธรรมชาติให้ AI ปฏิบัติงานใน Revit ผ่านระบบ P13 MCP
+  รองรับการประมวลผลคำสั่ง ควบคุมความปลอดภัย และการทดสอบโมเดลแบบเรียลไทม์
+
+  [ENG]
+  - Natural Language AI Tasks: Send tasks to AI models to analyze, inspect, or modify Revit documents.
+  - Multi-Provider Support: Switch seamlessly between OpenAI, Claude, Local LLMs, and Codex CLI.
+  - Safe Model Execution: Revit model changes are disabled by default and require explicit task authorization.
+  - Real-time MCP Pipeline: Communicates directly via secured P13 Revit Model Context Protocol.
+  - Runtime Diagnostics: Includes built-in Test Runtime and Refresh Models capabilities for quick checks.
+
+  [TH]
+  - สั่งงานด้วยภาษาธรรมชาติ: สั่งงาน AI ให้ตรวจสอบ วิเคราะห์ หรือปรับแก้ไขโมเดลใน Revit ได้ด้วยข้อความ
+  - รองรับหลาย AI Provider: สลับใช้งานระหว่าง OpenAI, Claude, Local LLM และ Codex CLI ได้สะดวก
+  - ระบบความปลอดภัย: ปิดการแก้ไขโมเดลโดยเริ่มต้น และต้องได้รับการยืนยันสิทธิ์ก่อนเริ่มประมวลผลคำสั่ง
+  - เชื่อมต่อผ่าน P13 MCP: ทำงานร่วมกับระบบ P13 Revit Model Context Protocol ที่ปลอดภัย
+  - ตรวจสอบสถานะการทำงาน: มีระบบ Test Runtime และ Refresh Models เพื่อสอบทานความพร้อมของ AI Provider
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Send natural-language Revit tasks to a selected AI provider and model through secured P13 MCP tools. / เครื่องมือสั่งงาน Revit ด้วยภาษาธรรมชาติผ่านระบบ AI Provider และ P13 MCP"

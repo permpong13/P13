@@ -1,0 +1,27 @@
+{
+  "stdio_example": {
+    "command": "uv",
+    "args": [
+      "--directory",
+      "<P13_EXTENSION_PATH>\\mcp_server",
+      "run",
+      "main.py",
+      "--transport",
+      "stdio"
+    ]
+  },
+  "streamable_http_example": {
+    "type": "http",
+    "serverUrl": "http://127.0.0.1:8013/mcp",
+    "headers": {
+      "Authorization": "Bearer <PER_USER_MCP_TOKEN>"
+    }
+  },
+  "legacy_sse_example": {
+    "type": "sse",
+    "url": "http://127.0.0.1:8013/sse",
+    "headers": {
+      "Authorization": "Bearer <PER_USER_MCP_TOKEN>"
+    }
+  }
+}

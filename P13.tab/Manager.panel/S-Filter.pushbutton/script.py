@@ -157,6 +157,25 @@ class SuperFilterWindow(forms.WPFWindow):
         item.Header = sp
         return item, chk
 
+    def get_element_type_name(self, element):
+        """Return a useful grouping name, including the line style for curves."""
+        if isinstance(element, (DetailCurve, ModelCurve)):
+            curve_kind = "Detail Lines" if isinstance(element, DetailCurve) else "Model Lines"
+            try:
+                line_style = element.LineStyle
+                line_style_name = line_style.Name if line_style else None
+                if line_style_name:
+                    return "{} > {}".format(curve_kind, line_style_name)
+            except:
+                pass
+            return curve_kind
+
+        if isinstance(element, FamilyInstance) and element.Symbol:
+            return "{} : {}".format(element.Symbol.Family.Name, element.Name)
+
+        type_name = getattr(element, 'Name', type(element).__name__)
+        return type_name or "Unknown Type"
+
     def populate_categories(self):
         if not hasattr(self, 'ui_treeview'): return
         
@@ -218,8 +237,7 @@ class SuperFilterWindow(forms.WPFWindow):
                             break
                         
                     cat_name = el.Category.Name if el.Category else "Uncategorized"
-                    type_name = "{} : {}".format(el.Symbol.Family.Name, el.Name) if (isinstance(el, FamilyInstance) and el.Symbol) else getattr(el, 'Name', type(el).__name__)
-                    if not type_name: type_name = "Unknown Type"
+                    type_name = self.get_element_type_name(el)
                     
                     if search_text and search_text not in cat_name.lower() and search_text not in type_name.lower():
                         continue

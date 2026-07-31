@@ -21,7 +21,45 @@ Revit 2025–2026 use the .NET 8 runtime, while Revit 2024 uses the earlier .NET
 
 Some commands integrate with Microsoft Excel or other project-specific data sources. Those commands may require the relevant desktop application, file access, or project parameters.
 
+## P13 Revit MCP
+
+P13 includes a provider-neutral local MCP bridge for AI clients such as
+Antigravity, Codex, Claude, and other MCP-compatible hosts. The secured HTTP
+endpoint uses reserved port `8013`, while the reference
+`mcp-server-for-revit-python` can remain on port `8000`. Per-user secrets are
+stored outside the extension, HTTP requires bearer authentication, and Revit
+model-writing tools require explicit confirmation.
+
+Privacy defaults hide the Revit document title and full file path from AI
+providers. Remote AI use requires visible confirmation, result history is
+opt-in per task, and SuperSheet profiles/export paths are stored under the
+current user's `%APPDATA%` rather than inside the public extension. Review
+[`mcp_server/SECURITY.md`](mcp_server/SECURITY.md) before publishing or
+deploying P13.
+
+The **P13 AI Console** ribbon command provides an in-Revit launcher for Codex
+using an existing ChatGPT sign-in, OpenAI API, Anthropic, Google Gemini,
+OpenRouter, Ollama, LM Studio, and custom
+OpenAI-compatible endpoints. Users can discover or enter a model ID, submit a
+natural-language Revit task, and decide whether that individual task is
+read-only or may perform confirmed writes. The AI process runs outside Revit
+and starts its own stdio MCP connection, so it does not require port `8013` and
+does not block Revit while tools execute.
+
+Installation, client configuration, security, and worldwide distribution are
+documented in [`mcp_server/README.md`](mcp_server/README.md) and
+[`mcp_server/SECURITY.md`](mcp_server/SECURITY.md).
+
 ## Main features
+
+### AI and MCP automation
+
+- Choose an AI provider and model for each task.
+- Use the Codex CLI and an existing ChatGPT sign-in without an API key.
+- Use cloud APIs, local Ollama or LM Studio models, or a custom compatible API.
+- Inspect the active Revit document through allowlisted P13 MCP tools.
+- Keep model writes disabled by default and enable them explicitly per task.
+- Run AI work outside the Revit process to preserve UI responsiveness.
 
 ### Synchronization
 
@@ -195,8 +233,9 @@ The following catalog explains what the commands currently included in the **P13
 | **Keynote Manager** | Manages keynote data through the pyRevit keynote database workflow. |
 | **Parameters** | Exports and imports project-parameter definitions with JSON, detects unused parameters, and supports controlled batch management. |
 | **S-Filter** | Filters host or linked-model elements using categories, custom groups, and parameter rules; supports highlighting and remembered filter setups. |
+| **Sheet Manager** | Manages sheets, views, revisions, placeholders, View/Sheet Sets, profiles, view placement, and Excel-compatible CSV round trips from one searchable interface. |
 | **SuperSheet** | Batch-exports sheets with configurable formats, PDF options, and rule-based output naming. |
-| **Template Manager** | Reviews, renames, duplicates, deletes, exports, and quickly applies view templates. |
+| **Template Manager Pro** | Audits template usage, searches and filters by status/type, safely renames/duplicates/deletes, compares settings, manages controlled parameters, applies compatible templates, imports from open projects, and exports UTF-8 CSV reports with remembered folders. |
 | **View Manager** | Searches and filters views with multiple rules, performs batch view operations, and remembers export settings. |
 | **Workset Color** | Builds view filters and color themes from workset or parameter values, including transparency control for model analysis. |
 | **Workset Manager** | Creates, renames, searches, sets active, cleans empty worksets, moves elements between worksets, and manages granular item/family-type ownership profiles through reusable JSON files. |

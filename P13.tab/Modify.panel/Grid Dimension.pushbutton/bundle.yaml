@@ -1,0 +1,13 @@
+title: "Grid\nDimension"
+
+tooltip: |
+  Automatically dimension parallel gridlines in the active view or a selection.
+
+  Key features:
+  - Detects pre-selected grids or auto-collects all visible grids in the view.
+  - Groups parallel grids and sorts them perpendicular to their direction.
+  - Places dimension chains at a customizable offset on Top/Right side, Bottom/Left side, or both.
+  - Supports straight line grids.
+
+author: "P13"
+description: "Auto-dimension straight grids by grouping them by direction and sorting them."

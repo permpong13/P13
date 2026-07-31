@@ -1,0 +1,39 @@
+title: "Sheet\nManager"
+
+tooltip: |
+  เครื่องมือจัดการ Sheet, View, Revision และ Placeholder แบบครบวงจร (Revit 2026 Ready)
+  ช่วยในการสร้าง คัดลอก แก้ไข และจัดระเบียบหน้ากระดาษและมุมมองในโมเดลได้อย่างรวดเร็ว
+
+  [ENG]
+  - Sheet & View Grid: Review and search sheet, view, revision, and placeholder records in a unified grid.
+  - Excel Clipboard Import: Create regular or placeholder sheets directly from Excel clipboard rows.
+  - Smart Title Block: Remembers the last selected title block for quick sheet creation.
+  - Inline Editing: Edit sheet numbers and names directly in the grid with real-time validation.
+  - Bulk Rename: Rename one or multiple sheets easily without forcing continuous numbering.
+  - Sheet Duplication: Duplicate selected sheets as empty sheets, with views, or with detailing using Revit's native duplication modes.
+  - Dark Futuristic UI: Use a high-contrast navy interface with cyan actions and clear selected, hover, and status states.
+  - Windows Window Controls: Drag the header to move the window and use right-aligned minimize, maximize, and close buttons.
+  - Parameter Batch Edit: Batch-edit writable text parameters on selected sheets at once.
+  - Placeholder Conversion: Convert placeholders to real sheets and place views or schedules automatically.
+  - Revision Manager: Edit revision date, description, and issued state, then assign revisions to sheets.
+  - View/Sheet Sets: Save and load Revit View/Sheet Sets and personal workflow profiles.
+  - CSV Round-trip: Import and export UTF-8 CSV files designed for Excel editing and updates.
+
+  [TH]
+  - ตารางจัดการ Sheet & View: ตรวจสอบและค้นหาข้อมูล Sheet, View, Revision และ Placeholder ได้จากหน้าต่างเดียว
+  - นำเข้าจาก Excel: สร้าง Sheet จริงหรือ Placeholder ได้ทันทีจากข้อมูลคัดลอก (Clipboard) ใน Excel
+  - จดจำ Title Block: ระบบจดจำ Title Block ล่าสุดที่ใช้เพื่อความสะดวกรวดเร็วในการสร้างกระดาษใหม่
+  - แก้ไขในตารางโดยตรง: แก้ไขหมายเลขและชื่อของ Sheet ในตารางกริดได้ทันทีพร้อมระบบตรวจสอบความถูกต้อง
+  - เปลี่ยนชื่อกลุ่ม (Bulk Rename): เปลี่ยนชื่อกระดาษทีละหลายแผ่นได้ง่ายๆ โดยไม่ต้องบังคับเรียงหมายเลขต่อเนื่อง
+  - ทำสำเนา Sheet: ทำสำเนา Sheet ที่เลือกแบบว่าง พร้อม View หรือพร้อม Detail โดยใช้โหมดมาตรฐานของ Revit
+  - หน้าต่าง Dark Futuristic: ใช้โทน Navy ที่อ่านง่าย พร้อมปุ่ม Cyan และสถานะ Hover/Selected ที่ชัดเจน
+  - การควบคุมหน้าต่างแบบ Windows: ลาก Header เพื่อย้ายหน้าต่าง และใช้ปุ่มย่อ ขยาย และปิดที่ด้านขวา
+  - แก้ไข Parameter แบบกลุ่ม: แก้ไขค่าพารามิเตอร์ประเภทข้อความ (Text) ที่แก้ไขได้ของ Sheet หลายแผ่นพร้อมกัน
+  - แปลง Placeholder: แปลงแผ่นกระดาษ Placeholder ให้เป็น Sheet จริงพร้อมจัดวาง View หรือ Schedule โดยอัตโนมัติ
+  - จัดการ Revision: แก้ไขวันที่, รายละเอียด และสถานะการออกแบบ (Issued) พร้อมแนบ Revision เข้ากับหน้ากระดาษ
+  - ชุด View/Sheet: บันทึกและโหลดชุด View/Sheet Sets ของ Revit รวมถึงโปรไฟล์การทำงานส่วนตัว
+  - ส่งออก/นำเข้า CSV: รองรับไฟล์ CSV UTF-8 สำหรับการนำไปแก้ไขต่อใน Excel และนำกลับมาอัปเดตข้อมูลใน Revit
+
+author: "เพิ่มพงษ์ ทวีกุล (P13)"
+
+description: "Unified sheet, view, revision, and placeholder management for Revit 2026. / เครื่องมือจัดการ Sheet, View, Revision และ Placeholder แบบครบวงจร"

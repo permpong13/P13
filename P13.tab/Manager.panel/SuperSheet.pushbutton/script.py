@@ -5,6 +5,7 @@ import json
 import traceback
 import clr
 import datetime
+import shutil
 
 # Import WPF Libraries
 clr.AddReference('System.Windows.Forms')
@@ -35,8 +36,48 @@ from System.Windows.Media import SolidColorBrush, ColorConverter, FontFamily
 
 doc = revit.doc
 THIS_DIR = os.path.dirname(__file__)
-CONFIG_FILE = os.path.join(THIS_DIR, 'p13_supersheet_config.json')
-LAST_SETTING_FILE = os.path.join(THIS_DIR, 'p13_last_settings.json')
+LEGACY_CONFIG_FILE = os.path.join(THIS_DIR, 'p13_supersheet_config.json')
+LEGACY_LAST_SETTING_FILE = os.path.join(THIS_DIR, 'p13_last_settings.json')
+USER_DATA_ROOT = os.path.join(
+    os.environ.get('APPDATA') or os.path.expanduser('~'),
+    'pyRevit',
+    'P13',
+    'SuperSheet'
+)
+CONFIG_FILE = os.path.join(USER_DATA_ROOT, 'profiles.json')
+LAST_SETTING_FILE = os.path.join(USER_DATA_ROOT, 'last_settings.json')
+
+
+def ensure_user_settings_storage():
+    """Keep project names and filesystem paths outside the extension/Git."""
+    if not os.path.isdir(USER_DATA_ROOT):
+        os.makedirs(USER_DATA_ROOT)
+
+    migrations = (
+        (LEGACY_CONFIG_FILE, CONFIG_FILE),
+        (LEGACY_LAST_SETTING_FILE, LAST_SETTING_FILE),
+    )
+    for source_path, target_path in migrations:
+        if not os.path.isfile(target_path) and os.path.isfile(source_path):
+            try:
+                shutil.copy2(source_path, target_path)
+            except Exception:
+                pass
+
+
+def write_private_json(path, data):
+    """Write settings atomically in per-user storage."""
+    if not os.path.isdir(os.path.dirname(path)):
+        os.makedirs(os.path.dirname(path))
+    temporary_path = path + '.tmp'
+    with open(temporary_path, 'w') as output_file:
+        json.dump(data, output_file, indent=2)
+    if os.path.isfile(path):
+        os.remove(path)
+    os.rename(temporary_path, path)
+
+
+ensure_user_settings_storage()
 
 # --- MODERN LIGHT THEME COLORS ---
 def hex_brush(hex_code):
@@ -371,7 +412,7 @@ class SuperSheetsUltimate(Window):
             'replace_halftone': self.chkReplaceHalftone.IsChecked,
             'region_edges_mask': self.chkRegionEdgesMask.IsChecked
         }
-        with open(CONFIG_FILE, 'w') as f: json.dump(self._profiles, f)
+        write_private_json(CONFIG_FILE, self._profiles)
         self._load_profiles_from_disk()
         self._ignore_events = True
         self.cboProfile.SelectedItem = n
@@ -382,7 +423,7 @@ class SuperSheetsUltimate(Window):
         n = self.cboProfile.SelectedItem
         if n in self._profiles:
             del self._profiles[n]
-            with open(CONFIG_FILE, 'w') as f: json.dump(self._profiles, f)
+            write_private_json(CONFIG_FILE, self._profiles)
             self._load_profiles_from_disk(); self.txtProfileName.Text = ""
             self._toast("Deleted")
 
@@ -546,8 +587,7 @@ class SuperSheetsUltimate(Window):
                     imported = self._xml_to_profiles(src)
                     self._profiles.update(imported)
                 
-                with open(CONFIG_FILE, 'w') as f:
-                    json.dump(self._profiles, f, indent=4)
+                write_private_json(CONFIG_FILE, self._profiles)
                 self._load_profiles_from_disk()
                 self._toast("Config Imported!")
             except Exception as ex:
@@ -610,7 +650,7 @@ class SuperSheetsUltimate(Window):
                 'replace_halftone': self.chkReplaceHalftone.IsChecked,
                 'region_edges_mask': self.chkRegionEdgesMask.IsChecked
             }
-            with open(LAST_SETTING_FILE, 'w') as f: json.dump(data, f)
+            write_private_json(LAST_SETTING_FILE, data)
         except: pass
 
     def _load_last_settings(self):
@@ -840,7 +880,10 @@ class SuperSheetsUltimate(Window):
         folder = self.txtPath.Text
 
         if not os.path.exists(folder):
-            forms.alert("ไม่พบตำแหน่งโฟลเดอร์ปลายทาง หรือไดร์ฟอาจไม่พร้อมใช้งาน:\n{}".format(folder), title="Path Not Found")
+            forms.alert(
+                "The export folder was not found or the drive is unavailable:\n{}".format(folder),
+                title="Path Not Found"
+            )
             return
         
         pdf_path = os.path.join(folder, "PDF") if self.chkAutoFolder.IsChecked else folder
