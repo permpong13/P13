@@ -5,7 +5,6 @@ import json
 import traceback
 import clr
 import datetime
-import shutil
 
 # Import WPF Libraries
 clr.AddReference('System.Windows.Forms')
@@ -36,48 +35,8 @@ from System.Windows.Media import SolidColorBrush, ColorConverter, FontFamily
 
 doc = revit.doc
 THIS_DIR = os.path.dirname(__file__)
-LEGACY_CONFIG_FILE = os.path.join(THIS_DIR, 'p13_supersheet_config.json')
-LEGACY_LAST_SETTING_FILE = os.path.join(THIS_DIR, 'p13_last_settings.json')
-USER_DATA_ROOT = os.path.join(
-    os.environ.get('APPDATA') or os.path.expanduser('~'),
-    'pyRevit',
-    'P13',
-    'SuperSheet'
-)
-CONFIG_FILE = os.path.join(USER_DATA_ROOT, 'profiles.json')
-LAST_SETTING_FILE = os.path.join(USER_DATA_ROOT, 'last_settings.json')
-
-
-def ensure_user_settings_storage():
-    """Keep project names and filesystem paths outside the extension/Git."""
-    if not os.path.isdir(USER_DATA_ROOT):
-        os.makedirs(USER_DATA_ROOT)
-
-    migrations = (
-        (LEGACY_CONFIG_FILE, CONFIG_FILE),
-        (LEGACY_LAST_SETTING_FILE, LAST_SETTING_FILE),
-    )
-    for source_path, target_path in migrations:
-        if not os.path.isfile(target_path) and os.path.isfile(source_path):
-            try:
-                shutil.copy2(source_path, target_path)
-            except Exception:
-                pass
-
-
-def write_private_json(path, data):
-    """Write settings atomically in per-user storage."""
-    if not os.path.isdir(os.path.dirname(path)):
-        os.makedirs(os.path.dirname(path))
-    temporary_path = path + '.tmp'
-    with open(temporary_path, 'w') as output_file:
-        json.dump(data, output_file, indent=2)
-    if os.path.isfile(path):
-        os.remove(path)
-    os.rename(temporary_path, path)
-
-
-ensure_user_settings_storage()
+CONFIG_FILE = os.path.join(THIS_DIR, 'p13_supersheet_config.json')
+LAST_SETTING_FILE = os.path.join(THIS_DIR, 'p13_last_settings.json')
 
 # --- MODERN LIGHT THEME COLORS ---
 def hex_brush(hex_code):
@@ -135,6 +94,8 @@ class SuperSheetsUltimate(Window):
         self._profiles = {}
         self._all_params = []
         self._ignore_events = False 
+
+        self._clear_revit_selection_for_export()
 
         self._setup_ui()
         self.ContentRendered += self._initial_load
@@ -320,6 +281,22 @@ class SuperSheetsUltimate(Window):
         btn_un_hi = Button(Content="Uncheck Selected", Height=30, Margin=Thickness(5,0,0,0), Background=hex_brush("#e2e8f0"), Foreground=TEXT_MAIN, BorderThickness=Thickness(0), Padding=Thickness(10,0,10,0)); btn_un_hi.Click += self._on_uncheck_high
         
         sp_filter.Children.Add(btn_all); sp_filter.Children.Add(btn_none); sp_filter.Children.Add(btn_chk_hi); sp_filter.Children.Add(btn_un_hi)
+        
+        # -- Custom Filters --
+        self.wp_filters = WrapPanel(VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(10,0,0,0))
+        self._filter_checkboxes = []
+        
+        lbl_add_filter = TextBlock(Text="Add Filter: ", Foreground=TEXT_MUTED, VerticalAlignment=VerticalAlignment.Center, Margin=Thickness(15,0,0,0))
+        self.txtAddFilter = TextBox(Width=80, Height=30, VerticalContentAlignment=VerticalAlignment.Center)
+        self.txtAddFilter.PreviewKeyDown += self._on_add_filter_keydown
+        btn_add_filter = Button(Content="+", Height=30, Width=30, Background=ACCENT, Foreground=TEXT_INVERT, BorderThickness=Thickness(0), Margin=Thickness(2,0,0,0))
+        btn_add_filter.Click += self._on_add_filter_click
+        
+        sp_filter.Children.Add(lbl_add_filter)
+        sp_filter.Children.Add(self.txtAddFilter)
+        sp_filter.Children.Add(btn_add_filter)
+        sp_filter.Children.Add(self.wp_filters)
+        
         Grid.SetRow(sp_filter, 2); main_layout.Children.Add(sp_filter)
 
         # -- DataGrid --
@@ -412,7 +389,7 @@ class SuperSheetsUltimate(Window):
             'replace_halftone': self.chkReplaceHalftone.IsChecked,
             'region_edges_mask': self.chkRegionEdgesMask.IsChecked
         }
-        write_private_json(CONFIG_FILE, self._profiles)
+        with open(CONFIG_FILE, 'w') as f: json.dump(self._profiles, f)
         self._load_profiles_from_disk()
         self._ignore_events = True
         self.cboProfile.SelectedItem = n
@@ -423,7 +400,7 @@ class SuperSheetsUltimate(Window):
         n = self.cboProfile.SelectedItem
         if n in self._profiles:
             del self._profiles[n]
-            write_private_json(CONFIG_FILE, self._profiles)
+            with open(CONFIG_FILE, 'w') as f: json.dump(self._profiles, f)
             self._load_profiles_from_disk(); self.txtProfileName.Text = ""
             self._toast("Deleted")
 
@@ -587,7 +564,8 @@ class SuperSheetsUltimate(Window):
                     imported = self._xml_to_profiles(src)
                     self._profiles.update(imported)
                 
-                write_private_json(CONFIG_FILE, self._profiles)
+                with open(CONFIG_FILE, 'w') as f:
+                    json.dump(self._profiles, f, indent=4)
                 self._load_profiles_from_disk()
                 self._toast("Config Imported!")
             except Exception as ex:
@@ -648,9 +626,10 @@ class SuperSheetsUltimate(Window):
                 'hide_scope_boxes': self.chkHideScopeBoxes.IsChecked,
                 'hide_crop_boundaries': self.chkHideCropBoundaries.IsChecked,
                 'replace_halftone': self.chkReplaceHalftone.IsChecked,
-                'region_edges_mask': self.chkRegionEdgesMask.IsChecked
+                'region_edges_mask': self.chkRegionEdgesMask.IsChecked,
+                'custom_filters': [chk.Content for chk in self._filter_checkboxes]
             }
-            write_private_json(LAST_SETTING_FILE, data)
+            with open(LAST_SETTING_FILE, 'w') as f: json.dump(data, f)
         except: pass
 
     def _load_last_settings(self):
@@ -686,6 +665,10 @@ class SuperSheetsUltimate(Window):
                 if lp and lp in self._profiles:
                     self.cboProfile.SelectedItem = lp
                     self.txtProfileName.Text = lp
+                    
+                custom_filters = d.get('custom_filters', [])
+                for f_text in custom_filters:
+                    self._add_filter_ui(f_text)
                     
                 self._ignore_events = False
                 self._toggle_ui(None, None)
@@ -746,8 +729,63 @@ class SuperSheetsUltimate(Window):
         self.dg.Items.Refresh()
 
     def _filter_grid(self, s, e):
+        if self._ignore_events: return
         t = self.txtSearch.Text.lower()
-        self.dg.ItemsSource = ObservableCollection[ExportItem]([i for i in self._all_items if t in i.Number.lower() or t in i.Name.lower()])
+        active_filters = [chk.Content.lower() for chk in self._filter_checkboxes if chk.IsChecked]
+        
+        filtered = []
+        for i in self._all_items:
+            num = i.Number.lower()
+            name = i.Name.lower()
+            
+            match_search = not t or t in num or t in name
+            
+            match_buttons = True
+            for f in active_filters:
+                if f not in num and f not in name:
+                    match_buttons = False
+                    break
+                    
+            if match_search and match_buttons:
+                filtered.append(i)
+                
+        self.dg.ItemsSource = ObservableCollection[ExportItem](filtered)
+
+    def _on_add_filter_click(self, s, e):
+        text = self.txtAddFilter.Text.strip()
+        if text:
+            if text.lower() not in [chk.Content.lower() for chk in self._filter_checkboxes]:
+                self._add_filter_ui(text)
+                self.txtAddFilter.Text = ""
+                self._filter_grid(None, None)
+
+    def _on_add_filter_keydown(self, s, e):
+        if e.Key == Key.Enter:
+            self._on_add_filter_click(None, None)
+            e.Handled = True
+
+    def _add_filter_ui(self, text):
+        border = Border(Background=hex_brush("#f1f5f9"), BorderBrush=BORDER_LINE, BorderThickness=Thickness(1), CornerRadius=CornerRadius(4), Margin=Thickness(0,0,5,0), Padding=Thickness(5,0,2,0))
+        sp = StackPanel(Orientation=Orientation.Horizontal)
+        
+        chk = CheckBox(Content=text, IsChecked=False, VerticalAlignment=VerticalAlignment.Center, Foreground=TEXT_MAIN, Margin=Thickness(0,0,5,0))
+        chk.Checked += lambda s,e: self._filter_grid(None, None)
+        chk.Unchecked += lambda s,e: self._filter_grid(None, None)
+        
+        btn_del = Button(Content="x", Background=hex_brush("#00000000"), Foreground=TEXT_MUTED, BorderThickness=Thickness(0), FontSize=10, Padding=Thickness(4,0,4,0), VerticalAlignment=VerticalAlignment.Center)
+        btn_del.Click += lambda s,e: self._remove_filter(border, chk)
+        
+        sp.Children.Add(chk)
+        sp.Children.Add(btn_del)
+        border.Child = sp
+        self.wp_filters.Children.Add(border)
+        self._filter_checkboxes.append(chk)
+
+    def _remove_filter(self, border, chk):
+        self.wp_filters.Children.Remove(border)
+        if chk in self._filter_checkboxes:
+            self._filter_checkboxes.remove(chk)
+        self._filter_grid(None, None)
 
     def _load_print_sets(self):
         self.cboSets.Items.Add("- Sheet Set -")
@@ -880,10 +918,7 @@ class SuperSheetsUltimate(Window):
         folder = self.txtPath.Text
 
         if not os.path.exists(folder):
-            forms.alert(
-                "The export folder was not found or the drive is unavailable:\n{}".format(folder),
-                title="Path Not Found"
-            )
+            forms.alert("ไม่พบตำแหน่งโฟลเดอร์ปลายทาง หรือไดร์ฟอาจไม่พร้อมใช้งาน:\n{}".format(folder), title="Path Not Found")
             return
         
         pdf_path = os.path.join(folder, "PDF") if self.chkAutoFolder.IsChecked else folder
