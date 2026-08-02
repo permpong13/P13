@@ -902,7 +902,7 @@ class SuperSheetsUltimate(Window):
         self.chkIFC.IsChecked = False
         self.chkNWC.IsChecked = False
         
-        selected = [i for i in self.dg.ItemsSource if i.Include]
+        selected = [i for i in self._all_items if i.Include]
         if not selected: 
             self._toast("Please select at least one sheet.")
             return
