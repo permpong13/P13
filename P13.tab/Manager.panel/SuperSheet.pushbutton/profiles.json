@@ -1,0 +1,52 @@
+{
+  "PDF": {
+    "include_views": false, 
+    "folder": "C:\\Users\\permpong13\\Downloads\\xxx", 
+    "project_info": {
+      "ProjectStatus": "BASIS OF DESIGN", 
+      "ClientName": "", 
+      "ProjectNumber": "528738", 
+      "ProjectAddress": "CHONBURI, THAILAND", 
+      "ProjectName": "CHB1A, CHB2A & CHB3A"
+    }, 
+    "version": "1.0", 
+    "pattern": "{SheetNumber}_{SheetName}_R{Revision}", 
+    "prefix": "CHW1A-003-", 
+    "export_date": "2025-12-12 11:32:04", 
+    "combined_pdf": false, 
+    "suffix": "_by P13", 
+    "zip_dwg": false, 
+    "export_type": 0, 
+    "file_type": "separate"
+  }, 
+  "ธ001": {
+    "include_views": true, 
+    "suffix": "_by P13", 
+    "export_type": 0, 
+    "prefix": "CHW1A-003-", 
+    "zip_dwg": true, 
+    "pattern": "{SheetNumber}_{SheetName}_R{Revision}", 
+    "folder": "", 
+    "combined_pdf": true
+  }, 
+  "T01": {
+    "project_info": {
+      "ProjectStatus": "IPDC", 
+      "ClientName": "Quartz Computing Co., Ltd.", 
+      "ProjectNumber": "3171", 
+      "ProjectAddress": "", 
+      "ProjectName": "CHW1A : WOLFISH"
+    }, 
+    "include_views": true, 
+    "file_type": "combined", 
+    "export_date": "2025-12-09 18:58:09", 
+    "suffix": "_by P13", 
+    "export_type": 0, 
+    "prefix": "CHW1A-003-", 
+    "zip_dwg": true, 
+    "pattern": "{SheetNumber}_{SheetName}_R{Revision}", 
+    "folder": "C:\\Users\\permpong13\\Downloads\\xxx", 
+    "version": "1.0", 
+    "combined_pdf": true
+  }
+}
