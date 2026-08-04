@@ -4,6 +4,7 @@ from __future__ import print_function
 import os
 import shutil
 import logging
+import json
 import sys
 import threading
 import time
@@ -34,6 +35,103 @@ OBSOLETE_RELATIVE_PATHS = [
     ),
 ]
 logger = logging.getLogger(__name__)
+
+
+def maybe_start_p13_mcp():
+    """Start the opt-in P13 MCP HTTP bridge after pyRevit Routes is ready."""
+    try:
+        appdata = os.environ.get("APPDATA") or os.path.expanduser("~")
+        p13_data_directory = os.path.join(appdata, "pyRevit", "P13")
+        manager_config_path = os.path.join(p13_data_directory, "mcp_manager.json")
+        if not os.path.isfile(manager_config_path):
+            return
+        with open(manager_config_path, "r") as config_file:
+            manager_config = json.load(config_file)
+        if not isinstance(manager_config, dict) or not manager_config.get("autostart"):
+            return
+
+        extension_root = find_extension_root(os.path.dirname(os.path.abspath(__file__)))
+        mcp_directory = os.path.join(extension_root, "mcp_server")
+        main_path = os.path.join(mcp_directory, "main.py")
+        venv_python_path = os.path.join(mcp_directory, ".venv", "Scripts", "python.exe")
+        if not os.path.isfile(main_path):
+            logger.warning("P13 MCP autostart skipped because main.py is missing.")
+            return
+
+        private_config_path = os.path.join(p13_data_directory, "mcp_config.json")
+        port = 8013
+        if os.path.isfile(private_config_path):
+            with open(private_config_path, "r") as config_file:
+                private_config = json.load(config_file)
+            port = int(private_config.get("mcp_http_port") or port)
+
+        # Do not create duplicate servers when Routes or MCP is already online.
+        from System.Net import WebRequest
+
+        request = WebRequest.Create("http://127.0.0.1:{}/health".format(port))
+        request.Method = "GET"
+        # The health endpoint checks the pyRevit Routes bridge as well, so allow
+        # enough time for Revit's first request after startup.
+        request.Timeout = 5000
+        response = None
+        try:
+            response = request.GetResponse()
+            return
+        except Exception:
+            pass
+        finally:
+            if response is not None:
+                response.Close()
+
+        uv_candidates = [
+            os.path.join(os.path.expanduser("~"), ".local", "bin", "uv.exe"),
+            os.path.join(
+                os.environ.get("LOCALAPPDATA") or "",
+                "Programs",
+                "uv",
+                "uv.exe",
+            ),
+        ]
+        path_value = os.environ.get("PATH") or ""
+        for directory in path_value.split(os.pathsep):
+            if directory:
+                uv_candidates.append(os.path.join(directory.strip('"'), "uv.exe"))
+        uv_path = next((candidate for candidate in uv_candidates if os.path.isfile(candidate)), None)
+        runtime_path = venv_python_path if os.path.isfile(venv_python_path) else uv_path
+        if not runtime_path:
+            logger.warning("P13 MCP autostart skipped because the Python runtime was not found.")
+            return
+
+        from System.Diagnostics import Process, ProcessStartInfo
+
+        process_info = ProcessStartInfo()
+        process_info.FileName = runtime_path
+        process_info.WorkingDirectory = mcp_directory
+        if runtime_path.lower().endswith("python.exe"):
+            process_info.Arguments = "main.py --transport streamable-http --port {} --json-response".format(port)
+        else:
+            process_info.Arguments = "run main.py --transport streamable-http --port {} --json-response".format(port)
+        process_info.UseShellExecute = False
+        process_info.CreateNoWindow = True
+        process = Process.Start(process_info)
+        if process is None:
+            raise RuntimeError("Windows did not return a P13 MCP process.")
+        manager_config["pid"] = int(process.Id)
+        manager_config["runtime"] = runtime_path
+        manager_config["last_start_utc"] = datetime.utcnow().isoformat() + "Z"
+        from System.IO import File
+
+        temporary_path = manager_config_path + ".tmp"
+        with open(temporary_path, "w") as config_file:
+            json.dump(manager_config, config_file, indent=2, sort_keys=True)
+            config_file.write("\n")
+        if File.Exists(manager_config_path):
+            File.Replace(temporary_path, manager_config_path, None)
+        else:
+            File.Move(temporary_path, manager_config_path)
+        logger.info("P13 MCP autostart requested on port %s.", port)
+    except Exception as error:
+        logger.warning("P13 MCP autostart failed: %s", str(error))
 
 
 def get_current_username():
@@ -240,5 +338,6 @@ def register_p13_mcp_routes():
 cleanup_obsolete_paths()
 hide_admin_sync_panel()
 ensure_extension_lib_path()
-make_pyrevit_routes_worker_safe()
-register_p13_mcp_routes()
+
+# P13 MCP is archived and disabled. The original pyRevit MCP extension owns
+# the standard ``revit_mcp`` API and remains the active integration.
