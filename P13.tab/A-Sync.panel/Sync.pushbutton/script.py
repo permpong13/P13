@@ -3,6 +3,7 @@ from __future__ import print_function
 
 import os
 import json
+import filecmp
 import shutil
 import stat
 import subprocess
@@ -267,6 +268,12 @@ def get_local_git_sha(extension_root):
         )
         stdout_data, _ = process.communicate()
         if process.returncode == 0:
+            # Python 3 subprocess returns bytes while IronPython may return
+            # text. Normalize both so SHA comparisons are reliable.
+            try:
+                stdout_data = stdout_data.decode("ascii")
+            except AttributeError:
+                pass
             return stdout_data.strip()
     except Exception:
         pass
@@ -323,9 +330,9 @@ def cleanup_obsolete_paths(extension_root):
 
         try:
             if os.path.isdir(target_path):
-                shutil.rmtree(target_path)
+                remove_path_with_retries(target_path)
             elif os.path.isfile(target_path):
-                os.remove(target_path)
+                remove_path_with_retries(target_path)
         except Exception:
             pass
 
@@ -540,6 +547,70 @@ def prepare_staging_extension(extracted_root, staging_path):
     shutil.copytree(extracted_root, staging_path)
 
 
+def copy_file_with_retries(source_path, target_path, skipped_files):
+    """Copy one file without making a locked file abort the whole update."""
+    try:
+        if os.path.isfile(target_path) and filecmp.cmp(
+            source_path, target_path, shallow=False
+        ):
+            return True
+    except Exception:
+        pass
+
+    parent_path = os.path.dirname(target_path)
+    try:
+        if not os.path.isdir(parent_path):
+            os.makedirs(parent_path)
+    except OSError:
+        if not os.path.isdir(parent_path):
+            skipped_files.append((target_path, "The destination folder is not writable."))
+            return False
+
+    last_error = None
+    for attempt in range(FILE_OPERATION_RETRIES):
+        try:
+            if os.path.isfile(target_path):
+                os.chmod(target_path, stat.S_IWRITE)
+            shutil.copy2(source_path, target_path)
+            return True
+        except Exception as exc:
+            last_error = exc
+            if attempt < FILE_OPERATION_RETRIES - 1:
+                time.sleep(FILE_OPERATION_RETRY_SECONDS * (attempt + 1))
+
+    skipped_files.append((target_path, str(last_error) or "The file is locked or unavailable."))
+    return False
+
+
+def copy_extension_contents(source_root, destination_root):
+    """Apply a validated release in place and preserve files that are locked."""
+    copied_count = 0
+    skipped_files = []
+
+    for root_path, directory_names, file_names in os.walk(source_root):
+        relative_root = os.path.relpath(root_path, source_root)
+        if relative_root == ".":
+            destination_path = destination_root
+        else:
+            destination_path = os.path.join(destination_root, relative_root)
+
+        try:
+            if not os.path.isdir(destination_path):
+                os.makedirs(destination_path)
+        except OSError:
+            if not os.path.isdir(destination_path):
+                skipped_files.append((destination_path, "The destination folder is not writable."))
+                continue
+
+        for file_name in file_names:
+            source_path = os.path.join(root_path, file_name)
+            target_path = os.path.join(destination_path, file_name)
+            if copy_file_with_retries(source_path, target_path, skipped_files):
+                copied_count += 1
+
+    return copied_count, skipped_files
+
+
 def replace_extension(staging_path, dest_path, backup_path):
     remove_path_with_retries(backup_path)
 
@@ -581,13 +652,14 @@ def sync_tools():
         print("Update error: A temporary folder could not be found.")
         return
 
-    temp_zip = os.path.join(temp_root, "P13_update.zip")
-    temp_dir = os.path.join(temp_root, "P13_temp_extract")
-    extension_parent = os.path.dirname(dest_path)
-    staging_path = os.path.join(extension_parent, "P13.update-staging")
-    backup_path = os.path.join(extension_parent, "P13.update-backup")
+    # Use a per-process workspace so two Revit sessions cannot delete or reuse
+    # each other's download while an update is in progress.
+    update_token = "{}_{}".format(os.getpid(), int(time.time()))
+    temp_zip = os.path.join(temp_root, "P13_update_{}.zip".format(update_token))
+    temp_dir = os.path.join(temp_root, "P13_temp_extract_{}".format(update_token))
 
     update_completed = False
+    skipped_files = []
     try:
         remove_path_with_retries(temp_dir)
         if os.path.exists(temp_zip):
@@ -610,10 +682,16 @@ def sync_tools():
             zip_ref.extractall(temp_dir)
 
         extracted_folder = get_extracted_extension_root(temp_dir)
-        prepare_staging_extension(extracted_folder, staging_path)
         migrate_private_settings(dest_path)
-        replace_extension(staging_path, dest_path, backup_path)
-        write_marker_sha(dest_path, remote_sha)
+        copied_count, skipped_files = copy_extension_contents(
+            extracted_folder, dest_path
+        )
+        cleanup_obsolete_paths(dest_path)
+        if copied_count == 0:
+            raise RuntimeError("No update files could be copied to the extension folder.")
+
+        if not skipped_files:
+            write_marker_sha(dest_path, remote_sha)
         update_completed = True
 
     except Exception as exc:
@@ -630,6 +708,27 @@ def sync_tools():
 
     if not update_completed:
         return
+
+    if skipped_files:
+        skipped_log = "Update completed with {} locked or unavailable file(s):\n".format(
+            len(skipped_files)
+        )
+        skipped_log += "\n".join(
+            "- {}: {}".format(path, reason) for path, reason in skipped_files[:40]
+        )
+        log_path = write_sync_log(skipped_log)
+        try:
+            forms.alert(
+                "Update completed, but {} file(s) could not be replaced because they "
+                "are locked or unavailable. Close Revit or the related tool and run "
+                "Sync again.\n\nDiagnostic log: {}".format(
+                    len(skipped_files), log_path
+                ),
+                title="P13 Sync",
+                warn_icon=True,
+            )
+        except Exception:
+            pass
 
     try:
         sessionmgr.reload_pyrevit()
