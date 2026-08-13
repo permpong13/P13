@@ -11,6 +11,224 @@ doc = revit.doc
 app = doc.Application
 output = script.get_output()
 
+WINDOW_TAG_FILE_NAME = "Windows_Tag_By_P13.rfa"
+WINDOW_TAG_CONFIG_NAME = "WindowsCal"
+WINDOW_TAG_CONFIG_KEY = "window_tag_family_path"
+
+
+def tag_element_id_value(element_id):
+    """Return a stable ElementId value for Revit 2026 and older builds."""
+    try:
+        return element_id.Value
+    except AttributeError:
+        return element_id.IntegerValue
+
+
+def normalize_tag_name(value):
+    """Normalize family names so spaces and underscores do not affect matching."""
+    if not value:
+        return ""
+    return "".join(character for character in str(value).lower()
+                   if character.isalnum())
+
+
+def get_tag_element_name(element, fallback):
+    """Read an element or type name safely through IronPython wrappers."""
+    try:
+        name = getattr(element, "Name", None)
+        if name:
+            return str(name)
+    except Exception:
+        pass
+
+    try:
+        name = DB.Element.Name.GetValue(element)
+        if name:
+            return str(name)
+    except Exception:
+        pass
+
+    try:
+        name_parameter = element.get_Parameter(
+            DB.BuiltInParameter.SYMBOL_NAME_PARAM
+        )
+        if name_parameter and name_parameter.HasValue:
+            name = name_parameter.AsString()
+            if name:
+                return str(name)
+    except Exception:
+        pass
+
+    return fallback
+
+
+def is_p13_window_tag_family(family):
+    """Identify the bundled family while tolerating internal name variations."""
+    if not family:
+        return False
+
+    try:
+        category = family.FamilyCategory
+        category_id = DB.ElementId(DB.BuiltInCategory.OST_WindowTags)
+        if (not category or
+                tag_element_id_value(category.Id) !=
+                tag_element_id_value(category_id)):
+            return False
+    except Exception:
+        return False
+
+    family_name = normalize_tag_name(get_tag_element_name(family, ""))
+    target_name = normalize_tag_name(os.path.splitext(WINDOW_TAG_FILE_NAME)[0])
+    return (target_name in family_name or
+            ("window" in family_name and
+             "tag" in family_name and
+             "p13" in family_name))
+
+
+def find_p13_window_tag_family(document):
+    for family in DB.FilteredElementCollector(document).OfClass(DB.Family):
+        if is_p13_window_tag_family(family):
+            return family
+    return None
+
+
+def find_window_tag_symbol(document, family):
+    """Return a valid type from the supplied window tag family."""
+    if not family:
+        return None
+
+    category_id = DB.ElementId(DB.BuiltInCategory.OST_WindowTags)
+    for symbol_id in family.GetFamilySymbolIds():
+        symbol = document.GetElement(symbol_id)
+        try:
+            if (symbol and symbol.Category and
+                    tag_element_id_value(symbol.Category.Id) ==
+                    tag_element_id_value(category_id)):
+                return symbol
+        except Exception:
+            continue
+    return None
+
+
+def get_window_tag_file_path():
+    """Resolve the bundled RFA and remember a user-selected fallback path."""
+    bundled_path = os.path.join(os.path.dirname(__file__), WINDOW_TAG_FILE_NAME)
+    if os.path.isfile(bundled_path):
+        return bundled_path
+
+    config = script.get_config(WINDOW_TAG_CONFIG_NAME)
+    saved_path = config.get_option(WINDOW_TAG_CONFIG_KEY, "")
+    if saved_path and os.path.isfile(saved_path):
+        return saved_path
+
+    selected_path = forms.pick_file(
+        file_ext="rfa",
+        title="Select {}".format(WINDOW_TAG_FILE_NAME)
+    )
+    if not selected_path:
+        return None
+
+    config.set_option(WINDOW_TAG_CONFIG_KEY, selected_path)
+    script.save_config()
+    return selected_path
+
+
+def ensure_p13_window_tag_default(document):
+    """Load the P13 window tag and set one of its types as project default."""
+    family = find_p13_window_tag_family(document)
+
+    if not family:
+        family_path = get_window_tag_file_path()
+        if not family_path:
+            return "missing_file", None
+
+        existing_family_ids = set(
+            tag_element_id_value(item.Id)
+            for item in DB.FilteredElementCollector(document).OfClass(DB.Family)
+        )
+
+        load_transaction = DB.Transaction(
+            document, "Load P13 Window Tag Family"
+        )
+        load_transaction.Start()
+        try:
+            document.LoadFamily(family_path)
+            load_transaction.Commit()
+        except Exception as error:
+            if load_transaction.HasStarted() and not load_transaction.HasEnded():
+                load_transaction.RollBack()
+            return "load_failed: {}".format(error), None
+
+        family = find_p13_window_tag_family(document)
+        if not family:
+            category_id = DB.ElementId(DB.BuiltInCategory.OST_WindowTags)
+            for candidate in DB.FilteredElementCollector(document).OfClass(DB.Family):
+                try:
+                    is_new = (
+                        tag_element_id_value(candidate.Id) not in existing_family_ids
+                    )
+                    is_window_tag = (
+                        candidate.FamilyCategory and
+                        tag_element_id_value(candidate.FamilyCategory.Id) ==
+                        tag_element_id_value(category_id)
+                    )
+                    if is_new and is_window_tag:
+                        family = candidate
+                        break
+                except Exception:
+                    continue
+
+    if not family:
+        return "family_not_found_after_load", None
+
+    symbol = find_window_tag_symbol(document, family)
+    if not symbol:
+        return "type_not_found", None
+
+    category_id = DB.ElementId(DB.BuiltInCategory.OST_WindowTags)
+    try:
+        current_default_id = document.GetDefaultFamilyTypeId(category_id)
+        if (tag_element_id_value(current_default_id) ==
+                tag_element_id_value(symbol.Id)):
+            return "already_default", symbol
+    except Exception as error:
+        return "default_check_failed: {}".format(error), symbol
+
+    default_transaction = DB.Transaction(
+        document, "Set P13 Window Tag as Project Default"
+    )
+    default_transaction.Start()
+    try:
+        document.SetDefaultFamilyTypeId(category_id, symbol.Id)
+        default_transaction.Commit()
+        return "set_default", symbol
+    except Exception as error:
+        if default_transaction.HasStarted() and not default_transaction.HasEnded():
+            default_transaction.RollBack()
+        return "default_set_failed: {}".format(error), symbol
+
+
+window_tag_status, window_tag_symbol = ensure_p13_window_tag_default(doc)
+if window_tag_status == "set_default":
+    output.print_md(
+        "- Loaded **{}** and set type **{}** as the project window tag default.".format(
+            WINDOW_TAG_FILE_NAME,
+            get_tag_element_name(window_tag_symbol, "Unnamed Window Tag")
+        )
+    )
+elif window_tag_status == "already_default":
+    output.print_md(
+        "- **{}** is already the project window tag default.".format(
+            get_tag_element_name(window_tag_symbol, "P13 Window Tag")
+        )
+    )
+else:
+    output.print_md(
+        "- **Window tag setup warning:** {}. Window calculation will continue.".format(
+            window_tag_status
+        )
+    )
+
 output.print_md("# **อัปเดตพารามิเตอร์หน้าต่าง (Fixed Version)**")
 
 # =====================================================
@@ -291,7 +509,9 @@ with forms.ProgressBar(title='กำลังคำนวณพารามิ�
                 error_log.append(
                     "Window ID {} [Type: {}]: ไม่พบ Height — Length params ที่มี: [{}]".format(
                         win.Id.Value,
-                        doc.GetElement(win.GetTypeId()).Name if doc.GetElement(win.GetTypeId()) else "?",
+                        get_tag_element_name(
+                            doc.GetElement(win.GetTypeId()), "Unknown Window Type"
+                        ) if doc.GetElement(win.GetTypeId()) else "Unknown Window Type",
                         ", ".join(diag_names[:8]) if diag_names else "ไม่มี"
                     )
                 )

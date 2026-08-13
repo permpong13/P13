@@ -1,168 +1,314 @@
 # -*- coding: utf-8 -*-
-"""Update Wall Parameters: Top of Wall Fix for Revit 2026"""
-
-__title__ = "Wall Top\nCal"
+"""Calculate wall elevations and configure the P13 wall tag for the project."""
 
 import os
 import tempfile
+
 from pyrevit import revit, DB, script, forms
+
+
+__title__ = "Wall Top\nCal"
 
 doc = revit.doc
 app = doc.Application
 output = script.get_output()
 
-output.print_md("# **อัปเดตพารามิเตอร์ผนัง (Fixed Version)**")
+WALL_TAG_FILE_NAME = "Wall Tag by P13.rfa"
+WALL_TAG_FAMILY_NAME = "Wall Tag by P13"
+WALL_TAG_TYPE_NAME = "Wall Tag"
+WALL_TAG_CONFIG_KEY = "wall_tag_family_path"
+WALL_TAG_CONFIG_NAME = "WallCal"
 
-# =====================================================
-# ฟังก์ชันตรวจสอบและสร้าง Shared Parameter อัตโนมัติ
-# =====================================================
-def setup_parameter(doc, app, param_name, param_type, all_cat_names):
+
+def _element_id_value(element_id):
+    """Return a stable numeric value for ElementId across supported Revit builds."""
+    try:
+        return element_id.Value
+    except AttributeError:
+        return element_id.IntegerValue
+
+
+def _is_wall_tag_family(family):
+    """Match the supplied family by its Revit family name."""
+    if not family:
+        return False
+    try:
+        family_name = family.Name.strip().lower()
+        target_name = WALL_TAG_FAMILY_NAME.lower()
+        return family_name == target_name or family_name.endswith(target_name)
+    except Exception:
+        return False
+
+
+def _find_wall_tag_family(document):
+    for family in DB.FilteredElementCollector(document).OfClass(DB.Family):
+        if _is_wall_tag_family(family):
+            return family
+    return None
+
+
+def _get_symbol_name(symbol):
+    """Read a type name safely across Revit/IronPython wrapper variants."""
+    try:
+        name = getattr(symbol, "Name", None)
+        if name:
+            return str(name)
+    except Exception:
+        pass
+
+    try:
+        name_parameter = symbol.get_Parameter(DB.BuiltInParameter.SYMBOL_NAME_PARAM)
+        if name_parameter and name_parameter.HasValue:
+            name = name_parameter.AsString()
+            if name:
+                return str(name)
+    except Exception:
+        pass
+
+    return "Unnamed Wall Tag"
+
+
+def _find_wall_tag_symbol(document, family):
+    """Find the preferred wall tag type, with a safe first-type fallback."""
+    if not family:
+        return None
+
+    fallback = None
+    for symbol_id in family.GetFamilySymbolIds():
+        symbol = document.GetElement(symbol_id)
+        if not symbol or not symbol.Category:
+            continue
+        try:
+            if symbol.Category.BuiltInCategory != DB.BuiltInCategory.OST_WallTags:
+                continue
+        except Exception:
+            continue
+
+        if fallback is None:
+            fallback = symbol
+        if _get_symbol_name(symbol).strip().lower() == WALL_TAG_TYPE_NAME.lower():
+            return symbol
+
+    return fallback
+
+
+def _get_wall_tag_file_path():
+    """Resolve the bundled RFA, using a remembered picker path only if needed."""
+    script_dir = os.path.dirname(__file__)
+    bundled_path = os.path.join(script_dir, WALL_TAG_FILE_NAME)
+    if os.path.isfile(bundled_path):
+        return bundled_path
+
+    config = script.get_config(WALL_TAG_CONFIG_NAME)
+    saved_path = config.get_option(WALL_TAG_CONFIG_KEY, "")
+    if saved_path and os.path.isfile(saved_path):
+        return saved_path
+
+    picked_path = forms.pick_file(
+        file_ext="rfa",
+        title="Select {}".format(WALL_TAG_FILE_NAME)
+    )
+    if not picked_path:
+        return None
+
+    config.set_option(WALL_TAG_CONFIG_KEY, picked_path)
+    script.save_config()
+    return picked_path
+
+
+def ensure_p13_wall_tag_default(document):
+    """Load the P13 wall tag and make its preferred type the project default.
+
+    This function is intentionally independent from wall calculation so the tag
+    is configured even when the model contains no walls.
+    """
+    family = _find_wall_tag_family(document)
+    family_path = None
+
+    if not family:
+        family_path = _get_wall_tag_file_path()
+        if not family_path:
+            return "missing_file", None
+
+        load_transaction = DB.Transaction(document, "Load P13 Wall Tag Family")
+        load_transaction.Start()
+        try:
+            loaded = document.LoadFamily(family_path)
+            load_transaction.Commit()
+        except Exception as error:
+            if load_transaction.HasStarted() and not load_transaction.HasEnded():
+                load_transaction.RollBack()
+            return "load_failed: {}".format(error), None
+
+        family = _find_wall_tag_family(document)
+        if not family and not loaded:
+            return "load_failed: Revit did not load the family", None
+
+    symbol = _find_wall_tag_symbol(document, family)
+    if not symbol:
+        return "type_not_found", None
+
+    wall_tag_category_id = DB.ElementId(DB.BuiltInCategory.OST_WallTags)
+    try:
+        current_default_id = document.GetDefaultFamilyTypeId(wall_tag_category_id)
+        if (_element_id_value(current_default_id) ==
+                _element_id_value(symbol.Id)):
+            return "already_default", symbol
+    except Exception as error:
+        return "default_check_failed: {}".format(error), symbol
+
+    default_transaction = DB.Transaction(document, "Set P13 Wall Tag as Project Default")
+    default_transaction.Start()
+    try:
+        document.SetDefaultFamilyTypeId(wall_tag_category_id, symbol.Id)
+        default_transaction.Commit()
+        return "set_default", symbol
+    except Exception as error:
+        if default_transaction.HasStarted() and not default_transaction.HasEnded():
+            default_transaction.RollBack()
+        return "default_set_failed: {}".format(error), symbol
+
+
+def setup_parameter(document, application, param_name, param_type, all_cat_names):
+    """Find or create a shared parameter and bind it to the requested categories."""
     existing_def = None
     existing_binding = None
-    
-    iterator = doc.ParameterBindings.ForwardIterator()
+
+    iterator = document.ParameterBindings.ForwardIterator()
     while iterator.MoveNext():
         if iterator.Key.Name == param_name:
             existing_def = iterator.Key
             existing_binding = iterator.Current
             break
-            
-    # ถ้ามี Parameter อยู่แล้ว เช็คและอัปเดต Categories ให้ครอบคลุม
+
     if existing_def and existing_binding:
         cat_set = existing_binding.Categories
         needs_update = False
-        for c in all_cat_names:
+        for category_name in all_cat_names:
             try:
-                b_cat = getattr(DB.BuiltInCategory, c)
-                cat = doc.Settings.Categories.get_Item(b_cat)
-                if cat and cat.AllowsBoundParameters and not cat_set.Contains(cat):
-                    cat_set.Insert(cat)
+                built_in_category = getattr(DB.BuiltInCategory, category_name)
+                category = document.Settings.Categories.get_Item(built_in_category)
+                if (category and category.AllowsBoundParameters and
+                        not cat_set.Contains(category)):
+                    cat_set.Insert(category)
                     needs_update = True
-            except: pass
-            
+            except Exception:
+                continue
+
         if needs_update:
-            t_rebind = DB.Transaction(doc, "Update {} Categories".format(param_name))
-            t_rebind.Start()
+            rebind_transaction = DB.Transaction(
+                document, "Update {} Categories".format(param_name)
+            )
+            rebind_transaction.Start()
             try:
-                new_binding = app.Create.NewInstanceBinding(cat_set)
-                doc.ParameterBindings.ReInsert(existing_def, new_binding)
-                t_rebind.Commit()
+                new_binding = application.Create.NewInstanceBinding(cat_set)
+                document.ParameterBindings.ReInsert(existing_def, new_binding)
+                rebind_transaction.Commit()
                 return "updated"
-            except:
-                t_rebind.RollBack()
+            except Exception:
+                if (rebind_transaction.HasStarted() and
+                        not rebind_transaction.HasEnded()):
+                    rebind_transaction.RollBack()
                 return "exists"
         return "exists"
-            
-    # หากไม่มี ให้สร้าง Shared Parameter ขึ้นมาใหม่
-    sp_file = app.OpenSharedParameterFile()
-    original_sp = app.SharedParametersFilename
-    
-    if not sp_file:
-        temp_dir = tempfile.gettempdir()
-        temp_sp_path = os.path.join(temp_dir, "Auto_SharedParams_Revit.txt")
-        if not os.path.exists(temp_sp_path):
-            with open(temp_sp_path, "w") as f: f.write("") 
+
+    shared_parameter_file = application.OpenSharedParameterFile()
+    original_shared_parameter_path = application.SharedParametersFilename
+
+    if not shared_parameter_file:
+        temporary_shared_parameter_path = os.path.join(
+            tempfile.gettempdir(), "Auto_SharedParams_Revit.txt"
+        )
+        if not os.path.exists(temporary_shared_parameter_path):
+            with open(temporary_shared_parameter_path, "w") as shared_file:
+                shared_file.write("")
         try:
-            app.SharedParametersFilename = temp_sp_path
-            sp_file = app.OpenSharedParameterFile()
-        except: pass
-            
-    if not sp_file: return "sp_error"
-        
-    target_def = None
-    for group in sp_file.Groups:
+            application.SharedParametersFilename = temporary_shared_parameter_path
+            shared_parameter_file = application.OpenSharedParameterFile()
+        except Exception:
+            shared_parameter_file = None
+
+    if not shared_parameter_file:
+        return "sp_error"
+
+    target_definition = None
+    for group in shared_parameter_file.Groups:
         for definition in group.Definitions:
             if definition.Name == param_name:
-                target_def = definition
+                target_definition = definition
                 break
-        if target_def: break
-            
-    if not target_def:
-        group_name = "Data"
-        group = sp_file.Groups.get_Item(group_name)
-        if not group: group = sp_file.Groups.Create(group_name)
+        if target_definition:
+            break
+
+    if not target_definition:
+        group = shared_parameter_file.Groups.get_Item("Data")
+        if not group:
+            group = shared_parameter_file.Groups.Create("Data")
         try:
             if param_type == "Text":
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.String.Text)
+                options = DB.ExternalDefinitionCreationOptions(
+                    param_name, DB.SpecTypeId.String.Text
+                )
             else:
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.SpecTypeId.Length)
-            target_def = group.Definitions.Create(opt)
+                options = DB.ExternalDefinitionCreationOptions(
+                    param_name, DB.SpecTypeId.Length
+                )
+            target_definition = group.Definitions.Create(options)
         except AttributeError:
             if param_type == "Text":
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Text)
+                options = DB.ExternalDefinitionCreationOptions(
+                    param_name, DB.ParameterType.Text
+                )
             else:
-                opt = DB.ExternalDefinitionCreationOptions(param_name, DB.ParameterType.Length)
-            target_def = group.Definitions.Create(opt)
-            
-    if original_sp and app.SharedParametersFilename != original_sp:
-        try: app.SharedParametersFilename = original_sp
-        except: pass
-            
-    if not target_def: return "def_not_found"
-        
-    cat_set = app.Create.NewCategorySet()
-    for c in all_cat_names:
-        try:
-            b_cat = getattr(DB.BuiltInCategory, c)
-            cat = doc.Settings.Categories.get_Item(b_cat)
-            if cat and cat.AllowsBoundParameters:
-                cat_set.Insert(cat)
-        except: pass
-            
-    if cat_set.IsEmpty: return "no_categories"
-        
-    binding = app.Create.NewInstanceBinding(cat_set)
-    t_param = DB.Transaction(doc, "Setup Parameter: {}".format(param_name))
-    t_param.Start()
+                options = DB.ExternalDefinitionCreationOptions(
+                    param_name, DB.ParameterType.Length
+                )
+            target_definition = group.Definitions.Create(options)
+
     try:
-        try: doc.ParameterBindings.Insert(target_def, binding, DB.GroupTypeId.Data)
-        except AttributeError: doc.ParameterBindings.Insert(target_def, binding, DB.BuiltInParameterGroup.PG_DATA)
-        t_param.Commit()
+        application.SharedParametersFilename = original_shared_parameter_path
+    except Exception:
+        pass
+
+    if not target_definition:
+        return "def_not_found"
+
+    category_set = application.Create.NewCategorySet()
+    for category_name in all_cat_names:
+        try:
+            built_in_category = getattr(DB.BuiltInCategory, category_name)
+            category = document.Settings.Categories.get_Item(built_in_category)
+            if category and category.AllowsBoundParameters:
+                category_set.Insert(category)
+        except Exception:
+            continue
+
+    if category_set.IsEmpty:
+        return "no_categories"
+
+    binding = application.Create.NewInstanceBinding(category_set)
+    parameter_transaction = DB.Transaction(
+        document, "Setup Parameter: {}".format(param_name)
+    )
+    parameter_transaction.Start()
+    try:
+        try:
+            document.ParameterBindings.Insert(
+                target_definition, binding, DB.GroupTypeId.Data
+            )
+        except AttributeError:
+            document.ParameterBindings.Insert(
+                target_definition, binding, DB.BuiltInParameterGroup.PG_DATA
+            )
+        parameter_transaction.Commit()
         return "created"
-    except:
-        t_param.RollBack()
+    except Exception:
+        if (parameter_transaction.HasStarted() and
+                not parameter_transaction.HasEnded()):
+            parameter_transaction.RollBack()
         return "bind_error"
 
 
-# =====================================================
-# ตรวจสอบและเตรียม Parameters
-# =====================================================
-output.print_md("### **ตรวจสอบและเตรียม Parameters (ผนัง)**")
-cat_walls = ["OST_Walls"]
-
-status_base = setup_parameter(doc, app, "Base_Level", "Text", cat_walls)
-status_bottom = setup_parameter(doc, app, "Level_Bottom_of_Column", "Length", cat_walls) # คุณใช้ชื่อนี้กับผนังด้วย จึงคงไว้ให้
-status_top = setup_parameter(doc, app, "Top of Wall", "Length", cat_walls)
-
-if status_base == "created": output.print_md("✅ **Base_Level** (Text) ถูกสร้างอัตโนมัติ")
-elif status_base in ["exists", "updated"]: output.print_md("✅ พบพารามิเตอร์ **Base_Level** พร้อมใช้งาน")
-
-if status_bottom == "created": output.print_md("✅ **Level_Bottom_of_Column** ถูกสร้างอัตโนมัติ")
-if status_top == "created": output.print_md("✅ **Top of Wall** ถูกสร้างอัตโนมัติ")
-output.print_md("---")
-
-
-# =====================================================
-# ค้นหาองค์ประกอบผนัง
-# =====================================================
-walls = DB.FilteredElementCollector(doc)\
-          .OfCategory(DB.BuiltInCategory.OST_Walls)\
-          .WhereElementIsNotElementType()\
-          .ToElements()
-
-if not walls:
-    forms.alert("ไม่พบผนังในโมเดล", exitscript=True)
-
-output.print_md("### **ค้นพบผนังทั้งหมด: {} รายการ**".format(len(walls)))
-
-
-# =====================================================
-# เริ่ม Transaction เขียนค่าลงโมเดล
-# =====================================================
-t = DB.Transaction(doc, "Set Wall Top of Wall")
-t.Start()
-
-# เปิดอนุญาตให้ Base_Level เขียนค่าลงใน Group ได้ทันที
 def is_element_in_group(element):
     try:
         group_id = getattr(element, "GroupId", DB.ElementId.InvalidElementId)
@@ -171,24 +317,86 @@ def is_element_in_group(element):
         return False
 
 
-def allow_vary_between_groups(doc, parameter_names):
+def allow_vary_between_groups(document, parameter_names):
     vary_status = dict((name, False) for name in parameter_names)
-    iterator = doc.ParameterBindings.ForwardIterator()
+    iterator = document.ParameterBindings.ForwardIterator()
     while iterator.MoveNext():
         definition = iterator.Key
-        if definition.Name in vary_status and isinstance(definition, DB.InternalDefinition):
+        if (definition.Name in vary_status and
+                isinstance(definition, DB.InternalDefinition)):
             try:
                 if not definition.VariesAcrossGroups:
-                    definition.SetAllowVaryBetweenGroups(doc, True)
+                    definition.SetAllowVaryBetweenGroups(document, True)
                 vary_status[definition.Name] = definition.VariesAcrossGroups
             except Exception:
-                vary_status[definition.Name] = getattr(definition, "VariesAcrossGroups", False)
+                vary_status[definition.Name] = getattr(
+                    definition, "VariesAcrossGroups", False
+                )
     return vary_status
 
 
+output.print_md("# **Wall Parameter Update**")
+
+tag_status, tag_symbol = ensure_p13_wall_tag_default(doc)
+if tag_status == "set_default":
+    output.print_md(
+        "- Loaded **{}** and set type **{}** as the project wall tag default.".format(
+            WALL_TAG_FAMILY_NAME, _get_symbol_name(tag_symbol)
+        )
+    )
+elif tag_status == "already_default":
+    output.print_md(
+        "- **{} : {}** is already the project wall tag default.".format(
+            WALL_TAG_FAMILY_NAME, _get_symbol_name(tag_symbol)
+        )
+    )
+else:
+    output.print_md(
+        "- **Wall tag setup warning:** {}. Wall calculation will continue.".format(
+            tag_status
+        )
+    )
+
+
+output.print_md("### **Checking and Preparing Wall Parameters**")
+wall_categories = ["OST_Walls"]
+
+status_base = setup_parameter(doc, app, "Base_Level", "Text", wall_categories)
+status_bottom = setup_parameter(
+    doc, app, "Level_Bottom_of_Column", "Length", wall_categories
+)
+status_top = setup_parameter(doc, app, "Top of Wall", "Length", wall_categories)
+
+if status_base == "created":
+    output.print_md("- Created **Base_Level** (Text).")
+elif status_base in ["exists", "updated"]:
+    output.print_md("- **Base_Level** is ready for use.")
+
+if status_bottom == "created":
+    output.print_md("- Created **Level_Bottom_of_Column**.")
+if status_top == "created":
+    output.print_md("- Created **Top of Wall**.")
+output.print_md("---")
+
+
+walls = (
+    DB.FilteredElementCollector(doc)
+    .OfCategory(DB.BuiltInCategory.OST_Walls)
+    .WhereElementIsNotElementType()
+    .ToElements()
+)
+
+if not walls:
+    forms.alert("No walls were found in the model.", exitscript=True)
+
+output.print_md("### **Found {} wall(s)**".format(len(walls)))
+
+
+wall_transaction = DB.Transaction(doc, "Set Wall Elevation Parameters")
+wall_transaction.Start()
+
 group_vary_status = allow_vary_between_groups(
-    doc,
-    ["Base_Level", "Level_Bottom_of_Column", "Top of Wall"]
+    doc, ["Base_Level", "Level_Bottom_of_Column", "Top of Wall"]
 )
 
 success_count = 0
@@ -197,110 +405,121 @@ skipped_group_count = 0
 total_elements = len(walls)
 is_cancelled = False
 
-# เริ่มใช้งาน Progress Bar
-with forms.ProgressBar(title='กำลังคำนวณพารามิเตอร์ผนัง... ({value} จาก {max_value})', cancellable=True) as pb:
+with forms.ProgressBar(
+        title="Calculating wall parameters... ({value} of {max_value})",
+        cancellable=True) as progress_bar:
     for index, wall in enumerate(walls):
-        if pb.cancelled:
+        if progress_bar.cancelled:
             is_cancelled = True
             break
-            
+
         try:
-            # --- 1. ดึง Base Level Elevation ---
-            is_in_group = is_element_in_group(wall)
-            if is_in_group:
+            in_group = is_element_in_group(wall)
+            if in_group:
                 skipped_group_count += 1
                 continue
 
-            base_lvl_param = wall.get_Parameter(DB.BuiltInParameter.WALL_BASE_CONSTRAINT)
-            if not base_lvl_param:
+            base_level_parameter = wall.get_Parameter(
+                DB.BuiltInParameter.WALL_BASE_CONSTRAINT
+            )
+            if not base_level_parameter:
                 continue
-                
-            base_lvl_id = base_lvl_param.AsElementId()
-            if base_lvl_id == DB.ElementId.InvalidElementId:
+
+            base_level_id = base_level_parameter.AsElementId()
+            if base_level_id == DB.ElementId.InvalidElementId:
                 continue
-            
-            base_level_el = doc.GetElement(base_lvl_id)
-            base_elev = base_level_el.Elevation
 
-            # --- 2. ดึง Base Offset ---
-            base_offset_param = wall.get_Parameter(DB.BuiltInParameter.WALL_BASE_OFFSET)
-            base_offset = base_offset_param.AsDouble() if base_offset_param else 0.0
-
-            # --- 3. ดึง Unconnected Height ---
-            height_param = wall.LookupParameter("Unconnected Height")
-            if not height_param:
-                height_param = wall.get_Parameter(DB.BuiltInParameter.WALL_USER_HEIGHT_PARAM)
-            
-            if not height_param or not height_param.HasValue:
+            base_level = doc.GetElement(base_level_id)
+            if not base_level:
                 continue
-            
-            unconnected_height = height_param.AsDouble()
+            base_elevation = base_level.Elevation
 
-            # --- 4. เริ่มการคำนวณสูตร ---
-            top_of_wall_val = base_elev + base_offset + unconnected_height
-            bottom_val = base_elev + base_offset
+            base_offset_parameter = wall.get_Parameter(
+                DB.BuiltInParameter.WALL_BASE_OFFSET
+            )
+            base_offset = (
+                base_offset_parameter.AsDouble()
+                if base_offset_parameter else 0.0
+            )
 
-            # --- 5. เขียนค่าลง Parameter ---
-            
-            # (A) Base_Level (รองรับชนิด Text เพื่อแก้ปัญหา Group)
-            p_base = wall.LookupParameter("Base_Level")
-            if p_base and not p_base.IsReadOnly:
-                # เช็คสถานะ Group สำหรับพารามิเตอร์ Text
-                if is_in_group and not group_vary_status.get("Base_Level", False):
+            height_parameter = wall.LookupParameter("Unconnected Height")
+            if not height_parameter:
+                height_parameter = wall.get_Parameter(
+                    DB.BuiltInParameter.WALL_USER_HEIGHT_PARAM
+                )
+            if not height_parameter or not height_parameter.HasValue:
+                continue
+
+            unconnected_height = height_parameter.AsDouble()
+            top_of_wall_value = (
+                base_elevation + base_offset + unconnected_height
+            )
+            bottom_value = base_elevation + base_offset
+
+            base_parameter = wall.LookupParameter("Base_Level")
+            if base_parameter and not base_parameter.IsReadOnly:
+                if in_group and not group_vary_status.get("Base_Level", False):
+                    skipped_group_count += 1
+                elif base_parameter.StorageType == DB.StorageType.String:
+                    base_parameter.Set("{:.3f}".format(base_elevation * 0.3048))
+                elif base_parameter.StorageType == DB.StorageType.Double:
+                    base_parameter.Set(base_elevation)
+
+            bottom_parameter = wall.LookupParameter("Level_Bottom_of_Column")
+            if bottom_parameter and not bottom_parameter.IsReadOnly:
+                if (in_group and
+                        not group_vary_status.get("Level_Bottom_of_Column", False)):
                     skipped_group_count += 1
                 else:
-                    if p_base.StorageType == DB.StorageType.String:
-                        elev_m = base_elev * 0.3048
-                        p_base.Set("{:.3f}".format(elev_m))
-                    elif p_base.StorageType == DB.StorageType.Double:
-                        p_base.Set(base_elev)
+                    bottom_parameter.Set(bottom_value)
 
-            # (B) Level_Bottom_of_Column
-            p_bottom = wall.LookupParameter("Level_Bottom_of_Column")
-            if p_bottom and not p_bottom.IsReadOnly:
-                if is_in_group and not group_vary_status.get("Level_Bottom_of_Column", False):
+            top_parameter = wall.LookupParameter("Top of Wall")
+            if top_parameter and not top_parameter.IsReadOnly:
+                if in_group and not group_vary_status.get("Top of Wall", False):
                     skipped_group_count += 1
                 else:
-                    p_bottom.Set(bottom_val)
-
-            # (C) Top of Wall (เป้าหมายหลัก)
-            p_top = wall.LookupParameter("Top of Wall")
-            if p_top and not p_top.IsReadOnly:
-                if is_in_group and not group_vary_status.get("Top of Wall", False):
-                    skipped_group_count += 1
-                else:
-                    p_top.Set(top_of_wall_val)
+                    top_parameter.Set(top_of_wall_value)
                     success_count += 1
-            elif not p_top:
-                error_log.append("Wall ID {}: ไม่พบ Parameter 'Top of Wall'".format(wall.Id.Value))
+            elif not top_parameter:
+                error_log.append(
+                    "Wall ID {}: Parameter 'Top of Wall' was not found".format(
+                        _element_id_value(wall.Id)
+                    )
+                )
 
-        except Exception as e:
-            error_log.append("Wall ID {}: {}".format(wall.Id.Value, str(e)))
-            
-        pb.update_progress(index + 1, total_elements)
+        except Exception as error:
+            error_log.append(
+                "Wall ID {}: {}".format(_element_id_value(wall.Id), error)
+            )
 
-t.Commit()
+        progress_bar.update_progress(index + 1, total_elements)
+
+wall_transaction.Commit()
 
 
-# =====================================================
-# สรุปผลการดำเนินการ
-# =====================================================
 output.print_md("---")
-output.print_md("### **สรุปการดำเนินการ**")
-
+output.print_md("### **Result**")
 if is_cancelled:
-    output.print_md("🛑 **ผู้ใช้กดยกเลิกการทำงานกลางคัน! (บันทึกเฉพาะส่วนที่ทำเสร็จแล้ว)**")
+    output.print_md(
+        "- **Cancelled by user.** Changes completed before cancellation were saved."
+    )
 
-output.print_md("✅ อัปเดตสำเร็จ: **{}** รายการ จากทั้งหมด {} รายการ".format(success_count, total_elements))
+output.print_md(
+    "- Updated **{}** wall(s) out of **{}**.".format(
+        success_count, total_elements
+    )
+)
 
 if skipped_group_count > 0:
-    output.print_md("Grouped walls skipped to prevent Revit from forcing the Ungroup workflow: {}".format(skipped_group_count))
+    output.print_md(
+        "- Skipped {} grouped-wall operation(s) to avoid forcing an Ungroup workflow.".format(
+            skipped_group_count
+        )
+    )
 
 if error_log:
-    output.print_md("### ⚠️ **ข้อผิดพลาดที่พบ**")
-    # แสดงเฉพาะ Error ที่ไม่ซ้ำกันเพื่อลดความยาว
-    unique_errors = list(set(error_log))
-    for log in unique_errors[:15]:
-        output.print_md("- " + log)
+    output.print_md("### **Warnings**")
+    for message in list(set(error_log))[:15]:
+        output.print_md("- " + message)
 
-output.print_md("\n**เสร็จสิ้น — อัปเดตข้อมูลพารามิเตอร์ผนังเรียบร้อย**")
+output.print_md("**Finished - wall parameters are up to date.**")
