@@ -1,0 +1,18 @@
+title: "Duplicate\nDependent Views"
+# Thai reference: คัดลอก View แบบ Dependent หลายรายการในครั้งเดียว
+
+tooltip: |
+  Create multiple dependent views from one or more selected primary views.
+
+  Features:
+  - Use primary views selected in the Project Browser, or select views from a grouped picker.
+  - Create the requested number of dependent views for every selected primary view.
+  - Validate the exact Revit dependent-duplication capability before editing the model.
+  - Apply the entire batch in one atomic transaction with rollback on failure.
+# Thai reference: ใช้ View ที่เลือกอยู่หรือเลือกหลาย View จากรายการ; สร้างจำนวน Dependent ต่อ View; ตรวจสอบก่อนทำงาน; ยกเลิกทั้งชุดเมื่อผิดพลาด
+
+author: "P13"
+# Thai reference: ผู้พัฒนา P13
+
+description: "Batch-create Revit dependent views from selected primary views with validation and rollback."
+# Thai reference: สร้าง Dependent View แบบกลุ่มจาก Primary View ที่เลือก พร้อมตรวจสอบและ Rollback
