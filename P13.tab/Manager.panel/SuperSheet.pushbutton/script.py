@@ -830,11 +830,8 @@ class SuperSheetsUltimate(Window):
     def _sanitize(self, name):
         return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
-    # Use a collision-safe filename so Revit does not show an overwrite dialog.
+    # Keep the original filename so Revit can overwrite it when it is not locked.
     def _get_safe_filename(self, folder, base_name, ext):
-        folder = folder or ""
-        ext = ext or ""
-        base_name = (base_name or "Export").strip()
         max_len = 250 - len(folder) - len(ext)
         if max_len <= 0:
             return base_name
@@ -842,24 +839,7 @@ class SuperSheetsUltimate(Window):
         if len(base_name) > max_len:
             base_name = base_name[:max_len].strip()
 
-        candidate = base_name
-        candidate_path = os.path.join(folder, candidate + ext)
-        if not os.path.exists(candidate_path):
-            return candidate
-
-        index = 1
-        while True:
-            suffix = "_{:02d}".format(index)
-            available_len = max_len - len(suffix)
-            if available_len > 0:
-                numbered_name = base_name[:available_len].rstrip() + suffix
-            else:
-                numbered_name = "Export" + suffix
-
-            numbered_path = os.path.join(folder, numbered_name + ext)
-            if not os.path.exists(numbered_path):
-                return numbered_name
-            index += 1
+        return base_name
 
     def _create_excel(self, items, folder):
         try:
