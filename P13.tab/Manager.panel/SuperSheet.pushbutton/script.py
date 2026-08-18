@@ -848,6 +848,146 @@ class SuperSheetsUltimate(Window):
                 for i in items: f.write("{},{},{},{}\n".format(i.Number, i.Name, i.Revision, datetime.datetime.now().date()))
         except: pass
 
+    def _is_bw_export(self):
+        """Return True when the export color selector is set to B&W."""
+        try:
+            selected = self.cboColor.SelectedItem
+            if selected is not None:
+                selected_text = str(selected).strip().lower()
+                if selected_text in ("b&w", "b & w", "black and white"):
+                    return True
+            return self.cboColor.SelectedIndex == 1
+        except:
+            return False
+
+    def _configure_dwg_color(self, opt_dwg, use_view_overrides=False):
+        """Apply the SuperSheet color choice to DWG export options.
+
+        Revit's DWG API does not expose a BlackAndWhite enum. ACI color 7 is
+        the standard black/white CAD color. When temporary view overrides are
+        active, preserve those overrides so the DWG exporter receives black
+        RGB values from the view.
+        """
+        if not self._is_bw_export():
+            return
+
+        if use_view_overrides:
+            opt_dwg.Colors = DB.ExportColorMode.TrueColorPerView
+            opt_dwg.PropOverrides = DB.PropOverrideMode.ByEntity
+        else:
+            opt_dwg.Colors = DB.ExportColorMode.IndexColors
+            opt_dwg.PropOverrides = DB.PropOverrideMode.ByLayer
+
+        layer_table = opt_dwg.GetExportLayerTable()
+        for layer_key in layer_table.GetKeys():
+            layer_info = layer_table.GetExportLayerInfo(layer_key)
+            layer_info.ColorNumber = 7
+            layer_info.CutColorNumber = 7
+            layer_table[layer_key] = layer_info
+        opt_dwg.SetExportLayerTable(layer_table)
+
+    def _create_bw_graphic_overrides(self):
+        """Create black graphic overrides for visible line and pattern colors."""
+        black = DB.Color(0, 0, 0)
+        overrides = DB.OverrideGraphicSettings()
+        for setter_name in [
+            "SetProjectionLineColor",
+            "SetCutLineColor",
+            "SetSurfaceForegroundPatternColor",
+            "SetSurfaceBackgroundPatternColor",
+            "SetCutForegroundPatternColor",
+            "SetCutBackgroundPatternColor"
+        ]:
+            try:
+                getattr(overrides, setter_name)(black)
+            except:
+                pass
+        try:
+            overrides.SetSurfaceTransparency(0)
+        except:
+            pass
+        try:
+            overrides.SetHalftone(False)
+        except:
+            pass
+        return overrides
+
+    def _apply_bw_overrides_to_sheet(self, sheet_id):
+        """Temporarily override visible elements in a sheet and its placed views."""
+        sheet = doc.GetElement(sheet_id)
+        if not sheet:
+            return 0
+
+        view_ids = [sheet.Id]
+        try:
+            for viewport in DB.FilteredElementCollector(doc, sheet.Id).OfClass(DB.Viewport):
+                if viewport.ViewId not in view_ids:
+                    view_ids.append(viewport.ViewId)
+        except:
+            pass
+
+        overrides = self._create_bw_graphic_overrides()
+        changed = 0
+        for view_id in view_ids:
+            try:
+                view = doc.GetElement(view_id)
+                if not view or not view.AreGraphicsOverridesAllowed():
+                    continue
+
+                element_ids = DB.FilteredElementCollector(doc, view_id) \
+                    .WhereElementIsNotElementType().ToElementIds()
+                for element_id in element_ids:
+                    try:
+                        view.SetElementOverrides(element_id, overrides)
+                        changed += 1
+                    except:
+                        pass
+            except:
+                pass
+        return changed
+
+    def _export_dwg(self, folder, filename, sheet_id):
+        """Export one DWG, using temporary black view overrides when B&W is selected."""
+        export_group = None
+        transaction = None
+        use_view_overrides = False
+        try:
+            if self._is_bw_export():
+                try:
+                    export_group = DB.TransactionGroup(doc, "Temporary B&W DWG Export")
+                    export_group.Start()
+
+                    transaction = DB.Transaction(doc, "Apply Temporary B&W DWG Overrides")
+                    transaction.Start()
+                    changed = self._apply_bw_overrides_to_sheet(sheet_id)
+                    transaction.Commit()
+                    use_view_overrides = changed > 0
+                    print("DWG B&W temporary overrides applied to {} visible elements.".format(changed))
+                except:
+                    use_view_overrides = False
+                    try:
+                        if transaction:
+                            transaction.RollBack()
+                    except:
+                        pass
+                    try:
+                        if export_group:
+                            export_group.RollBack()
+                    except:
+                        pass
+                    export_group = None
+
+            opt_dwg = DB.DWGExportOptions()
+            opt_dwg.MergedViews = True
+            self._configure_dwg_color(opt_dwg, use_view_overrides)
+            return doc.Export(folder, filename, List[DB.ElementId]([sheet_id]), opt_dwg)
+        finally:
+            try:
+                if export_group:
+                    export_group.RollBack()
+            except:
+                pass
+
     def _apply_pdf_options(self, opt):
         try:
             if self.chkViewLinks.IsChecked: opt.ViewLinksInBlue = True
@@ -1005,10 +1145,7 @@ class SuperSheetsUltimate(Window):
                         try:
                             clean_fn = fn.replace(".dwg", "")
                             safe_dwg_fn = self._get_safe_filename(dwg_path, clean_fn, ".dwg")
-                            
-                            opt_dwg = DB.DWGExportOptions()
-                            opt_dwg.MergedViews = True 
-                            doc.Export(dwg_path, safe_dwg_fn, List[DB.ElementId]([item.Id]), opt_dwg)
+                            self._export_dwg(dwg_path, safe_dwg_fn, item.Id)
                         except Exception as ex: 
                             print("DWG Error {}: {}".format(fn, ex))
                         c += 1
