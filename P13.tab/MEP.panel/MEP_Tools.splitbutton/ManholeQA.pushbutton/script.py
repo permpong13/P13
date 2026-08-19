@@ -6,6 +6,7 @@ import csv
 import math
 import os
 import traceback
+import re
 
 import clr
 
@@ -61,7 +62,7 @@ MANHOLE_LENGTH_PARAMETER_NAMES = [
     "MH Length",
     "Box Length",
 ]
-CONDUIT_SIDE_SEARCH_MM = 600.0
+CONDUIT_SIDE_SEARCH_MM = 5.0
 CONDUIT_SIDE_OVERLAP_MM = 25.0
 CONDUIT_SIDE_AXIS_RATIO = 1.5
 
@@ -69,7 +70,7 @@ XAML = r"""
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Manhole QA" Height="720" Width="1260"
+    Title="Manhole QA" Height="760" Width="1400"
     WindowStartupLocation="CenterScreen"
     Background="#F5F5F5" FontFamily="Segoe UI" FontSize="13">
 
@@ -103,8 +104,13 @@ XAML = r"""
 
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12" Height="36">
-            <TextBlock Text="Workset" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#666"/>
-            <ComboBox x:Name="CbWorkset" Width="170" Height="30" VerticalContentAlignment="Center"/>
+            <TextBlock Text="Worksets" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#666"/>
+            <ToggleButton x:Name="BtnWorksetToggle" Content="Select Worksets..." Width="150" Height="30" VerticalAlignment="Center" Margin="0,0,12,0"/>
+            <Popup x:Name="PopupWorkset" IsOpen="{Binding IsChecked, ElementName=BtnWorksetToggle}" StaysOpen="False" PlacementTarget="{Binding ElementName=BtnWorksetToggle}">
+                <Border Background="White" BorderBrush="#CCCCCC" BorderThickness="1" Padding="2">
+                    <ListBox x:Name="ListWorksets" SelectionMode="Multiple" MaxHeight="300" Width="200" BorderThickness="0"/>
+                </Border>
+            </Popup>
 
             <TextBlock Text="Status" VerticalAlignment="Center" Margin="12,0,6,0" Foreground="#666"/>
             <ComboBox x:Name="CbStatus" Width="150" Height="30" VerticalContentAlignment="Center">
@@ -112,51 +118,47 @@ XAML = r"""
                 <ComboBoxItem Content="Changed"/>
                 <ComboBoxItem Content="Review"/>
                 <ComboBoxItem Content="Unchanged"/>
+                <ComboBoxItem Content="Data Error"/>
             </ComboBox>
 
             <TextBlock Text="Search" VerticalAlignment="Center" Margin="12,0,6,0" Foreground="#666"/>
             <TextBox x:Name="TxtSearch" Width="170" Height="30" VerticalContentAlignment="Center"/>
 
             <Button x:Name="BtnScan" Content="Scan View" Margin="12,0,0,0" Width="110"/>
-            <CheckBox x:Name="ChkDryRun" Content="Preview only" IsChecked="True"
-                      VerticalAlignment="Center" Margin="20,0,0,0" Foreground="#444"/>
-            <Button x:Name="BtnCommit" Content="Commit Selected" Margin="10,0,0,0" Width="130"
-                    Background="#FFEBEE" BorderBrush="#EF9A9A"/>
-            <Button x:Name="BtnSelect" Content="Select" Margin="8,0,0,0" Width="82"/>
-            <Button x:Name="BtnIsolate" Content="Isolate" Margin="8,0,0,0" Width="82"/>
-            <Button x:Name="BtnExport" Content="Export CSV" Margin="8,0,0,0" Width="100"/>
         </StackPanel>
 
         <Grid DockPanel.Dock="Top" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
+                <ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/><ColumnDefinition/>
             </Grid.ColumnDefinitions>
-            <Border Grid.Column="0" Background="White" BorderBrush="#E0E0E0"
-                    BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
+            <Border Grid.Column="0" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
                 <StackPanel>
                     <TextBlock Text="Total Manholes" FontSize="11" Foreground="#888"/>
                     <TextBlock x:Name="StatTotal" Text="-" FontSize="22" FontWeight="Medium"/>
                 </StackPanel>
             </Border>
-            <Border Grid.Column="1" Background="White" BorderBrush="#E0E0E0"
-                    BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
+            <Border Grid.Column="1" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
                 <StackPanel>
                     <TextBlock Text="Unchanged" FontSize="11" Foreground="#888"/>
                     <TextBlock x:Name="StatOk" Text="-" FontSize="22" FontWeight="Medium" Foreground="#2E7D32"/>
                 </StackPanel>
             </Border>
-            <Border Grid.Column="2" Background="White" BorderBrush="#E0E0E0"
-                    BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
+            <Border Grid.Column="2" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
                 <StackPanel>
                     <TextBlock Text="Changed" FontSize="11" Foreground="#888"/>
                     <TextBlock x:Name="StatChanged" Text="-" FontSize="22" FontWeight="Medium" Foreground="#E65100"/>
                 </StackPanel>
             </Border>
-            <Border Grid.Column="3" Background="White" BorderBrush="#E0E0E0"
-                    BorderThickness="1" CornerRadius="6" Padding="12,8">
+            <Border Grid.Column="3" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,0,8,0">
                 <StackPanel>
                     <TextBlock Text="Review" FontSize="11" Foreground="#888"/>
                     <TextBlock x:Name="StatWarn" Text="-" FontSize="22" FontWeight="Medium" Foreground="#B71C1C"/>
+                </StackPanel>
+            </Border>
+            <Border Grid.Column="4" Background="White" BorderBrush="#E0E0E0" BorderThickness="1" CornerRadius="6" Padding="12,8">
+                <StackPanel>
+                    <TextBlock Text="Data Error" FontSize="11" Foreground="#888"/>
+                    <TextBlock x:Name="StatError" Text="-" FontSize="22" FontWeight="Medium" Foreground="#C62828"/>
                 </StackPanel>
             </Border>
         </Grid>
@@ -198,6 +200,17 @@ XAML = r"""
                           AlternatingRowBackground="#FAFAFA"
                           HorizontalGridLinesBrush="#F0F0F0"
                           FontSize="12">
+                    <DataGrid.CellStyle>
+                        <Style TargetType="DataGridCell">
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#E3F2FD"/>
+                                    <Setter Property="Foreground" Value="Black"/>
+                                    <Setter Property="BorderBrush" Value="Transparent"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.CellStyle>
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="" Width="32">
                             <DataGridTemplateColumn.CellTemplate>
@@ -228,6 +241,9 @@ XAML = r"""
                                                     <DataTrigger Binding="{Binding status}" Value="warn">
                                                         <Setter Property="Background" Value="#FFEBEE"/>
                                                     </DataTrigger>
+                                                    <DataTrigger Binding="{Binding status}" Value="error">
+                                                        <Setter Property="Background" Value="#FFCDD2"/>
+                                                    </DataTrigger>
                                                 </Style.Triggers>
                                             </Style>
                                         </Border.Style>
@@ -243,6 +259,10 @@ XAML = r"""
                                                         </DataTrigger>
                                                         <DataTrigger Binding="{Binding status}" Value="warn">
                                                             <Setter Property="Foreground" Value="#B71C1C"/>
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding status}" Value="error">
+                                                            <Setter Property="Foreground" Value="#C62828"/>
+                                                            <Setter Property="FontWeight" Value="SemiBold"/>
                                                         </DataTrigger>
                                                     </Style.Triggers>
                                                 </Style>
@@ -261,6 +281,15 @@ XAML = r"""
                         <DataGridTemplateColumn Header="E2 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e2}" HorizontalAlignment="Center" Foreground="{Binding e2_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="E3 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e3}" HorizontalAlignment="Center" Foreground="{Binding e3_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
                         <DataGridTemplateColumn Header="E4 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e4}" HorizontalAlignment="Center" Foreground="{Binding e4_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Remarks" Binding="{Binding remarks}" Width="250" IsReadOnly="True">
+                            <DataGridTextColumn.ElementStyle>
+                                <Style TargetType="TextBlock">
+                                    <Setter Property="Foreground" Value="#C62828"/>
+                                    <Setter Property="TextWrapping" Value="Wrap"/>
+                                    <Setter Property="Margin" Value="6,2"/>
+                                </Style>
+                            </DataGridTextColumn.ElementStyle>
+                        </DataGridTextColumn>
                         <DataGridTemplateColumn Header="" Width="66">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
@@ -335,6 +364,115 @@ XAML = r"""
 """
 
 
+
+def read_param_as_string(element, param_name):
+    param = element.LookupParameter(param_name)
+    if not param:
+        try:
+            doc = element.Document
+            elem_type = doc.GetElement(element.GetTypeId())
+            if elem_type:
+                param = elem_type.LookupParameter(param_name)
+        except Exception:
+            pass
+    if param and param.HasValue:
+        try:
+            val = param.AsString()
+            if val: return val
+        except Exception:
+            pass
+        try:
+            val = param.AsValueString()
+            if val: return val
+        except Exception:
+            pass
+    return ""
+
+def read_param_as_double(element, param_name):
+    param = element.LookupParameter(param_name)
+    if not param:
+        try:
+            doc = element.Document
+            elem_type = doc.GetElement(element.GetTypeId())
+            if elem_type:
+                param = elem_type.LookupParameter(param_name)
+        except Exception:
+            pass
+    if param and param.HasValue:
+        try:
+            return param.AsDouble()
+        except Exception:
+            pass
+    return 0.0
+
+def validate_manhole_data(manhole, old_main, old_extra):
+    errors = []
+    
+    for i in range(4):
+        idx = i + 1
+        
+        # Main Side
+        height = old_main[i]
+        type_str = read_param_as_string(manhole, "CNT_Connection {} Type".format(idx))
+        offset = read_param_as_double(manhole, "CNT_Connection {} Offset".format(idx))
+        void_str = read_param_as_string(manhole, "Connection {} Type".format(idx))
+        
+        has_height = height > 0
+        has_type = type_str != "" and type_str != "-" and type_str.lower() != "none"
+        has_offset = offset > 0
+        has_void = void_str != "" and "empty" not in void_str.lower()
+        
+        offset_required = (idx in [2, 4])
+        
+        side_name = "C{}".format(idx)
+        if has_height and not has_type:
+            errors.append("{} มี Height ขาด Type".format(side_name))
+        if has_type and not has_height:
+            errors.append("{} มี Type ขาด Height".format(side_name))
+        if has_type and offset_required and not has_offset:
+            errors.append("{} ขาด Offset".format(side_name))
+        if has_offset and not (has_type and has_height):
+            errors.append("{} มี Offset แต่ขาด Type/Height".format(side_name))
+        if has_void and not (has_type and has_height):
+            errors.append("{} มี Void แต่ขาด Type/Height".format(side_name))
+        if has_type and has_void:
+            pattern = r'(?<![a-zA-Z0-9])' + re.escape(type_str.lower()) + r'(?![a-zA-Z0-9])'
+            if not re.search(pattern, void_str.lower()):
+                errors.append("{} Type ({}) ไม่ตรงกับ Void".format(side_name, type_str))
+            
+        # Extra Side
+        e_height = old_extra[i]
+        e_type_str = read_param_as_string(manhole, "CNT_Connection {} Type Extra".format(idx))
+        
+        e_offset = read_param_as_double(manhole, "CNT_Connection {} Offset Extra".format(idx))
+        if e_offset == 0.0:
+            e_offset = read_param_as_double(manhole, "CNT_Connection {} offset Extra".format(idx))
+            
+        e_void_str = read_param_as_string(manhole, "Connection {} Type Extra".format(idx))
+        
+        e_has_height = e_height > 0
+        e_has_type = e_type_str != "" and e_type_str != "-" and e_type_str.lower() != "none"
+        e_has_offset = e_offset > 0
+        e_has_void = e_void_str != "" and "empty" not in e_void_str.lower()
+        
+        e_side_name = "E{}".format(idx)
+        if e_has_height and not e_has_type:
+            errors.append("{} มี Height ขาด Type".format(e_side_name))
+        if e_has_type and not e_has_height:
+            errors.append("{} มี Type ขาด Height".format(e_side_name))
+        if e_has_type and not e_has_offset:
+            errors.append("{} ขาด Offset".format(e_side_name))
+        if e_has_offset and not (e_has_type and e_has_height):
+            errors.append("{} มี Offset แต่ขาด Type/Height".format(e_side_name))
+        if e_has_void and not (e_has_type and e_has_height):
+            errors.append("{} มี Void แต่ขาด Type/Height".format(e_side_name))
+        if e_has_type and e_has_void:
+            pattern = r'(?<![a-zA-Z0-9])' + re.escape(e_type_str.lower()) + r'(?![a-zA-Z0-9])'
+            if not re.search(pattern, e_void_str.lower()):
+                errors.append("{} Type ({}) ไม่ตรงกับ Void".format(e_side_name, e_type_str))
+            
+    return errors
+
 def get_id_value(element_id):
     return getattr(element_id, "Value", getattr(element_id, "IntegerValue", str(element_id)))
 
@@ -396,13 +534,52 @@ def get_parameter_length_value(document, element, param_names):
 
 
 def get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft):
+    options = Options()
+    options.ComputeReferences = True
+    options.DetailLevel = ViewDetailLevel.Fine
+    geometry = manhole.get_Geometry(options)
+    
+    local_points = []
+    
+    def extract_points(geometry_items):
+        for obj in geometry_items:
+            if isinstance(obj, Solid) and obj.Volume > 0:
+                for face in obj.Faces:
+                    mesh = face.Triangulate()
+                    if mesh:
+                        for vertex in mesh.Vertices:
+                            local_points.append(transform.Inverse.OfPoint(vertex))
+            elif isinstance(obj, GeometryInstance):
+                extract_points(obj.GetInstanceGeometry())
+                
+    try:
+        extract_points(geometry)
+        
+        # Extract from subcomponents (nested families like duct banks)
+        for sub_id in manhole.GetSubComponentIds():
+            sub_elem = document.GetElement(sub_id)
+            if sub_elem:
+                sub_geom = sub_elem.get_Geometry(options)
+                if sub_geom:
+                    extract_points(sub_geom)
+    except Exception:
+        pass
+        
+    if local_points:
+        min_x = min(p.X for p in local_points) - buffer_ft
+        max_x = max(p.X for p in local_points) + buffer_ft
+        min_y = min(p.Y for p in local_points) - buffer_ft
+        max_y = max(p.Y for p in local_points) + buffer_ft
+        return (min_x, min_y, max_x, max_y)
+        
+    # Fallback to standard param or bbox if geometry extraction fails
     width = get_parameter_length_value(document, manhole, MANHOLE_WIDTH_PARAMETER_NAMES)
     length = get_parameter_length_value(document, manhole, MANHOLE_LENGTH_PARAMETER_NAMES)
     if width and length:
         half_width = width / 2.0 + buffer_ft
         half_length = length / 2.0 + buffer_ft
         return (-half_width, -half_length, half_width, half_length)
-
+        
     if bbox:
         corners = [
             XYZ(bbox.Min.X, bbox.Min.Y, bbox.Min.Z),
@@ -414,13 +591,10 @@ def get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft):
             XYZ(bbox.Max.X, bbox.Min.Y, bbox.Max.Z),
             XYZ(bbox.Max.X, bbox.Max.Y, bbox.Max.Z),
         ]
-        local_points = [transform.Inverse.OfPoint(corner) for corner in corners]
-        min_x = min(point.X for point in local_points) - buffer_ft
-        max_x = max(point.X for point in local_points) + buffer_ft
-        min_y = min(point.Y for point in local_points) - buffer_ft
-        max_y = max(point.Y for point in local_points) + buffer_ft
-        return (min_x, min_y, max_x, max_y)
-
+        lpts = [transform.Inverse.OfPoint(corner) for corner in corners]
+        return (min(p.X for p in lpts) - buffer_ft, min(p.Y for p in lpts) - buffer_ft, 
+                max(p.X for p in lpts) + buffer_ft, max(p.Y for p in lpts) + buffer_ft)
+    
     return None
 
 
@@ -789,7 +963,17 @@ def scan_manholes(document, active_view_id, progress_callback=None):
 
             has_change = old_main != final_main or old_extra != final_extra
             has_warn = any(final_main[i] == 0 and old_main[i] > 0 for i in range(4))
-            status = "warn" if has_warn else "changed" if has_change else "ok"
+            
+            data_errors = validate_manhole_data(manhole, old_main, old_extra)
+            
+            if data_errors:
+                status = "error"
+            elif has_warn:
+                status = "warn"
+            elif has_change:
+                status = "changed"
+            else:
+                status = "ok"
 
             results.append(
                 {
@@ -799,6 +983,7 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     "cnt_zone": get_parameter_text(manhole, "CNT_Zone"),
                     "ws": get_workset_name(document, manhole),
                     "status": status,
+                    "remarks": ", ".join(data_errors),
                     "old_main": old_main,
                     "new_main": final_main,
                     "old_extra": old_extra,
@@ -812,27 +997,6 @@ def scan_manholes(document, active_view_id, progress_callback=None):
             progress_callback(index + 1, total_manholes)
 
     return results
-
-
-def commit_manholes(document, records):
-    tx = Transaction(document, "Commit Manhole QA Connections")
-    tx.Start()
-    try:
-        for record in records:
-            manhole = record["element"]
-            for index in range(4):
-                for key, suffix in (("main", ""), ("extra", " Extra")):
-                    param = manhole.LookupParameter("CNT_Connection {}{}".format(index + 1, suffix))
-                    if not param or param.IsReadOnly:
-                        continue
-                    value_ft = mm_to_ft(record["new_{}".format(key)][index])
-                    if abs(param.AsDouble() - value_ft) > 0.001:
-                        param.Set(value_ft)
-        tx.Commit()
-    except Exception:
-        if tx.HasStarted() and not tx.HasEnded():
-            tx.RollBack()
-        raise
 
 
 class ManholeRow(object):
@@ -870,7 +1034,11 @@ class ManholeRow(object):
 
     @property
     def status_label(self):
-        return {"ok": "Unchanged", "changed": "Changed", "warn": "Review"}.get(self._record["status"], "?")
+        return {"ok": "Unchanged", "changed": "Changed", "warn": "Review", "error": "Data Error"}.get(self._record["status"], "?")
+
+    @property
+    def remarks(self):
+        return self._record.get("remarks", "")
 
     @property
     def element(self):
@@ -998,12 +1166,8 @@ class ManholeQAForm(object):
 
         self.grid = self.window.FindName("ListRecords")
         self.btn_scan = self.window.FindName("BtnScan")
-        self.btn_commit = self.window.FindName("BtnCommit")
-        self.btn_export = self.window.FindName("BtnExport")
-        self.btn_select = self.window.FindName("BtnSelect")
-        self.btn_isolate = self.window.FindName("BtnIsolate")
-        self.cb_dry = self.window.FindName("ChkDryRun")
-        self.cb_ws = self.window.FindName("CbWorkset")
+        self.btn_workset = self.window.FindName("BtnWorksetToggle")
+        self.list_worksets = self.window.FindName("ListWorksets")
         self.cb_status = self.window.FindName("CbStatus")
         self.txt_search = self.window.FindName("TxtSearch")
         self.lbl_status = self.window.FindName("LblStatus")
@@ -1012,29 +1176,26 @@ class ManholeQAForm(object):
         self.stat_ok = self.window.FindName("StatOk")
         self.stat_changed = self.window.FindName("StatChanged")
         self.stat_warn = self.window.FindName("StatWarn")
+        self.stat_error = self.window.FindName("StatError")
         self.det_main = self.window.FindName("DetailMain")
         self.det_extra = self.window.FindName("DetailExtra")
         self.grid.ItemsSource = self.rows
 
         self.btn_scan.Click += self.on_scan
-        self.btn_commit.Click += self.on_commit
-        self.btn_export.Click += self.on_export
-        self.btn_select.Click += self.on_select_elements
-        self.btn_isolate.Click += self.on_isolate_elements
         self.cb_status.SelectionChanged += self.on_filter
-        self.cb_ws.SelectionChanged += self.on_filter
         self.txt_search.TextChanged += self.on_filter
         self.grid.SelectionChanged += self.on_select_row
+        self.list_worksets.SelectionChanged += self.on_filter
         self.grid.AddHandler(ButtonBase.ClickEvent, RoutedEventHandler(self.on_grid_button_click))
         self.window.Closed += self.on_closed
 
-        self.cb_ws.Items.Add("All")
+        self.list_worksets.Items.Add("All")
         try:
             for workset in FilteredWorksetCollector(document).OfKind(WorksetKind.UserWorkset):
-                self.cb_ws.Items.Add(workset.Name)
+                self.list_worksets.Items.Add(workset.Name)
         except Exception:
             pass
-        self.cb_ws.SelectedIndex = 0
+        self.list_worksets.SelectAll()
 
         try:
             WindowInteropHelper(self.window).Owner = ui_document.Application.MainWindowHandle
@@ -1055,9 +1216,6 @@ class ManholeQAForm(object):
     def set_busy(self, is_busy):
         try:
             self.btn_scan.IsEnabled = not is_busy
-            self.btn_commit.IsEnabled = not is_busy
-            self.btn_select.IsEnabled = not is_busy
-            self.btn_isolate.IsEnabled = not is_busy
             self.pb.Visibility = Visibility.Visible if is_busy else Visibility.Hidden
         except Exception:
             pass
@@ -1106,12 +1264,14 @@ class ManholeQAForm(object):
         item = self.cb_status.SelectedItem
         if hasattr(item, "Content"):
             label = str(item.Content).strip()
-            return {"Changed": "changed", "Review": "warn", "Unchanged": "ok"}.get(label)
+            return {"Changed": "changed", "Review": "warn", "Unchanged": "ok", "Data Error": "error"}.get(label)
         return None
 
     def _selected_workset_filter(self):
-        item = self.cb_ws.SelectedItem
-        return str(item).strip() if item else "All"
+        selected = [str(item) for item in self.list_worksets.SelectedItems]
+        if "All" in selected or not selected:
+            return "All"
+        return selected
 
     def _search_filter(self):
         try:
@@ -1141,7 +1301,7 @@ class ManholeQAForm(object):
         for record in self.records:
             if selected_status and record["status"] != selected_status:
                 continue
-            if selected_workset != "All" and record["ws"] != selected_workset:
+            if selected_workset != "All" and record["ws"] not in selected_workset:
                 continue
             if not self._record_matches_search(record, search_text):
                 continue
@@ -1151,12 +1311,14 @@ class ManholeQAForm(object):
         ok_count = sum(1 for item in filtered if item["status"] == "ok")
         changed_count = sum(1 for item in filtered if item["status"] == "changed")
         warn_count = sum(1 for item in filtered if item["status"] == "warn")
+        error_count = sum(1 for item in filtered if item["status"] == "error")
         self.stat_total.Text = str(len(filtered))
         self.stat_ok.Text = str(ok_count)
         self.stat_changed.Text = str(changed_count)
         self.stat_warn.Text = str(warn_count)
-        self.lbl_status.Content = "Total {} | Unchanged {} | Changed {} | Review {}".format(
-            len(filtered), ok_count, changed_count, warn_count
+        self.stat_error.Text = str(error_count)
+        self.lbl_status.Content = "Total {} | Unchanged {} | Changed {} | Review {} | Data Error {}".format(
+            len(filtered), ok_count, changed_count, warn_count, error_count
         )
 
     def on_filter(self, sender, args):
@@ -1212,19 +1374,6 @@ class ManholeQAForm(object):
             return rows
         return [row for row in self.rows if row.checked]
 
-    def on_select_elements(self, sender, args):
-        rows = self._selected_or_checked_rows()
-        if not rows:
-            forms.alert("Select or check at least one manhole row.", title="Manhole QA")
-            return
-        self._raise_revit_action(lambda uiapp: self._select_rows_in_revit_context(uiapp, rows), "Selecting manholes...")
-
-    def _select_rows_in_revit_context(self, ui_application, rows):
-        self._update_revit_context(ui_application)
-        element_ids = List[ElementId]([row.element.Id for row in rows])
-        self.uidoc.Selection.SetElementIds(element_ids)
-        self.lbl_status.Content = "Selected {} manhole(s).".format(len(rows))
-
     def focus_rows(self, rows):
         self._raise_revit_action(lambda uiapp: self._focus_rows_in_revit_context(uiapp, rows), "Focusing manhole...")
 
@@ -1237,100 +1386,11 @@ class ManholeQAForm(object):
             self.uidoc.ShowElements(element_ids[0])
         self.lbl_status.Content = "Focused {} manhole(s).".format(len(rows))
 
-    def on_isolate_elements(self, sender, args):
-        rows = self._selected_or_checked_rows()
-        if not rows:
-            forms.alert("Select or check at least one manhole row.", title="Manhole QA")
-            return
-        self._raise_revit_action(lambda uiapp: self._isolate_rows_in_revit_context(uiapp, rows), "Isolating manholes...")
-
-    def _isolate_rows_in_revit_context(self, ui_application, rows):
+    def _select_rows_in_revit_context(self, ui_application, rows):
         self._update_revit_context(ui_application)
         element_ids = List[ElementId]([row.element.Id for row in rows])
-        tx = Transaction(self.doc, "Isolate Manholes")
-        tx.Start()
-        try:
-            self.doc.ActiveView.IsolateElementsTemporary(element_ids)
-            tx.Commit()
-        except Exception:
-            if tx.HasStarted() and not tx.HasEnded():
-                tx.RollBack()
-            raise
         self.uidoc.Selection.SetElementIds(element_ids)
-        self.lbl_status.Content = "Isolated {} manhole(s).".format(len(rows))
-
-    def on_commit(self, sender, args):
-        if self.cb_dry.IsChecked:
-            forms.alert("Preview only is enabled. Turn it off before committing.", title="Manhole QA")
-            return
-
-        records = self._checked_records()
-        if not records:
-            forms.alert("Check at least one manhole row before committing.", title="Manhole QA")
-            return
-
-        self._raise_revit_action(lambda uiapp: self._commit_in_revit_context(uiapp, records), "Committing selected manholes...")
-
-    def _commit_in_revit_context(self, ui_application, records):
-        try:
-            self._update_revit_context(ui_application)
-            commit_manholes(self.doc, records)
-            forms.alert("Committed {} manhole(s).".format(len(records)), title="Manhole QA")
-            self._scan_in_revit_context(ui_application)
-        except Exception:
-            forms.alert(traceback.format_exc(), title="Commit Error")
-
-    def on_export(self, sender, args):
-        dialog = SaveFileDialog()
-        dialog.Filter = "CSV files (*.csv)|*.csv"
-        dialog.FileName = "ManholeQA.csv"
-        if dialog.ShowDialog() != DialogResult.OK:
-            return
-
-        headers = [
-            "ID",
-            "CNT_Number",
-            "CNT_Zone",
-            "Workset",
-            "Status",
-            "C1_old",
-            "C2_old",
-            "C3_old",
-            "C4_old",
-            "C1_new",
-            "C2_new",
-            "C3_new",
-            "C4_new",
-            "E1_old",
-            "E2_old",
-            "E3_old",
-            "E4_old",
-            "E1_new",
-            "E2_new",
-            "E3_new",
-            "E4_new",
-        ]
-
-        with codecs.open(dialog.FileName, "w", "utf-8-sig") as csv_file:
-            writer = csv.writer(csv_file)
-            writer.writerow(headers)
-            for record in self.records:
-                writer.writerow(
-                    [
-                        record["id"],
-                        record["cnt_number"],
-                        record["cnt_zone"],
-                        record["ws"],
-                        record["status"],
-                    ]
-                    + record["old_main"]
-                    + record["new_main"]
-                    + record["old_extra"]
-                    + record["new_extra"]
-                )
-
-        forms.alert("Exported CSV:\n{}".format(dialog.FileName), title="Manhole QA")
-
+        self.lbl_status.Content = "Selected {} manhole(s).".format(len(rows))
 
 def main():
     if not doc:
