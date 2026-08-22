@@ -204,6 +204,8 @@ options_category = {
     '🏛️ Columns': DB.BuiltInCategory.OST_Columns,
     '🏗️ Structural Columns': DB.BuiltInCategory.OST_StructuralColumns,
     '🧱 Structural Foundations': DB.BuiltInCategory.OST_StructuralFoundation,
+    '🔩 Structural Connections': DB.BuiltInCategory.OST_StructConnections,
+    '🪜 Structural Stiffeners': DB.BuiltInCategory.OST_StructuralStiffener,
     '🪑 Furniture': DB.BuiltInCategory.OST_Furniture,
     '🧩 Generic Models': DB.BuiltInCategory.OST_GenericModel,
     '📝 Detail Components': DB.BuiltInCategory.OST_DetailComponents,
