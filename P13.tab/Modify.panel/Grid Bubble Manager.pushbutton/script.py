@@ -501,8 +501,6 @@ def main():
 
     if selection_mode == SELECTION_CONTINUOUS:
         result, picked_any = process_continuous_picks(action_mode, orient_by_view)
-        if picked_any:
-            show_summary(result)
         return
 
     try:
@@ -522,13 +520,12 @@ def main():
             exitscript=True,
         )
 
-    result = process_grids(
+    process_grids(
         grids,
         action_mode,
         orient_by_view,
         "Manage Grid Bubbles",
     )
-    show_summary(result)
 
 
 if __name__ == "__main__":
