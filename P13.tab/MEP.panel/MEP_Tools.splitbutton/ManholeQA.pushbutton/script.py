@@ -70,7 +70,7 @@ XAML = r"""
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="Manhole QA" Height="760" Width="1400"
+    Title="Manhole QA" Height="760" Width="1500" MinWidth="1350"
     WindowStartupLocation="CenterScreen"
     Background="#F5F5F5" FontFamily="Segoe UI" FontSize="13">
 
@@ -200,12 +200,28 @@ XAML = r"""
                           AlternatingRowBackground="#FAFAFA"
                           HorizontalGridLinesBrush="#F0F0F0"
                           FontSize="12">
+                    <DataGrid.RowStyle>
+                        <Style TargetType="DataGridRow">
+                            <Style.Resources>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#E3F2FD"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightTextBrushKey}" Color="#1A1A1A"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightBrushKey}" Color="#F0F4F8"/>
+                                <SolidColorBrush x:Key="{x:Static SystemColors.InactiveSelectionHighlightTextBrushKey}" Color="#1A1A1A"/>
+                            </Style.Resources>
+                            <Style.Triggers>
+                                <Trigger Property="IsSelected" Value="True">
+                                    <Setter Property="Background" Value="#E3F2FD"/>
+                                    <Setter Property="Foreground" Value="#1A1A1A"/>
+                                </Trigger>
+                            </Style.Triggers>
+                        </Style>
+                    </DataGrid.RowStyle>
                     <DataGrid.CellStyle>
                         <Style TargetType="DataGridCell">
                             <Style.Triggers>
                                 <Trigger Property="IsSelected" Value="True">
                                     <Setter Property="Background" Value="#E3F2FD"/>
-                                    <Setter Property="Foreground" Value="Black"/>
+                                    <Setter Property="Foreground" Value="#1A1A1A"/>
                                     <Setter Property="BorderBrush" Value="Transparent"/>
                                 </Trigger>
                             </Style.Triggers>
@@ -220,12 +236,12 @@ XAML = r"""
                                 </DataTemplate>
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
-                        <DataGridTextColumn Header="ID" Binding="{Binding id}" Width="82" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="CNT Number" Binding="{Binding cnt_number}" Width="115" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="CNT Zone" Binding="{Binding cnt_zone}" Width="105" IsReadOnly="True"/>
-                        <DataGridTextColumn Header="Workset" Binding="{Binding ws}" Width="120" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="ID" Binding="{Binding id}" Width="80" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="CNT Number" Binding="{Binding cnt_number}" Width="105" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="CNT Zone" Binding="{Binding cnt_zone}" Width="95" IsReadOnly="True"/>
+                        <DataGridTextColumn Header="Workset" Binding="{Binding ws}" Width="110" IsReadOnly="True"/>
 
-                        <DataGridTemplateColumn Header="Status" Width="92">
+                        <DataGridTemplateColumn Header="Status" Width="85">
                             <DataGridTemplateColumn.CellTemplate>
                                 <DataTemplate>
                                     <Border CornerRadius="10" Padding="6,2" HorizontalAlignment="Center">
@@ -273,15 +289,15 @@ XAML = r"""
                             </DataGridTemplateColumn.CellTemplate>
                         </DataGridTemplateColumn>
 
-                        <DataGridTemplateColumn Header="C1 Main" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c1m}" HorizontalAlignment="Center" Foreground="{Binding c1m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="C2 Main" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c2m}" HorizontalAlignment="Center" Foreground="{Binding c2m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="C3 Main" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c3m}" HorizontalAlignment="Center" Foreground="{Binding c3m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="C4 Main" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c4m}" HorizontalAlignment="Center" Foreground="{Binding c4m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="E1 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e1}" HorizontalAlignment="Center" Foreground="{Binding e1_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="E2 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e2}" HorizontalAlignment="Center" Foreground="{Binding e2_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="E3 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e3}" HorizontalAlignment="Center" Foreground="{Binding e3_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTemplateColumn Header="E4 Extra" Width="68"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e4}" HorizontalAlignment="Center" Foreground="{Binding e4_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Remarks" Binding="{Binding remarks}" Width="250" IsReadOnly="True">
+                        <DataGridTemplateColumn Header="C1 Main" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c1m}" HorizontalAlignment="Center" Foreground="{Binding c1m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="C2 Main" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c2m}" HorizontalAlignment="Center" Foreground="{Binding c2m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="C3 Main" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c3m}" HorizontalAlignment="Center" Foreground="{Binding c3m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="C4 Main" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding c4m}" HorizontalAlignment="Center" Foreground="{Binding c4m_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="E1 Extra" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e1}" HorizontalAlignment="Center" Foreground="{Binding e1_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="E2 Extra" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e2}" HorizontalAlignment="Center" Foreground="{Binding e2_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="E3 Extra" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e3}" HorizontalAlignment="Center" Foreground="{Binding e3_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTemplateColumn Header="E4 Extra" Width="62"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding e4}" HorizontalAlignment="Center" Foreground="{Binding e4_color}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                        <DataGridTextColumn Header="Remarks" Binding="{Binding remarks}" Width="*" MinWidth="180" IsReadOnly="True">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Foreground" Value="#C62828"/>
@@ -405,7 +421,68 @@ def read_param_as_double(element, param_name):
             pass
     return 0.0
 
-def validate_manhole_data(manhole, old_main, old_extra):
+def side_has_hole(val):
+    if not val:
+        return False
+    v = str(val).strip().lower()
+    return bool(v and v != "-" and v != "none" and v != "x" and "empty" not in v)
+
+def is_ict_manhole(manhole):
+    try:
+        sys_type = (read_param_as_string(manhole, "CNT_System Type") or "").lower()
+        if "ict" in sys_type:
+            return True
+        elem_type = manhole.Document.GetElement(manhole.GetTypeId())
+        if elem_type:
+            fam_name = ""
+            if hasattr(elem_type, "FamilyName"):
+                fam_name = elem_type.FamilyName or ""
+            elif hasattr(elem_type, "Family") and elem_type.Family:
+                fam_name = elem_type.Family.Name or ""
+            if "ict" in fam_name.lower():
+                return True
+        cnt_num = (read_param_as_string(manhole, "CNT_Number") or "").lower()
+        if "cv" in cnt_num:
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def validate_ict_manhole_data(manhole, old_main):
+    errors = []
+    for i in range(4):
+        idx = i + 1
+        height = old_main[i]
+        type_str = read_param_as_string(manhole, "CNT_Connection {} Type".format(idx))
+        offset = read_param_as_double(manhole, "CNT_Connection {} Offset".format(idx))
+        void_str = read_param_as_string(manhole, "Connection {} Type".format(idx))
+
+        has_height = height > 0
+        has_type = type_str != "" and type_str != "-" and type_str.lower() != "none"
+        has_offset = offset > 0
+        has_void = void_str != "" and "empty" not in void_str.lower()
+
+        side_name = "C{}".format(idx)
+        if has_height and not has_type:
+            errors.append("{} มี Height ขาด Type".format(side_name))
+        if has_type and not has_height:
+            errors.append("{} มี Type ขาด Height".format(side_name))
+        if has_type and not has_offset:
+            errors.append("{} ขาด Offset".format(side_name))
+        if has_offset and not (has_type and has_height):
+            errors.append("{} มี Offset แต่ขาด Type/Height".format(side_name))
+        if has_void and not (has_type and has_height):
+            errors.append("{} มี Void แต่ขาด Type/Height".format(side_name))
+        if has_type and has_void:
+            pattern = r'(?<![a-zA-Z0-9])' + re.escape(type_str.lower()) + r'(?![a-zA-Z0-9])'
+            if not re.search(pattern, void_str.lower()):
+                errors.append("{} Type ({}) ไม่ตรงกับ Void".format(side_name, type_str))
+
+    return errors
+
+
+def validate_lv_elv_manhole_data(manhole, old_main, old_extra):
     errors = []
     
     for i in range(4):
@@ -472,6 +549,70 @@ def validate_manhole_data(manhole, old_main, old_extra):
                 errors.append("{} Type ({}) ไม่ตรงกับ Void".format(e_side_name, e_type_str))
             
     return errors
+
+
+def is_mv_manhole(manhole):
+    try:
+        sys_type = (read_param_as_string(manhole, "CNT_System Type") or "").lower()
+        if "mv" in sys_type:
+            return True
+        elem_type = manhole.Document.GetElement(manhole.GetTypeId())
+        if elem_type:
+            fam_name = ""
+            if hasattr(elem_type, "FamilyName"):
+                fam_name = elem_type.FamilyName or ""
+            elif hasattr(elem_type, "Family") and elem_type.Family:
+                fam_name = elem_type.Family.Name or ""
+            if "mv" in fam_name.lower() and "chamber" in fam_name.lower():
+                return True
+        cnt_num = (read_param_as_string(manhole, "CNT_Number") or "").lower()
+        if cnt_num.startswith("mva") or cnt_num.startswith("mvb") or cnt_num.startswith("mv-"):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def validate_mv_manhole_data(manhole, old_main):
+    errors = []
+    for i in range(4):
+        idx = i + 1
+        height = old_main[i]
+        type_str = read_param_as_string(manhole, "CNT_Connection {} Type".format(idx))
+        offset = read_param_as_double(manhole, "CNT_Connection {} Offset".format(idx))
+        void_str = read_param_as_string(manhole, "Connection {} Type".format(idx))
+
+        has_height = height > 0
+        has_type = type_str != "" and type_str != "-" and type_str.lower() != "none"
+        has_offset = offset > 0
+        has_void = void_str != "" and "empty" not in void_str.lower()
+
+        # In MV Schedule: Side 1 and 3 do NOT have offset column. Side 2 and 4 have offset column.
+        offset_required = (idx in [2, 4])
+
+        side_name = "C{}".format(idx)
+        if has_height and not has_type:
+            errors.append("{} มี Height ขาด Type".format(side_name))
+        if has_type and not has_height:
+            errors.append("{} มี Type ขาด Height".format(side_name))
+        if has_type and offset_required and not has_offset:
+            errors.append("{} ขาด Offset".format(side_name))
+        if has_offset and not (has_type and has_height):
+            errors.append("{} มี Offset แต่ขาด Type/Height".format(side_name))
+        if has_void and not (has_type and has_height):
+            errors.append("{} มี Void แต่ขาด Type/Height".format(side_name))
+        if (has_type or has_height) and not has_void:
+            errors.append("{} มี Type แต่ Void เป็น Empty".format(side_name))
+
+    return errors
+
+
+def validate_manhole_data(manhole, old_main, old_extra):
+    if is_ict_manhole(manhole):
+        return validate_ict_manhole_data(manhole, old_main)
+    if is_mv_manhole(manhole):
+        return validate_mv_manhole_data(manhole, old_main)
+    return validate_lv_elv_manhole_data(manhole, old_main, old_extra)
 
 def get_id_value(element_id):
     return getattr(element_id, "Value", getattr(element_id, "IntegerValue", str(element_id)))
@@ -787,6 +928,11 @@ def get_floor_z(manhole, origin):
 
         scan_geometry(geometry)
         if floor_candidates:
+            max_area = max(floor_candidates.values())
+            min_thresh = max(2.0, max_area * 0.15)
+            significant = [z for z, a in floor_candidates.items() if a >= min_thresh]
+            if significant:
+                return min(significant)
             return max(floor_candidates, key=floor_candidates.get)
     except Exception:
         pass
@@ -823,6 +969,18 @@ def get_side_from_local_vector(local_vector, fallback_local_point):
             return 2 if local_vector.X >= 0 else 0
         return 3 if local_vector.Y >= 0 else 1
     return get_side_from_local_point(fallback_local_point)
+
+
+def get_side_from_bounds(local_point, local_bounds):
+    if not local_bounds:
+        return get_side_from_local_point(local_point)
+    min_x, min_y, max_x, max_y = local_bounds
+    d_left = abs(local_point.X - min_x)
+    d_bottom = abs(local_point.Y - min_y)
+    d_right = abs(local_point.X - max_x)
+    d_top = abs(local_point.Y - max_y)
+    distances = [d_left, d_bottom, d_right, d_top]
+    return distances.index(min(distances))
 
 
 def read_connection_mm(manhole, param_name):
@@ -889,12 +1047,26 @@ def scan_manholes(document, active_view_id, progress_callback=None):
             bbox = manhole.get_BoundingBox(None)
             base_z = get_floor_z(manhole, origin)
 
+            elem_type = document.GetElement(manhole.GetTypeId())
+            p_depth = elem_type.LookupParameter("CNT_Inside Depth") if elem_type else None
+            if not p_depth:
+                p_depth = manhole.LookupParameter("CNT_Inside Depth")
+            inside_depth_ft = p_depth.AsDouble() if p_depth and p_depth.HasValue and p_depth.AsDouble() > 0 else (bbox.Max.Z - base_z if bbox else 10.0)
+
+            min_allowed_depth = -mm_to_ft(50.0)
+            max_allowed_depth = inside_depth_ft + mm_to_ft(100.0)
+
             main_depths = [[], [], [], []]
             extra_depths = [[], [], [], []]
             has_fitting = [False, False, False, False]
 
             buffer_ft = mm_to_ft(1.0)
             local_bounds = get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft)
+            is_ict = is_ict_manhole(manhole)
+            is_mv = is_mv_manhole(manhole)
+
+            has_hole_main = [side_has_hole(read_param_as_string(manhole, "CNT_Connection {} Type".format(i))) for i in range(1, 5)]
+            has_hole_extra = [side_has_hole(read_param_as_string(manhole, "CNT_Connection {} Type Extra".format(i))) for i in range(1, 5)] if not (is_ict or is_mv) else [False, False, False, False]
 
             for conduit in view_conduits:
                 if not hasattr(conduit.Location, "Curve"):
@@ -902,6 +1074,12 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 curve = conduit.Location.Curve
                 point_0 = curve.GetEndPoint(0)
                 point_1 = curve.GetEndPoint(1)
+
+                z0 = point_0.Z - base_z
+                z1 = point_1.Z - base_z
+                if max(z0, z1) < min_allowed_depth or min(z0, z1) > max_allowed_depth:
+                    continue
+
                 local_point_0 = transform.Inverse.OfPoint(point_0)
                 local_point_1 = transform.Inverse.OfPoint(point_1)
 
@@ -931,22 +1109,35 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     origin,
                 )
                 depth = depth_point.Z - base_z
+                if depth < min_allowed_depth or depth > max_allowed_depth:
+                    continue
+                depth = max(0.0, depth)
 
                 for candidate in connection_candidates:
                     side = candidate.get("side")
                     if side is None:
-                        side = get_side_from_local_vector(candidate["local_direction"], candidate["local_point"])
+                        side = get_side_from_bounds(candidate["local_point"], local_bounds)
+                    if is_ict:
+                        side = (side + 1) % 4
                     if is_extra:
                         extra_depths[side].append(depth)
                     else:
                         main_depths[side].append(depth)
 
+            min_x, min_y, max_x, max_y = local_bounds
             for fitting in view_fittings:
                 fitting_point = get_location_point(fitting)
-                if not fitting_point or fitting_point.DistanceTo(origin) > 10.0:
+                if not fitting_point:
                     continue
                 local_point = transform.Inverse.OfPoint(fitting_point)
-                has_fitting[get_side_from_local_point(local_point)] = True
+                dx = max(0.0, max(min_x - local_point.X, local_point.X - max_x))
+                dy = max(0.0, max(min_y - local_point.Y, local_point.Y - max_y))
+                if (dx**2 + dy**2)**0.5 > mm_to_ft(100.0):
+                    continue
+                fit_side = get_side_from_bounds(local_point, local_bounds)
+                if is_ict:
+                    fit_side = (fit_side + 1) % 4
+                has_fitting[fit_side] = True
 
             def get_new_value(depths, side_has_fitting):
                 if depths:
@@ -954,18 +1145,37 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 return None if side_has_fitting else 0
 
             new_main = [get_new_value(main_depths[i], has_fitting[i]) for i in range(4)]
-            new_extra = [get_new_value(extra_depths[i], has_fitting[i]) for i in range(4)]
             old_main = [read_connection_mm(manhole, "CNT_Connection {}".format(i)) for i in range(1, 5)]
-            old_extra = [read_connection_mm(manhole, "CNT_Connection {} Extra".format(i)) for i in range(1, 5)]
-
             final_main = [new_main[i] if new_main[i] is not None else old_main[i] for i in range(4)]
-            final_extra = [new_extra[i] if new_extra[i] is not None else old_extra[i] for i in range(4)]
 
-            has_change = old_main != final_main or old_extra != final_extra
-            has_warn = any(final_main[i] == 0 and old_main[i] > 0 for i in range(4))
-            
+            if is_ict or is_mv:
+                new_extra = [0, 0, 0, 0]
+                old_extra = [0, 0, 0, 0]
+                final_extra = [0, 0, 0, 0]
+                has_change = (old_main != final_main)
+            else:
+                new_extra = [get_new_value(extra_depths[i], has_fitting[i]) for i in range(4)]
+                old_extra = [read_connection_mm(manhole, "CNT_Connection {} Extra".format(i)) for i in range(1, 5)]
+                final_extra = [new_extra[i] if new_extra[i] is not None else old_extra[i] for i in range(4)]
+                has_change = (old_main != final_main or old_extra != final_extra)
+
+            missing_list = []
+            for i in range(4):
+                if has_hole_main[i] and final_main[i] == 0:
+                    missing_list.append("C{}".format(i + 1))
+                if has_hole_extra[i] and final_extra[i] == 0:
+                    missing_list.append("E{}".format(i + 1))
+
             data_errors = validate_manhole_data(manhole, old_main, old_extra)
-            
+
+            remarks_list = []
+            if data_errors:
+                remarks_list.append("; ".join(data_errors))
+            if missing_list:
+                remarks_list.append("Missing conduit: " + ", ".join(missing_list))
+
+            has_warn = bool(missing_list)
+
             if data_errors:
                 status = "error"
             elif has_warn:
@@ -982,16 +1192,19 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     "cnt_number": get_parameter_text(manhole, "CNT_Number"),
                     "cnt_zone": get_parameter_text(manhole, "CNT_Zone"),
                     "ws": get_workset_name(document, manhole),
+                    "is_ict": is_ict,
+                    "is_mv": is_mv,
                     "status": status,
-                    "remarks": ", ".join(data_errors),
+                    "remarks": " | ".join(remarks_list),
+                    "missing": missing_list,
                     "old_main": old_main,
                     "new_main": final_main,
                     "old_extra": old_extra,
                     "new_extra": final_extra,
                 }
             )
-        except Exception as exc:
-            output.print_md("Skipped manhole `{}`: `{}`".format(get_id_value(manhole.Id), exc))
+        except Exception:
+            pass
 
         if progress_callback:
             progress_callback(index + 1, total_manholes)
@@ -1041,14 +1254,22 @@ class ManholeRow(object):
         return self._record.get("remarks", "")
 
     @property
+    def is_ict(self):
+        return self._record.get("is_ict", False)
+
+    @property
+    def is_mv(self):
+        return self._record.get("is_mv", False)
+
+    @property
     def element(self):
         return self._record["element"]
 
     def _value_text(self, value):
         return str(value) if value else "-"
 
-    def _value_color(self, new_value, old_value):
-        if new_value == 0 and old_value > 0:
+    def _value_color(self, new_value, old_value, is_missing=False):
+        if is_missing or (new_value == 0 and old_value > 0):
             return CLR_WARN
         if new_value != old_value:
             return CLR_CHANGED
@@ -1074,19 +1295,19 @@ class ManholeRow(object):
 
     @property
     def c1m_color(self):
-        return self._value_color(self._record["new_main"][0], self._record["old_main"][0])
+        return self._value_color(self._record["new_main"][0], self._record["old_main"][0], "C1" in self._record.get("missing", []))
 
     @property
     def c2m_color(self):
-        return self._value_color(self._record["new_main"][1], self._record["old_main"][1])
+        return self._value_color(self._record["new_main"][1], self._record["old_main"][1], "C2" in self._record.get("missing", []))
 
     @property
     def c3m_color(self):
-        return self._value_color(self._record["new_main"][2], self._record["old_main"][2])
+        return self._value_color(self._record["new_main"][2], self._record["old_main"][2], "C3" in self._record.get("missing", []))
 
     @property
     def c4m_color(self):
-        return self._value_color(self._record["new_main"][3], self._record["old_main"][3])
+        return self._value_color(self._record["new_main"][3], self._record["old_main"][3], "C4" in self._record.get("missing", []))
 
     @property
     def e1(self):
@@ -1106,29 +1327,36 @@ class ManholeRow(object):
 
     @property
     def e1_color(self):
-        return self._value_color(self._record["new_extra"][0], self._record["old_extra"][0])
+        return self._value_color(self._record["new_extra"][0], self._record["old_extra"][0], "E1" in self._record.get("missing", []))
 
     @property
     def e2_color(self):
-        return self._value_color(self._record["new_extra"][1], self._record["old_extra"][1])
+        return self._value_color(self._record["new_extra"][1], self._record["old_extra"][1], "E2" in self._record.get("missing", []))
 
     @property
     def e3_color(self):
-        return self._value_color(self._record["new_extra"][2], self._record["old_extra"][2])
+        return self._value_color(self._record["new_extra"][2], self._record["old_extra"][2], "E3" in self._record.get("missing", []))
 
     @property
     def e4_color(self):
-        return self._value_color(self._record["new_extra"][3], self._record["old_extra"][3])
+        return self._value_color(self._record["new_extra"][3], self._record["old_extra"][3], "E4" in self._record.get("missing", []))
 
 
 class DetailRow(object):
-    def __init__(self, label, old_value, new_value):
+    def __init__(self, label, old_value, new_value, is_missing=False):
         self.label = label
         self.old_val = "{} mm".format(old_value) if old_value is not None else "-"
         self.new_val = "{} mm".format(new_value) if new_value is not None else "-"
         changed = old_value != new_value
-        self.val_color = CLR_WARN if new_value == 0 and old_value > 0 else CLR_CHANGED if changed else CLR_OK
-        self.val_weight = "SemiBold" if changed else "Normal"
+        if is_missing:
+            self.val_color = CLR_WARN
+        elif new_value == 0 and old_value > 0:
+            self.val_color = CLR_WARN
+        elif changed:
+            self.val_color = CLR_CHANGED
+        else:
+            self.val_color = CLR_OK
+        self.val_weight = "SemiBold" if (changed or is_missing) else "Normal"
         self.strike = TextDecorations.Strikethrough if changed else TextDecorationCollection()
         self.arrow_vis = Visibility.Visible if changed else Visibility.Collapsed
 
@@ -1331,14 +1559,24 @@ class ManholeQAForm(object):
             if not isinstance(row, ManholeRow):
                 return
             record = row._record
+            missing = record.get("missing", [])
             self.det_main.ItemsSource = [
-                DetailRow("Connection {}".format(i + 1), record["old_main"][i], record["new_main"][i])
+                DetailRow("Connection {}".format(i + 1), record["old_main"][i], record["new_main"][i], "C{}".format(i + 1) in missing)
                 for i in range(4)
             ]
-            self.det_extra.ItemsSource = [
-                DetailRow("Connection {} Extra".format(i + 1), record["old_extra"][i], record["new_extra"][i])
-                for i in range(4)
-            ]
+            if row.is_ict:
+                self.det_extra.ItemsSource = [
+                    DetailRow("Extra Connection", "No Extra in ICT", None)
+                ]
+            elif row.is_mv:
+                self.det_extra.ItemsSource = [
+                    DetailRow("Extra Connection", "No Extra in MV", None)
+                ]
+            else:
+                self.det_extra.ItemsSource = [
+                    DetailRow("Connection {} Extra".format(i + 1), record["old_extra"][i], record["new_extra"][i], "E{}".format(i + 1) in missing)
+                    for i in range(4)
+                ]
         except Exception:
             pass
 
@@ -1396,8 +1634,10 @@ def main():
     if not doc:
         forms.alert("No open Revit document found.", exitscript=True)
 
-    output.print_md("# Manhole QA")
-    output.print_md("This command now runs fully from `script.py` and does not call external Dynamo graphs.")
+    try:
+        output.close()
+    except Exception:
+        pass
     form = ManholeQAForm(doc, uidoc)
     OPEN_FORMS.append(form)
     form.show()
