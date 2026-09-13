@@ -21,34 +21,12 @@ Revit 2025–2026 use the .NET 8 runtime, while Revit 2024 uses the earlier .NET
 
 Some commands integrate with Microsoft Excel or other project-specific data sources. Those commands may require the relevant desktop application, file access, or project parameters.
 
-## P13 Revit MCP
+## Optional P13 Revit MCP bridge
 
-P13 includes a provider-neutral local MCP bridge for AI clients such as
-Antigravity, Codex, Claude, and other MCP-compatible hosts. The secured HTTP
-endpoint uses reserved port `8013`, while the reference
-`mcp-server-for-revit-python` can remain on port `8000`. Per-user secrets are
-stored outside the extension, HTTP requires bearer authentication, and Revit
-model-writing tools require explicit confirmation.
-
-Privacy defaults hide the Revit document title and full file path from AI
-providers. Remote AI use requires visible confirmation, result history is
-opt-in per task, and SuperSheet profiles/export paths are stored under the
-current user's `%APPDATA%` rather than inside the public extension. Review
-[`mcp_server/SECURITY.md`](mcp_server/SECURITY.md) before publishing or
-deploying P13.
-
-The **P13 AI Console** ribbon command provides an in-Revit launcher for Codex
-using an existing ChatGPT sign-in, OpenAI API, Anthropic, Google Gemini,
-OpenRouter, Ollama, LM Studio, and custom
-OpenAI-compatible endpoints. Users can discover or enter a model ID, submit a
-natural-language Revit task, and decide whether that individual task is
-read-only or may perform confirmed writes. The AI process runs outside Revit
-and starts its own stdio MCP connection, so it does not require port `8013` and
-does not block Revit while tools execute.
-
-Installation, client configuration, security, and worldwide distribution are
-documented in [`mcp_server/README.md`](mcp_server/README.md) and
-[`mcp_server/SECURITY.md`](mcp_server/SECURITY.md).
+P13 contains opt-in startup support for a local MCP HTTP bridge on port `8013`.
+The bridge starts only when a separately installed `mcp_server` runtime is
+present and its per-user autostart setting is enabled. It is not required to
+use any of the ribbon commands documented below.
 
 ## Main features
 
@@ -86,7 +64,7 @@ documented in [`mcp_server/README.md`](mcp_server/README.md) and
 ### View filters and graphics
 
 - Copy and paste view-filter states.
-- Apply predefined line colors for visual checking.
+- Apply a selected line color for visual checking.
 - Reset temporary line-color changes.
 - Review worksets with color-based visualization.
 
@@ -110,9 +88,15 @@ documented in [`mcp_server/README.md`](mcp_server/README.md) and
 
 - Create chain dimensions.
 - Control wall joins and angled wall cuts.
-- Convert grids to view-specific 2D extents.
+- Manage grid bubbles, create grid dimensions, and convert grids to view-specific 2D extents.
 - Number elements using category-based grouping.
 - Clean duplicate and overlapping content in the active view with **Overkill View**.
+
+### Spot-coordinate annotation tools
+
+- Align Spot Coordinate text left, right, top, or bottom.
+- Distribute Spot Coordinate text horizontally or vertically.
+- Restore the native text position of selected Spot Coordinates.
 
 Overkill View supports:
 
@@ -137,7 +121,7 @@ Wall-opening workflows use dedicated custom families because native rectangular 
 
 ## Command reference
 
-The following catalog explains what the commands currently included in the **P13** ribbon can do.
+The following catalog lists all 70 executable commands currently included in the **P13** ribbon. Ribbon containers such as pulldowns, split buttons, and stacks are not counted as commands.
 
 ### A-Sync panel
 
@@ -218,7 +202,7 @@ The following catalog explains what the commands currently included in the **P13
 
 | Command | What it does |
 | --- | --- |
-| **Green, Orange, Red, Azure, Blue, Magenta, Grey, Light Grey** | Applies the selected review color to supported selected elements for fast visual coordination and checking. |
+| **Set Color** | Opens a color picker and applies the chosen projection, cut-line, and cut-pattern color override to selected elements in the active view. |
 | **Reset** | Removes the P13 line-color overrides and restores the normal view graphics. |
 
 ### Manager panel
@@ -226,6 +210,7 @@ The following catalog explains what the commands currently included in the **P13
 | Command | What it does |
 | --- | --- |
 | **Change Phasing** | Filters elements, expands supported nested groups, and batch-updates phase data while remembering selections. |
+| **Duplicate Dependent Views** | Creates the requested number of dependent views from selected eligible primary views in one validated, rollback-safe batch. |
 | **Family Manager** | Reviews families and types in a grid, supports favorites and batch actions, edits supported names, and exports family information to Excel. |
 | **Filters Manager** | Reviews filter/template usage, removes selected unused items safely, and batch-applies view templates with result reporting. |
 | **G-Status** | Creates or updates `g_Element Status` and assigns status values by workset. |
@@ -244,6 +229,7 @@ The following catalog explains what the commands currently included in the **P13
 
 | Command | What it does |
 | --- | --- |
+| **69** | Sets the writable `Comments` parameter on the current selection. |
 | **Manhole QA** | Scans manholes and connected conduits, presents connection data in a modeless QA interface, and synchronizes supported manhole values. |
 | **Pipe Bloom** | Extends pipes or ducts from multiple connectors, detects systems, adjusts direction, and creates elbows automatically. |
 | **Pipe BOP** | Calculates pipe start/end bottom elevations and writes `B-Start` and `BOP.Cal` values for tagging. |
@@ -259,16 +245,30 @@ The following catalog explains what the commands currently included in the **P13
 | **Chain Dim** | Creates one sorted chain dimension from window-selected families or picked references with horizontal, vertical, or aligned placement. |
 | **Cut Wall Angle** | Uses a remembered line-based Void family to cut a selected wall along a user-defined angled line without changing the original wall parameters. |
 | **DisAllow Beam-Joint** | Disables joins at the start, end, or both ends of selected structural framing elements in a batch operation. |
+| **Grid Bubble Manager** | Shows, hides, toggles, or smart-places grid bubbles for selected, window-selected, continuously picked, or all visible grids without changing grid geometry. |
+| **Grid Dimension** | Groups and dimensions parallel straight grids from the selection or active view, using the chosen side and offset. |
 | **Grids 2D** | Converts both ends of all grids visible in the active view to view-specific 2D extents without changing their 3D extents in other views. |
 | **Overkill View** | Cleans overlapping lines and exact duplicate dimensions, tags, text notes, and Detail Items from the active view, with category-specific modes and an undoable result summary. |
 | **Number Auto** | Filters by category and family type, previews elements, sorts by X/Y/Z direction, writes formatted category-grouped numbers, supports Live Pick, and round-trips the list through CSV. |
 | **Number Manual** | Numbers interactively picked elements into a chosen instance, built-in, shared, or type parameter with remembered prefixes and digit formatting. |
 
+### Spot Coordinates panel
+
+| Command | What it does |
+| --- | --- |
+| **Align-L** | Aligns the text edges of selected Spot Coordinates to the left while preserving their referenced model points. |
+| **Align-R** | Aligns the text edges of selected Spot Coordinates to the right while preserving their referenced model points. |
+| **Align-T** | Aligns the text edges of selected Spot Coordinates to the top while preserving their referenced model points. |
+| **Align Bot** | Aligns the text edges of selected Spot Coordinates to the bottom while preserving their referenced model points. |
+| **Dis-Hor** | Evenly distributes selected Spot Coordinate text horizontally while keeping the outermost annotations fixed. |
+| **Dis-Ver** | Evenly distributes selected Spot Coordinate text vertically while keeping the outermost annotations fixed. |
+| **Reset** | Restores the native text position of selected Spot Coordinates. |
+
 ### Z-Support panel
 
 | Command | What it does |
 | --- | --- |
-| **Donate Support** | Displays PayPal and PromptPay QR codes and provides access to the P13 GitHub repository. |
+| **Donate Support** | Opens GitHub Sponsors, displays PayPal and PromptPay QR codes, and provides access to the P13 GitHub repository. |
 
 ## Installation
 
@@ -303,6 +303,12 @@ If a folder with the same name already exists, back it up or update the existing
 
 P13.extension is maintained as a practical BIM automation toolkit. Donations help support ongoing development, Revit-version updates, testing, maintenance, and new production tools.
 
+### GitHub Sponsors
+
+Support P13 with a one-time or monthly contribution through [GitHub Sponsors](https://github.com/sponsors/permpong13).
+
+[![Sponsor P13 on GitHub](https://img.shields.io/badge/GitHub%20Sponsors-Support%20P13-24292F?logo=githubsponsors&logoColor=white)](https://github.com/sponsors/permpong13)
+
 ### PayPal
 
 - PayPal username: **@PERMPONGTAWEEKUL**
@@ -310,7 +316,7 @@ P13.extension is maintained as a practical BIM automation toolkit. Donations hel
 
 [![Support P13.extension with PayPal](https://img.shields.io/badge/PayPal-Support%20P13.extension-0070BA?logo=paypal&logoColor=white)](https://www.paypal.me/PERMPONGTAWEEKUL)
 
-You can also open **P13 > Z-Support > Donate Support** inside Revit to display the available donation QR codes.
+You can also open **P13 > Z-Support > Donate Support** inside Revit to open GitHub Sponsors or display the available donation QR codes.
 
 Donations are optional and do not affect access to the extension.
 
@@ -330,4 +336,4 @@ BIM Automation Engineer and Software Developer
 
 P13.extension คือชุดเครื่องมือ pyRevit สำหรับ Autodesk Revit 2024–2026 โดยพัฒนาและทดสอบหลักกับ Revit 2026 เพื่อช่วยลดงานซ้ำ เพิ่มความถูกต้องของข้อมูล และสนับสนุนกระบวนการ BIM ในงานจริง ครอบคลุมงานตรวจสอบโมเดล พิกัด การจัดการข้อมูล การนำเข้าและส่งออก Excel งานเอกสาร งาน MEP และเครื่องมือจัดการโครงการ
 
-ผู้ใช้งานสามารถสนับสนุนการพัฒนาและดูแลเครื่องมือได้ผ่าน [PayPal.Me ของ @PERMPONGTAWEEKUL](https://www.paypal.me/PERMPONGTAWEEKUL) หรือเปิดคำสั่ง **P13 > Z-Support > Donate Support** ภายใน Revit
+ผู้ใช้งานสามารถสนับสนุนการพัฒนาและดูแลเครื่องมือได้ผ่าน [GitHub Sponsors](https://github.com/sponsors/permpong13), [PayPal.Me ของ @PERMPONGTAWEEKUL](https://www.paypal.me/PERMPONGTAWEEKUL) หรือเปิดคำสั่ง **P13 > Z-Support > Donate Support** ภายใน Revit

@@ -3,11 +3,13 @@ title: "Donate\nSupport"
 tooltip: |
   Support the development and maintenance of p13.extension.
   Available donation methods:
+  - GitHub Sponsors
   - PayPal
   - PromptPay QR Code
 
   Your support helps keep this extension updated and free for everyone.
+  GitHub Sponsors: https://github.com/sponsors/permpong13
   GitHub Repository: https://github.com/permpong13/P13
 
 author: "P13"
-description: "Support p13.extension development via PayPal or PromptPay."
+description: "Support p13.extension development via GitHub Sponsors, PayPal, or PromptPay."

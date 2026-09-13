@@ -9,6 +9,7 @@ from pyrevit import forms, script
 
 
 GITHUB_REPO_URL = "https://github.com/permpong13/P13"
+GITHUB_SPONSORS_URL = "https://github.com/sponsors/permpong13"
 
 
 class DonateWindow(forms.WPFWindow):
@@ -85,18 +86,26 @@ class DonateWindow(forms.WPFWindow):
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0">
-                    <TextBlock Text="GitHub Repository"
+                    <TextBlock Text="GitHub Sponsors"
                                FontWeight="SemiBold"
                                Foreground="#1D1D1F"/>
-                    <TextBlock Text="https://github.com/permpong13/P13"
+                    <TextBlock Text="Support P13 with a one-time or monthly contribution."
+                               Foreground="#6E6E73"
+                               Margin="0,4,0,0"/>
+                    <TextBlock Text="https://github.com/sponsors/permpong13"
                                Foreground="#007AFF"
                                Margin="0,4,0,0"/>
                 </StackPanel>
-                <Button Grid.Column="1"
-                        x:Name="btnOpenGithub"
-                        Content="Open in Browser"
-                        Background="#007AFF"
-                        Foreground="White"/>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button x:Name="btnOpenSponsors"
+                            Content="Become a Sponsor"
+                            Background="#24292F"
+                            Foreground="White"/>
+                    <Button x:Name="btnOpenGithub"
+                            Content="View Repository"
+                            Background="#007AFF"
+                            Foreground="White"/>
+                </StackPanel>
             </Grid>
         </Border>
 
@@ -148,8 +157,12 @@ class DonateWindow(forms.WPFWindow):
             xaml_file.write(xaml)
 
         forms.WPFWindow.__init__(self, self.temp_xaml)
+        self.btnOpenSponsors.Click += self.open_sponsors_click
         self.btnOpenGithub.Click += self.open_github_click
         self.btnClose.Click += self.close_click
+
+    def open_sponsors_click(self, sender, args):
+        script.open_url(GITHUB_SPONSORS_URL)
 
     def open_github_click(self, sender, args):
         script.open_url(GITHUB_REPO_URL)
