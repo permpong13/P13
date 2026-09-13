@@ -21,23 +21,7 @@ Revit 2025–2026 use the .NET 8 runtime, while Revit 2024 uses the earlier .NET
 
 Some commands integrate with Microsoft Excel or other project-specific data sources. Those commands may require the relevant desktop application, file access, or project parameters.
 
-## Optional P13 Revit MCP bridge
-
-P13 contains opt-in startup support for a local MCP HTTP bridge on port `8013`.
-The bridge starts only when a separately installed `mcp_server` runtime is
-present and its per-user autostart setting is enabled. It is not required to
-use any of the ribbon commands documented below.
-
 ## Main features
-
-### AI and MCP automation
-
-- Choose an AI provider and model for each task.
-- Use the Codex CLI and an existing ChatGPT sign-in without an API key.
-- Use cloud APIs, local Ollama or LM Studio models, or a custom compatible API.
-- Inspect the active Revit document through allowlisted P13 MCP tools.
-- Keep model writes disabled by default and enable them explicitly per task.
-- Run AI work outside the Revit process to preserve UI responsiveness.
 
 ### Synchronization
 

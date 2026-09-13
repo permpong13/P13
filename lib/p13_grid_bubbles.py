@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
 
-"""Shared Grid Bubble Manager logic for P13 UI commands and MCP routes."""
+"""Shared Grid Bubble Manager logic for P13 UI commands."""
 
 from pyrevit import revit, DB
 
