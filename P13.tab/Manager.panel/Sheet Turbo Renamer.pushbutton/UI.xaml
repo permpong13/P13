@@ -1,0 +1,544 @@
+<Window
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="P13 Sheet Turbo Renamer - Batch Sheet Rename Tool" 
+    Height="860" Width="1380" MinHeight="680" MinWidth="1050"
+    Background="#F1F5F9" WindowStartupLocation="CenterScreen" ResizeMode="CanResizeWithGrip">
+
+    <Window.Resources>
+        <!-- Colors -->
+        <SolidColorBrush x:Key="AppBg" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="CardBg" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="BorderBrushColor" Color="#CBD5E1"/>
+        <SolidColorBrush x:Key="TextMain" Color="#0F172A"/>
+        <SolidColorBrush x:Key="TextMuted" Color="#64748B"/>
+        <SolidColorBrush x:Key="AccentBlue" Color="#2563EB"/>
+        <SolidColorBrush x:Key="AccentGreen" Color="#10B981"/>
+        <SolidColorBrush x:Key="AccentOrange" Color="#F59E0B"/>
+        <SolidColorBrush x:Key="AccentRed" Color="#EF4444"/>
+
+        <!-- Base Card Style -->
+        <Style x:Key="ModernCard" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource CardBg}"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="12"/>
+            <Setter Property="Margin" Value="0,0,0,8"/>
+        </Style>
+
+        <!-- Standard Button Style -->
+        <Style TargetType="Button">
+            <Setter Property="Padding" Value="12,6"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="Background" Value="#2563EB"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Opacity" Value="0.88"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.45"/>
+                    <Setter Property="Background" Value="#94A3B8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Secondary Button Style -->
+        <Style x:Key="SecondaryButton" TargetType="Button">
+            <Setter Property="Padding" Value="10,5"/>
+            <Setter Property="Margin" Value="2"/>
+            <Setter Property="Background" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="#1E293B"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="5" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#CBD5E1"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- Action Button Style (Green Primary) -->
+        <Style x:Key="PrimaryActionButton" TargetType="Button">
+            <Setter Property="Padding" Value="20,10"/>
+            <Setter Property="Background" Value="#10B981"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#059669"/>
+                </Trigger>
+                <Trigger Property="IsEnabled" Value="False">
+                    <Setter Property="Opacity" Value="0.4"/>
+                    <Setter Property="Background" Value="#94A3B8"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <!-- TextBox Style -->
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushColor}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+
+        <!-- ComboBox Style -->
+        <Style TargetType="ComboBox">
+            <Setter Property="Height" Value="28"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Padding" Value="6,2"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrushColor}"/>
+            <Setter Property="Background" Value="White"/>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="14">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Top Header -->
+            <RowDefinition Height="*"/>    <!-- Main Split Area -->
+            <RowDefinition Height="Auto"/> <!-- Bottom Footer -->
+        </Grid.RowDefinitions>
+
+        <!-- 1. TOP HEADER -->
+        <Border Grid.Row="0" Background="White" CornerRadius="8" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="14,10" Margin="0,0,0,10">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Icon -->
+                <Image Grid.Column="0" x:Name="ImgAppIcon" Width="44" Height="44" Margin="0,0,14,0" VerticalAlignment="Center"/>
+
+                <!-- Title & Subtitle -->
+                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="⚡ SHEET TURBO RENAMER" FontWeight="Bold" FontSize="18" Foreground="{StaticResource TextMain}"/>
+                        <Border Background="#DBEAFE" CornerRadius="4" Padding="6,2" Margin="10,0,0,0" VerticalAlignment="Center">
+                            <TextBlock Text="P13 PRO" FontSize="11" FontWeight="Bold" Foreground="#1D4ED8"/>
+                        </Border>
+                    </StackPanel>
+                    <TextBlock Text="Batch rename Sheet Numbers &amp; Names inspired by File Renamer Turbo • Real-time live preview &amp; collision protection" 
+                               Foreground="{StaticResource TextMuted}" FontSize="12" Margin="0,3,0,0"/>
+                </StackPanel>
+
+                <!-- Stats Badges -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Border Background="#F1F5F9" CornerRadius="6" Padding="10,6" Margin="4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Total Sheets: " Foreground="{StaticResource TextMuted}" FontSize="12"/>
+                            <TextBlock x:Name="TxtStatTotal" Text="0" FontWeight="Bold" Foreground="{StaticResource TextMain}" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#EFF6FF" CornerRadius="6" Padding="10,6" Margin="4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Selected: " Foreground="#1E40AF" FontSize="12"/>
+                            <TextBlock x:Name="TxtStatSelected" Text="0" FontWeight="Bold" Foreground="#1D4ED8" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Background="#ECFDF5" CornerRadius="6" Padding="10,6" Margin="4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Modified: " Foreground="#065F46" FontSize="12"/>
+                            <TextBlock x:Name="TxtStatModified" Text="0" FontWeight="Bold" Foreground="#047857" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                    <Border x:Name="BorderConflicts" Background="#FEF2F2" CornerRadius="6" Padding="10,6" Margin="4,0">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="Conflicts: " Foreground="#991B1B" FontSize="12"/>
+                            <TextBlock x:Name="TxtStatConflicts" Text="0" FontWeight="Bold" Foreground="#DC2626" FontSize="12"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- 2. MAIN CONTENT SPLIT -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="470" MinWidth="380" MaxWidth="600"/>
+                <ColumnDefinition Width="8"/>
+                <ColumnDefinition Width="*" MinWidth="500"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- LEFT PANEL: RULES & CONTROLS -->
+            <Grid Grid.Column="0">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Target Selector -->
+                    <RowDefinition Height="*"/>    <!-- Turbo Modes TabControl -->
+                    <RowDefinition Height="Auto"/> <!-- Action Pipeline Bar -->
+                </Grid.RowDefinitions>
+
+                <!-- Target Property Card -->
+                <Border Grid.Row="0" Style="{StaticResource ModernCard}">
+                    <StackPanel>
+                        <TextBlock Text="🎯 TARGET PROPERTY TO RENAME" FontWeight="Bold" FontSize="12" Foreground="{StaticResource AccentBlue}" Margin="0,0,0,8"/>
+                        <StackPanel Orientation="Horizontal">
+                            <RadioButton x:Name="RadioTargetNumber" GroupName="TargetPropGroup" Content="Sheet Number" IsChecked="True" FontWeight="SemiBold" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="RadioTargetName" GroupName="TargetPropGroup" Content="Sheet Name" FontWeight="SemiBold" Margin="0,0,15,0" VerticalAlignment="Center"/>
+                            <RadioButton x:Name="RadioTargetBoth" GroupName="TargetPropGroup" Content="Both (Number &amp; Name)" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- Turbo Modes TabControl Card -->
+                <Border Grid.Row="1" Style="{StaticResource ModernCard}" Padding="10">
+                    <TabControl x:Name="TabModes" Background="Transparent" BorderThickness="0">
+                        
+                        <!-- TAB 1: SEARCH & REPLACE -->
+                        <TabItem Header="🔍 Search &amp; Replace" FontWeight="SemiBold" FontSize="12" Padding="8,5">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Search For (ข้อความที่ต้องการหา):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="TxtFind" Margin="0,0,0,10" ToolTip="Enter text or pattern to search"/>
+
+                                    <TextBlock Text="Replace With (แทนที่ด้วย):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="TxtReplace" Margin="0,0,0,12" ToolTip="Leave empty to delete found text"/>
+
+                                    <Border Background="#F8FAFC" CornerRadius="6" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="Search Options:" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,0,0,6"/>
+                                            <CheckBox x:Name="ChkMatchCase" Content="Match Case (แยกตัวพิมพ์เล็ก-ใหญ่)" Margin="0,0,0,6"/>
+                                            <CheckBox x:Name="ChkWholeWord" Content="Match Whole Word (ตรงทั้งคำเท่านั้น)" Margin="0,0,0,6"/>
+                                            <CheckBox x:Name="ChkRegex" Content="Use Regular Expressions (Regex)" ToolTip="Enable advanced regular expressions (e.g., ^[A-Z]+)"/>
+                                        </StackPanel>
+                                    </Border>
+                                    
+                                    <TextBlock Text="💡 ตัวอย่าง: หา '8801' แทนที่ด้วย '8802' หรือหา 'PROPOSED' แทนที่ด้วย 'EXISTING'" 
+                                               Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- TAB 2: INSERT TEXT -->
+                        <TabItem Header="➕ Insert Text" FontWeight="SemiBold" FontSize="12" Padding="8,5">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <TextBlock Text="Text to Insert (ข้อความที่จะแทรก):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                    <TextBox x:Name="TxtInsertText" Margin="0,0,0,12"/>
+
+                                    <Border Background="#F8FAFC" CornerRadius="6" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Insertion Position (ตำแหน่งที่แทรก):" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                                            <RadioButton x:Name="RadioInsertPrefix" GroupName="InsertPosGroup" Content="Prefix (ข้างหน้าสุด เช่น SD-)" IsChecked="True" Margin="0,0,0,6"/>
+                                            <RadioButton x:Name="RadioInsertSuffix" GroupName="InsertPosGroup" Content="Suffix (ข้างหลังสุด เช่น _REV1)" Margin="0,0,0,8"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <RadioButton x:Name="RadioInsertPos" GroupName="InsertPosGroup" Content="At Character Position: " VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtInsertPosition" Text="1" Width="50" Height="26" VerticalContentAlignment="Center" Margin="5,0,0,0"/>
+                                                <TextBlock Text=" (1 = เริ่มต้น)" Foreground="{StaticResource TextMuted}" FontSize="11" VerticalAlignment="Center" Margin="5,0,0,0"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="💡 ตัวอย่าง: เพิ่ม Prefix 'C-' หรือเพิ่ม Suffix '-R0' ต่อท้ายชื่อแบบ" 
+                                               Foreground="{StaticResource TextMuted}" FontSize="11" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- TAB 3: REMOVE & TRIM -->
+                        <TabItem Header="✂️ Remove &amp; Trim" FontWeight="SemiBold" FontSize="12" Padding="8,5">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <Border Background="#F8FAFC" CornerRadius="6" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="10" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Remove Operation (การลบตัวอักษร):" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                                            
+                                            <!-- First N chars -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <RadioButton x:Name="RadioRemoveFirstN" GroupName="RemoveOpGroup" Content="Remove First " IsChecked="True" VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtRemoveFirstN" Text="2" Width="45" Height="26" Margin="4,0" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text=" characters" VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <!-- Last N chars -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <RadioButton x:Name="RadioRemoveLastN" GroupName="RemoveOpGroup" Content="Remove Last " VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtRemoveLastN" Text="4" Width="45" Height="26" Margin="4,0" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text=" characters" VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <!-- Range -->
+                                            <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                                <RadioButton x:Name="RadioRemoveRange" GroupName="RemoveOpGroup" Content="From Pos " VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtRemoveRangeFrom" Text="1" Width="40" Height="26" Margin="4,0" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text=" Count " VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtRemoveRangeCount" Text="3" Width="40" Height="26" Margin="4,0" VerticalContentAlignment="Center"/>
+                                                <TextBlock Text=" chars" VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <!-- Specific string -->
+                                            <StackPanel Orientation="Horizontal">
+                                                <RadioButton x:Name="RadioRemoveText" GroupName="RemoveOpGroup" Content="Remove Text: " VerticalAlignment="Center"/>
+                                                <TextBox x:Name="TxtRemoveText" Width="140" Height="26" Margin="4,0" VerticalContentAlignment="Center"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- Cleanup Options -->
+                                    <Border Background="#F8FAFC" CornerRadius="6" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="10" Margin="0,0,0,8">
+                                        <StackPanel>
+                                            <TextBlock Text="Whitespace Cleanup:" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,0,0,6"/>
+                                            <CheckBox x:Name="ChkTrimSpaces" Content="Trim Leading &amp; Trailing Spaces (ตัดช่องว่างหน้า-หลัง)" IsChecked="True" Margin="0,0,0,6"/>
+                                            <CheckBox x:Name="ChkCollapseSpaces" Content="Collapse Multiple Spaces into Single Space (ยุบช่องว่างซ้ำ)" IsChecked="True"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- TAB 4: AUTO-NUMBERING -->
+                        <TabItem Header="🔢 Numbering" FontWeight="SemiBold" FontSize="12" Padding="8,5">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                            <TextBlock Text="Start Number (เลขเริ่มต้น):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtNumStart" Text="1"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                            <TextBlock Text="Step / Increment (เพิ่มทีละ):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtNumStep" Text="1"/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <TextBlock Text="Zero Padding / Digits (จำนวนหลัก):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                    <ComboBox x:Name="CboNumPadding" Margin="0,0,0,8">
+                                        <ComboBoxItem Content="None (1, 2, 3...)" Tag="1"/>
+                                        <ComboBoxItem Content="2 Digits (01, 02, 03...)" Tag="2" IsSelected="True"/>
+                                        <ComboBoxItem Content="3 Digits (001, 002, 003...)" Tag="3"/>
+                                        <ComboBoxItem Content="4 Digits (0001, 0002...)" Tag="4"/>
+                                    </ComboBox>
+
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,6,0">
+                                            <TextBlock Text="Prefix (คำนำหน้าเลข):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtNumPrefix" Text="A-"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="6,0,0,0">
+                                            <TextBlock Text="Suffix (คำต่อท้ายเลข):" Foreground="{StaticResource TextMain}" FontWeight="Medium" Margin="0,0,0,4"/>
+                                            <TextBox x:Name="TxtNumSuffix" Text=""/>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <Border Background="#F8FAFC" CornerRadius="6" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="10">
+                                        <StackPanel>
+                                            <TextBlock Text="Counter Placement (ตำแหน่งการวางเลขรัน):" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,0,0,8"/>
+                                            <RadioButton x:Name="RadioNumReplace" GroupName="NumPlacementGroup" Content="Replace Entire Field (แทนที่ทั้งหมดด้วยเลขนี้)" IsChecked="True" Margin="0,0,0,6"/>
+                                            <RadioButton x:Name="RadioNumPrepend" GroupName="NumPlacementGroup" Content="Prepend to Start (วางไว้หน้าค่าเดิม)" Margin="0,0,0,6"/>
+                                            <RadioButton x:Name="RadioNumAppend" GroupName="NumPlacementGroup" Content="Append to End (วางไว้ท้ายค่าเดิม)"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- TAB 5: CHANGE CASE -->
+                        <TabItem Header="🔤 Change Case" FontWeight="SemiBold" FontSize="12" Padding="8,5">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Margin="0,10,0,0">
+                                <StackPanel>
+                                    <Border Background="#F8FAFC" CornerRadius="6" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="12">
+                                        <StackPanel>
+                                            <TextBlock Text="Letter Case Style (รูปแบบตัวอักษร):" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource TextMuted}" Margin="0,0,0,10"/>
+                                            <RadioButton x:Name="RadioCaseUpper" GroupName="CaseStyleGroup" Content="UPPERCASE (ตัวพิมพ์ใหญ่ทั้งหมด เช่น DETAIL PLAN)" IsChecked="True" Margin="0,0,0,10" FontWeight="SemiBold"/>
+                                            <RadioButton x:Name="RadioCaseLower" GroupName="CaseStyleGroup" Content="lowercase (ตัวพิมพ์เล็กทั้งหมด เช่น detail plan)" Margin="0,0,0,10"/>
+                                            <RadioButton x:Name="RadioCaseTitle" GroupName="CaseStyleGroup" Content="Title Case (ตัวแรกของทุกคำเป็นตัวใหญ่ เช่น Detail Plan)" Margin="0,0,0,10" FontWeight="SemiBold"/>
+                                            <RadioButton x:Name="RadioCaseSentence" GroupName="CaseStyleGroup" Content="Sentence case (ตัวแรกของประโยคเป็นตัวใหญ่ เช่น Detail plan)"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                    </TabControl>
+                </Border>
+
+                <!-- Action Pipeline Card -->
+                <Border Grid.Row="2" Style="{StaticResource ModernCard}" Margin="0,4,0,0">
+                    <StackPanel>
+                        <!-- Live Preview Toggle & Update -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <CheckBox Grid.Column="0" x:Name="ChkLivePreview" Content="⚡ Auto Live Preview as you type" IsChecked="True" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" x:Name="BtnRefreshPreview" Content="▶ Update Preview" Style="{StaticResource SecondaryButton}" Padding="10,4"/>
+                        </Grid>
+
+                        <!-- Stage / Apply to Draft & Reset -->
+                        <Grid Margin="0,0,0,8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" x:Name="BtnStageRule" Content="💾 Apply Rule to Working List" Background="{StaticResource AccentBlue}" Margin="0,0,4,0" ToolTip="Commit current rule to working list so you can chain the next rule"/>
+                            <Button Grid.Column="1" x:Name="BtnResetAll" Content="↺ Reset to Original" Style="{StaticResource SecondaryButton}" Margin="4,0,0,0" ToolTip="Reset all working values back to current Revit sheet values"/>
+                        </Grid>
+
+                        <!-- Quick Utility Helpers -->
+                        <WrapPanel HorizontalAlignment="Center">
+                            <Button x:Name="BtnSwapNumName" Content="Swap No. &amp; Name" Style="{StaticResource SecondaryButton}" FontSize="11" Padding="6,3" Margin="2"/>
+                            <Button x:Name="BtnCopyNumToName" Content="Copy No. ➔ Name" Style="{StaticResource SecondaryButton}" FontSize="11" Padding="6,3" Margin="2"/>
+                            <Button x:Name="BtnCopyNameToNum" Content="Copy Name ➔ No." Style="{StaticResource SecondaryButton}" FontSize="11" Padding="6,3" Margin="2"/>
+                        </WrapPanel>
+                    </StackPanel>
+                </Border>
+
+            </Grid>
+
+            <!-- SPLITTER -->
+            <GridSplitter Grid.Column="1" Width="8" Background="Transparent" HorizontalAlignment="Stretch"/>
+
+            <!-- RIGHT PANEL: DATAGRID & CONTROLS -->
+            <Grid Grid.Column="2">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Filter & Selection Toolbar -->
+                    <RowDefinition Height="*"/>    <!-- Sheets DataGrid -->
+                    <RowDefinition Height="Auto"/> <!-- DataGrid Footer Tip -->
+                </Grid.RowDefinitions>
+
+                <!-- Filter & Quick Selection Toolbar Card -->
+                <Border Grid.Row="0" Style="{StaticResource ModernCard}" Padding="10,8">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="220"/>
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="*"/>
+                        </Grid.ColumnDefinitions>
+
+                        <!-- Search Box -->
+                        <TextBox Grid.Column="0" x:Name="TxtSearchFilter" ToolTip="Type to filter sheets by Number or Name..."/>
+
+                        <!-- Placeholders Toggle -->
+                        <CheckBox Grid.Column="1" x:Name="ChkIncludePlaceholders" Content="Placeholders" IsChecked="True" VerticalAlignment="Center" Margin="10,0,0,0"/>
+
+                        <!-- Batch Selection Buttons -->
+                        <StackPanel Grid.Column="2" Orientation="Horizontal" HorizontalAlignment="Right">
+                            <Button x:Name="BtnCheckHighlighted" Content="☑ Check Highlighted" Style="{StaticResource SecondaryButton}" Background="#EFF6FF" Foreground="#1D4ED8" FontWeight="SemiBold" Padding="8,4" Focusable="False" ToolTip="Check all rows currently highlighted with Ctrl/Shift"/>
+                            <Button x:Name="BtnUncheckHighlighted" Content="☐ Uncheck Highlighted" Style="{StaticResource SecondaryButton}" Padding="8,4" Focusable="False" ToolTip="Uncheck all rows currently highlighted"/>
+                            <Button x:Name="BtnSelectAll" Content="All" Style="{StaticResource SecondaryButton}" Padding="8,4" Focusable="False"/>
+                            <Button x:Name="BtnSelectNone" Content="None" Style="{StaticResource SecondaryButton}" Padding="8,4" Focusable="False"/>
+                            <Button x:Name="BtnInvertSelection" Content="Invert" Style="{StaticResource SecondaryButton}" Padding="8,4" Focusable="False"/>
+                            <Button x:Name="BtnSelectRevitActive" Content="📌 Revit" Style="{StaticResource SecondaryButton}" Background="#E0E7FF" Foreground="#3730A3" Padding="8,4" Focusable="False" ToolTip="Select only sheets currently selected in Project Browser"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- DataGrid Card -->
+                <Border Grid.Row="1" Background="White" CornerRadius="8" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="0">
+                    <DataGrid x:Name="DgSheets" AutoGenerateColumns="False" CanUserAddRows="False" CanUserDeleteRows="False"
+                              RowHeight="30" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="#F1F5F9"
+                              SelectionMode="Extended" Background="White" RowBackground="White" AlternatingRowBackground="#F8FAFC"
+                              BorderThickness="0" Foreground="{StaticResource TextMain}"
+                              VirtualizingPanel.IsVirtualizing="True" VirtualizingPanel.VirtualizationMode="Recycling"
+                              EnableRowVirtualization="True" EnableColumnVirtualization="False">
+                        
+                        <DataGrid.Columns>
+                            <!-- Col 0: Checkbox -->
+                            <DataGridTemplateColumn Width="45">
+                                <DataGridTemplateColumn.Header>
+                                    <CheckBox x:Name="ChkHeaderAll" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </DataGridTemplateColumn.Header>
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <CheckBox IsChecked="{Binding IsIncluded, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+
+                            <!-- Col 1: Current Number -->
+                            <DataGridTextColumn Header="Current Number" Binding="{Binding CurrentNumber}" Width="150" IsReadOnly="True" FontWeight="SemiBold" Foreground="#475569"/>
+
+                            <!-- Col 2: New Number (Editable!) -->
+                            <DataGridTextColumn Header="New Number ✎" Binding="{Binding NewNumber, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="180" IsReadOnly="False" FontWeight="Bold" Foreground="#1D4ED8"/>
+
+                            <!-- Col 3: Current Name -->
+                            <DataGridTextColumn Header="Current Name" Binding="{Binding CurrentName}" Width="220" IsReadOnly="True" Foreground="#475569"/>
+
+                            <!-- Col 4: New Name (Editable!) -->
+                            <DataGridTextColumn Header="New Name ✎" Binding="{Binding NewName, Mode=TwoWay, UpdateSourceTrigger=LostFocus}" Width="*" MinWidth="220" IsReadOnly="False" FontWeight="SemiBold" Foreground="#0F766E"/>
+
+                            <!-- Col 5: Status -->
+                            <DataGridTextColumn Header="Status" Binding="{Binding StatusText}" Width="130" IsReadOnly="True" FontWeight="Medium"/>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Border>
+
+                <!-- Tip Footer -->
+                <TextBlock Grid.Row="2" Text="💡 Pro-Tip: Double-click any cell in 'New Number ✎' or 'New Name ✎' to edit directly like Excel! Rules only modify checked rows." 
+                           Foreground="{StaticResource TextMuted}" FontSize="11" Margin="4,6,0,0"/>
+            </Grid>
+        </Grid>
+
+        <!-- 3. BOTTOM FOOTER BAR -->
+        <Border Grid.Row="2" Background="White" CornerRadius="8" BorderBrush="{StaticResource BorderBrushColor}" BorderThickness="1" Padding="14,10" Margin="0,10,0,0">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Status Message -->
+                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                    <TextBlock x:Name="TxtFooterStatus" Text="Ready • Select sheets and configure rules" Foreground="{StaticResource TextMain}" FontWeight="Medium" FontSize="13"/>
+                    <TextBlock x:Name="TxtFooterDetails" Text="Safe Two-Pass Transaction with Duplicate Protection &amp; Ctrl+Z Undo support" Foreground="{StaticResource TextMuted}" FontSize="11" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                    <Button x:Name="BtnClose" Content="Close" Style="{StaticResource SecondaryButton}" Padding="16,8" Margin="0,0,8,0"/>
+                    <Button x:Name="BtnApplyToRevit" Content="⚡ Apply Changes to Revit" Style="{StaticResource PrimaryActionButton}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+    </Grid>
+</Window>

@@ -1,0 +1,17 @@
+title: "Pole Found.\nCoord"
+
+tooltip: |
+  🇬🇧 [EN] Calculate & assign Shared Coordinates (Center & 4 Corners) for Lighting & CCTV Pole Foundations.
+  • Select specific Foundation families from the project checklist.
+  • One-click update for selected poles, or batch update by view/project.
+  • Accurately handles Revit Length unit conversions (mm/m).
+  • Sets CNT_E/N_Coordinate and CNT_E/N_Coordinate 1..4 (Clockwise: 1=TL, 2=TR, 3=BR, 4=BL).
+
+  🇹🇭 [TH] คำนวณและลงค่าพิกัดจริง (Center และมุมทั้ง 4) ของฐานรากเสาไฟ และเสา CCTV
+  • มีหน้าต่างดึงรายชื่อ Family ฐานรากในโมเดลมาให้เลือกอย่างเจาะจง ไม่รันมั่ว
+  • เลือกทำเฉพาะต้นที่เลือก, คลิกเลือกบนหน้าจอ, หรือทำทั้ง View / ทั้งโปรเจกต์
+  • รองรับหน่วยมิลลิเมตร (mm) ใน Properties และหน่วยเมตร (m) ตาม Spot Coordinate
+  • จัดลำดับมุมตามเข็มนาฬิกา: 1=บนซ้าย, 2=บนขวา, 3=ล่างขวา, 4=ล่างซ้าย
+
+author: "OHM282"
+description: "Update Center and 4-Corner Coordinates for Lighting & CCTV Pole Foundations."

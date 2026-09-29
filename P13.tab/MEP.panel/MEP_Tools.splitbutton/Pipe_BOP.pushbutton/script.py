@@ -2,8 +2,8 @@
 """Calculate Pipe Start and End Bottom-of-Pipe (B.O.P.) elevations and set parameters for tagging."""
 
 __title__ = "Pipe BOP\nCalculator"
-__author__ = "เพิ่มพงษ์ ทวีกุล (P13)"
-__doc__ = "คำนวณระดับท้องท่อ (Bottom of Pipe - B.O.P.) ที่จุดเริ่มต้น (BOP_Start) และจุดสิ้นสุด (BOP_End) เพื่อบันทึกค่าลงใน Parameter สำหรับใช้งานคู่กับ Tag"
+__author__ = "Permpong Thaweekul (P13)"
+__doc__ = "Calculates upper and lower Bottom-of-Pipe (BOP) elevations and stores them in taggable parameters."
 
 import os
 import tempfile
@@ -15,10 +15,10 @@ doc = revit.doc
 app = doc.Application
 output = script.get_output()
 
-output.print_md("## **Pipe BOP & Slope Calculator (คำนวณระดับท้องท่อเพื่อการ Tag)**")
+output.print_md("## **Pipe BOP & Slope Calculator**")
 
 # =====================================================
-# ฟังก์ชันตรวจสอบและสร้าง Shared Parameter อัตโนมัติ (สไตล์เดียวกับ Windows Cal)
+# Shared-parameter setup
 # =====================================================
 def setup_parameter(doc, app, param_name, param_type, all_cat_names):
     existing_def = None
@@ -31,7 +31,7 @@ def setup_parameter(doc, app, param_name, param_type, all_cat_names):
             existing_binding = iterator.Current
             break
 
-    # ถ้ามี Parameter อยู่แล้ว เช็คและอัปเดต Categories ให้ครอบคลุม
+    # Update an existing binding with any missing categories.
     if existing_def and existing_binding:
         cat_set = existing_binding.Categories
         needs_update = False
@@ -57,7 +57,7 @@ def setup_parameter(doc, app, param_name, param_type, all_cat_names):
                 return "exists"
         return "exists"
 
-    # หากไม่มี ให้สร้าง Shared Parameter ขึ้นมาใหม่
+    # Create the shared parameter when it does not exist.
     sp_file = app.OpenSharedParameterFile()
     original_sp = app.SharedParametersFilename
 
@@ -129,22 +129,22 @@ def setup_parameter(doc, app, param_name, param_type, all_cat_names):
 
 
 # =====================================================
-# ตรวจสอบและเตรียมพารามิเตอร์เริ่มต้น
+# Validate and prepare required parameters
 # =====================================================
-output.print_md("### **1. ตรวจสอบ Parameter ในโปรเจกต์**")
+output.print_md("### **1. Checking project parameters**")
 cat_pipes = ["OST_PipeCurves"]
 
 status_start = setup_parameter(doc, app, "BOP_Start", "Length", cat_pipes)
 status_end   = setup_parameter(doc, app, "BOP_End",   "Length", cat_pipes)
 
 if status_start in ["created", "updated", "exists"] and status_end in ["created", "updated", "exists"]:
-    output.print_md("✅ **พารามิเตอร์ 'BOP_Start' และ 'BOP_End' (ชนิด LENGTH) พร้อมใช้งาน**")
+    output.print_md("✅ **'BOP_Start' and 'BOP_End' length parameters are ready.**")
 else:
-    output.print_md("⚠️ **เกิดข้อผิดพลาดในการตรวจสอบ/สร้างพารามิเตอร์ (BOP_Start: {}, BOP_End: {})**".format(status_start, status_end))
+    output.print_md("⚠️ **Unable to set up parameters (BOP_Start: {}, BOP_End: {}).**".format(status_start, status_end))
     script.exit()
 
 # =====================================================
-# ดึงข้อมูลท่อ (Pipes)
+# Collect pipes
 # =====================================================
 selection = revit.get_selection()
 pipes = [el for el in selection if isinstance(el, DB.Plumbing.Pipe)]
@@ -158,17 +158,17 @@ if not pipes:
               .ToElements()
 
 if not pipes:
-    output.print_md("❌ **ไม่พบท่อ (Pipe) ในกลุ่มที่เลือก หรือในมุมมองปัจจุบัน**")
+    output.print_md("❌ **No pipes were found in the selection or active view.**")
     script.exit()
 
 output.print_md("---")
 if is_selection_mode:
-    output.print_md("### **2. กำลังคำนวณระดับท้องท่อ (Selection Mode) จำนวน: {} รายการ**".format(len(pipes)))
+    output.print_md("### **2. Calculating BOP elevations (Selection Mode): {} pipe(s)**".format(len(pipes)))
 else:
-    output.print_md("### **2. กำลังคำนวณระดับท้องท่อในมุมมองปัจจุบัน (Active View Mode) จำนวน: {} รายการ**".format(len(pipes)))
+    output.print_md("### **2. Calculating BOP elevations (Active View Mode): {} pipe(s)**".format(len(pipes)))
 
 # =====================================================
-# ตรวจสอบ Worksets ในกรณี Worksharing
+# Check out worksets when the project uses worksharing
 # =====================================================
 if doc.IsWorkshared:
     try:
@@ -182,10 +182,10 @@ if doc.IsWorkshared:
                 ws_list.Add(w_id)
             DB.WorksharingUtils.CheckoutWorksets(doc, ws_list)
     except Exception as ex:
-        output.print_md("⚠️ **แจ้งเตือน: ไม่สามารถ Checkout Worksets บางรายการได้สำเร็จ (อาจเนื่องจากมีผู้อื่นถือครองอยู่): {}**".format(ex))
+        output.print_md("⚠️ **Some worksets could not be checked out: {}**".format(ex))
 
 # =====================================================
-# ฟังก์ชันอนุญาตให้มีค่าแตกต่างกันในแต่ละ Group Instance
+# Allow varying values between group instances
 # =====================================================
 def set_allow_vary_between_groups(doc, param_name):
     iterator = doc.ParameterBindings.ForwardIterator()
@@ -199,8 +199,19 @@ def set_allow_vary_between_groups(doc, param_name):
                 pass
             break
 
+
+def get_parameter_display_value(element, param_name):
+    """Return a safe display value for an optional parameter."""
+    param = element.LookupParameter(param_name)
+    if not param:
+        return "N/A"
+    try:
+        return param.AsString() or param.AsValueString() or "N/A"
+    except:
+        return "N/A"
+
 # =====================================================
-# คำนวณและเขียนระดับท้องท่อ
+# Calculate and write BOP elevations
 # =====================================================
 t = DB.Transaction(doc, "Calculate Pipe BOP Parameters")
 t.Start()
@@ -214,53 +225,44 @@ group_skipped_count = 0
 error_count = 0
 
 summary_data = []
+error_details = []
 
-with forms.ProgressBar(title='กำลังคำนวณระดับท้องท่อ... ({value} จาก {max_value})', cancellable=True) as pb:
+with forms.ProgressBar(title='Calculating BOP elevations... ({value} of {max_value})', cancellable=True) as pb:
     for index, pipe in enumerate(pipes):
         if pb.cancelled:
             break
         pb.update_progress(index + 1, len(pipes))
         
-        # 1. ข้ามท่อที่อยู่ใน Group เพื่อเลี่ยง Group Element Modification Error
+        # Skip grouped pipes because Revit blocks modifications to group members.
         if hasattr(pipe, 'GroupId') and pipe.GroupId != DB.ElementId.InvalidElementId:
             group_skipped_count += 1
             continue
             
         try:
-            # 2. ดึงเส้นโครงสร้างทางเรขาคณิต (Curve)
+            # Read the lower BOP directly from Revit's calculated parameter.
+            # It has the same elevation datum as the value in Properties.
+            lower_bop_param = pipe.get_Parameter(
+                DB.BuiltInParameter.RBS_PIPE_BOTTOM_ELEVATION)
+            if not lower_bop_param or not lower_bop_param.HasValue:
+                raise Exception("Lower End Bottom Elevation is unavailable.")
+
+            # The internal-origin coordinate is suitable only for the vertical
+            # difference between endpoints. Applying that difference to Revit's
+            # lower BOP retains the elevation datum used by the Properties palette.
             geom_curve = pipe.Location.Curve
             if not geom_curve:
-                error_count += 1
-                continue
-                
-            # 3. ดึงระดับความสูงกึ่งกลางท่อที่จุดปลาย (Centerline endpoints z0, z1 in feet)
-            p0 = geom_curve.GetEndPoint(0)
-            p1 = geom_curve.GetEndPoint(1)
+                raise Exception("Pipe location curve is unavailable.")
+
+            vertical_difference = abs(
+                geom_curve.GetEndPoint(0).Z - geom_curve.GetEndPoint(1).Z)
+            bop_low = lower_bop_param.AsDouble()
+            bop_high = bop_low + vertical_difference
             
-            z0 = p0.Z
-            z1 = p1.Z
-            
-            # 4. ดึงขนาดเส้นผ่านศูนย์กลางภายนอก (Outside Diameter)
-            od_param = pipe.get_Parameter(DB.BuiltInParameter.RBS_PIPE_OUTER_DIAMETER)
-            if od_param and od_param.HasValue:
-                od = od_param.AsDouble()
-            else:
-                # กรณีฉุกเฉินให้ดึง Nominal Diameter แทน
-                dia_param = pipe.get_Parameter(DB.BuiltInParameter.RBS_PIPE_DIAMETER_PARAM)
-                od = dia_param.AsDouble() if dia_param else 0.0
-                
-            # 5. คำนวณหาจุดสูงสุดและต่ำสุดของท้องท่อ (B.O.P. = Centerline - Outside Diameter/2)
-            z_high = max(z0, z1)
-            z_low = min(z0, z1)
-            
-            bop_high = z_high - (od / 2.0)
-            bop_low = z_low - (od / 2.0)
-            
-            # 6. ดึงข้อมูลความลาดชัน (Slope)
+            # Read slope information.
             slope_param = pipe.get_Parameter(DB.BuiltInParameter.RBS_PIPE_SLOPE)
             slope_val = slope_param.AsDouble() if slope_param else 0.0
             
-            # 7. เขียนระดับลงในพารามิเตอร์ BOP_Start (ด้านสูง) และ BOP_End (ด้านต่ำ)
+            # Write BOP_Start for the upper end and BOP_End for the lower end.
             p_start = pipe.LookupParameter("BOP_Start")
             p_end = pipe.LookupParameter("BOP_End")
             
@@ -270,15 +272,15 @@ with forms.ProgressBar(title='กำลังคำนวณระดับท�
                     p_end.Set(bop_low)
                     success_count += 1
                     
-                    # บันทึกข้อมูลเพื่อรายงานผล
-                    size_name = pipe.LookupParameter("Size").AsString() or "N/A"
-                    sys_abbr = pipe.LookupParameter("System Abbreviation").AsString() or "N/A"
+                    # Record result data for the report.
+                    size_name = get_parameter_display_value(pipe, "Size")
+                    sys_abbr = get_parameter_display_value(pipe, "System Abbreviation")
                     
                     bop_high_m = bop_high * 0.3048
                     bop_low_m = bop_low * 0.3048
                     slope_percent = slope_val * 100.0
                     
-                    # แปลง Slope เป็นอัตราส่วน (เช่น 1:100)
+                    # Convert slope to a ratio, for example 1:100.
                     if slope_val > 0.0001:
                         slope_ratio = "1:{:.0f}".format(1.0 / slope_val)
                     else:
@@ -295,27 +297,34 @@ with forms.ProgressBar(title='กำลังคำนวณระดับท�
                     read_only_count += 1
             else:
                 error_count += 1
+                if len(error_details) < 10:
+                    error_details.append(
+                        "Pipe {}: BOP_Start or BOP_End is unavailable.".format(pipe.Id))
                 
         except Exception as ex:
             error_count += 1
+            if len(error_details) < 10:
+                error_details.append("Pipe {}: {}".format(pipe.Id, ex))
 
 t.Commit()
 
 # =====================================================
-# รายงานผลลัพธ์
+# Report results
 # =====================================================
-output.print_md("### **สรุปผลการทำงาน**")
-output.print_md("- อัปเดตข้อมูลระดับท้องท่อสำเร็จ: **{}** รายการ".format(success_count))
+output.print_md("### **Results**")
+output.print_md("- Updated pipe(s): **{}**".format(success_count))
 if group_skipped_count > 0:
-    output.print_md("- ข้ามท่อที่อยู่ใน Group (ระบบไม่อนุญาตให้แก้ไข): **{}** รายการ".format(group_skipped_count))
+    output.print_md("- Skipped grouped pipe(s): **{}**".format(group_skipped_count))
 if read_only_count > 0:
-    output.print_md("- ⚠️ พารามิเตอร์เป็น Read-Only: **{}** รายการ".format(read_only_count))
+    output.print_md("- ⚠️ Read-only parameter(s): **{}**".format(read_only_count))
 if error_count > 0:
-    output.print_md("- ❌ เกิดข้อผิดพลาดทางเทคนิค: **{}** รายการ".format(error_count))
+    output.print_md("- ❌ Technical errors: **{}**".format(error_count))
+    for error_detail in error_details:
+        output.print_md("  - {}".format(error_detail))
 
 if success_count > 0:
     output.print_md("---")
-    output.print_md("### **ตารางตัวอย่างข้อมูลที่อัปเดต (สูงสุด 10 รายการแรก)**")
+    output.print_md("### **Updated data sample (first 10 pipes)**")
     output.print_md("| Pipe ID | Size & System | Slope | BOP_Start (BOP High) | BOP_End (BOP Low) |")
     output.print_md("| --- | --- | --- | --- | --- |")
     for row in summary_data[:10]:
@@ -323,4 +332,4 @@ if success_count > 0:
             row["id"], row["name"], row["slope"], row["b_start"], row["bop_cal"]
         ))
     output.print_md("---")
-    output.print_md("**คำแนะนำ:** คุณสามารถนำพารามิเตอร์ `BOP_Start` และ `BOP_End` ไปจัดวางเป็นป้าย Tag ท่อในหน้า Drawing ของท่านได้ทันที")
+    output.print_md("Use the `BOP_Start` and `BOP_End` parameters in pipe tags and schedules.")

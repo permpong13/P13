@@ -54,13 +54,14 @@ BORDER_LINE = hex_brush("#cbd5e1")  # Light gray border
 
 # --- DATA CLASS ---
 class ExportItem(object):
-    def __init__(self, obj):
+    def __init__(self, obj, browser_org=None):
         self.Include = False
         self.item_obj = obj
         self.Id = obj.Id
         self.Number = obj.SheetNumber or ""
         self.Name = obj.Name or ""
         self.Revision = self._get_rev()
+        self.ViewGroup, self.SubGroup = self._get_groups(browser_org)
         self.PreviewName = "" 
 
     def _get_rev(self):
@@ -70,10 +71,90 @@ class ExportItem(object):
             return val if val else ""
         except: return ""
 
+    def _get_sheet_collection(self):
+        try:
+            # 1. Native Revit 2025/2026 SheetCollectionId property
+            if hasattr(self.item_obj, 'SheetCollectionId'):
+                col_id = self.item_obj.SheetCollectionId
+                if col_id and col_id != DB.ElementId.InvalidElementId:
+                    elem = doc.GetElement(col_id)
+                    if elem and elem.Name:
+                        return elem.Name.strip()
+
+            # 2. LookupParameter "Sheet Collection"
+            p = self.item_obj.LookupParameter("Sheet Collection")
+            if p:
+                eid = p.AsElementId()
+                if eid and eid != DB.ElementId.InvalidElementId:
+                    elem = doc.GetElement(eid)
+                    if elem and elem.Name:
+                        return elem.Name.strip()
+                val = p.AsValueString() or p.AsString()
+                if val and val.strip() and val.strip() != "<None>":
+                    return val.strip()
+
+            # 3. BuiltInParameter SHEET_COLLECTION
+            try:
+                p_bip = self.item_obj.get_Parameter(DB.BuiltInParameter.SHEET_COLLECTION)
+                if p_bip:
+                    eid = p_bip.AsElementId()
+                    if eid and eid != DB.ElementId.InvalidElementId:
+                        elem = doc.GetElement(eid)
+                        if elem and elem.Name:
+                            return elem.Name.strip()
+                    val = p_bip.AsValueString() or p_bip.AsString()
+                    if val and val.strip() and val.strip() != "<None>":
+                        return val.strip()
+            except:
+                pass
+        except:
+            pass
+        return ""
+
+    def _get_folder(self, browser_org):
+        try:
+            if browser_org and hasattr(browser_org, 'GetFolderItems'):
+                items = browser_org.GetFolderItems(self.Id)
+                if items and items.Count > 0:
+                    name = items[0].Name
+                    if name and name.strip():
+                        return name.strip()
+        except:
+            pass
+        for p_name in ["View Group", "View_Group", "SubGroup", "Sub Group", "Discipline"]:
+            p = self.item_obj.LookupParameter(p_name)
+            if p and p.HasValue:
+                v = p.AsString() or p.AsValueString()
+                if v and v.strip():
+                    return v.strip()
+        return ""
+
+    def _get_groups(self, browser_org):
+        col = self._get_sheet_collection()
+        folder = self._get_folder(browser_org)
+        
+        if col:
+            g1 = col
+            g2 = folder
+        else:
+            g1 = "???"
+            g2 = folder
+            
+        return g1 or "???", g2
+
     def get_param_val(self, p_name):
-        mapping = {"SheetNumber": DB.BuiltInParameter.SHEET_NUMBER, "SheetName": DB.BuiltInParameter.SHEET_NAME, "Current Revision": DB.BuiltInParameter.SHEET_CURRENT_REVISION}
-        p = self.item_obj.get_Parameter(mapping[p_name]) if p_name in mapping else self.item_obj.LookupParameter(p_name.strip("{} "))
-        if not p: p = doc.ProjectInformation.LookupParameter(p_name.strip("{} "))
+        mapping = {
+            "SheetNumber": DB.BuiltInParameter.SHEET_NUMBER,
+            "SheetName": DB.BuiltInParameter.SHEET_NAME,
+            "Current Revision": DB.BuiltInParameter.SHEET_CURRENT_REVISION
+        }
+        clean_name = p_name.strip("{} ")
+        if clean_name in ["ViewGroup", "Group", "SheetCollection", "Sheet Collection", "Collection"]:
+            return self.ViewGroup
+        if clean_name in ["SubGroup", "Sub", "Folder"]:
+            return self.SubGroup
+        p = self.item_obj.get_Parameter(mapping[clean_name]) if clean_name in mapping else self.item_obj.LookupParameter(clean_name)
+        if not p: p = doc.ProjectInformation.LookupParameter(clean_name)
         return p.AsValueString() or p.AsString() or "" if p else ""
 
 # --- MAIN APP ---
@@ -269,9 +350,17 @@ class SuperSheetsUltimate(Window):
 
         # -- Filter Bar --
         sp_filter = StackPanel(Orientation=Orientation.Horizontal, Margin=Thickness(0,5,0,10))
-        self.cboSets = ComboBox(Width=180, Height=30); self.cboSets.SelectionChanged += self._on_set_select
-        sp_filter.Children.Add(self.cboSets)
-        self.txtSearch = TextBox(Width=180, Height=30, Margin=Thickness(10,0,0,0), VerticalContentAlignment=VerticalAlignment.Center); self.txtSearch.TextChanged += self._filter_grid
+        
+        self.cboViewGroup = ComboBox(Width=130, Height=30, VerticalContentAlignment=VerticalAlignment.Center)
+        self.cboViewGroup.SelectionChanged += self._on_view_group_select
+        sp_filter.Children.Add(self.cboViewGroup)
+
+        self.cboSubGroup = ComboBox(Width=130, Height=30, Margin=Thickness(8,0,0,0), VerticalContentAlignment=VerticalAlignment.Center)
+        self.cboSubGroup.SelectionChanged += self._filter_grid
+        sp_filter.Children.Add(self.cboSubGroup)
+        
+        self.txtSearch = TextBox(Width=150, Height=30, Margin=Thickness(8,0,0,0), VerticalContentAlignment=VerticalAlignment.Center, ToolTip="Search by number, name, group or sub-group")
+        self.txtSearch.TextChanged += self._filter_grid
         sp_filter.Children.Add(self.txtSearch)
         
         btn_all = Button(Content="Check All", Height=30, Margin=Thickness(20,0,0,0), Background=hex_brush("#f1f5f9"), Padding=Thickness(10,0,10,0)); btn_all.Click += lambda s,e: self._set_all(True)
@@ -318,13 +407,16 @@ class SuperSheetsUltimate(Window):
         col_chk = DataGridTemplateColumn()
         col_chk.Header = "X"
         col_chk.CellTemplate = dt
+        col_chk.Width = DataGridLength(35)
         self.dg.Columns.Add(col_chk)
         
         self.dg.PreviewKeyDown += self._on_dg_keydown # รองรับการกดสเปซบาร์
         
-        self.dg.Columns.Add(DataGridTextColumn(Header="Number", Binding=Binding("Number"), IsReadOnly=True))
+        self.dg.Columns.Add(DataGridTextColumn(Header="Group", Binding=Binding("ViewGroup"), Width=DataGridLength(90), IsReadOnly=True))
+        self.dg.Columns.Add(DataGridTextColumn(Header="Sub", Binding=Binding("SubGroup"), Width=DataGridLength(90), IsReadOnly=True))
+        self.dg.Columns.Add(DataGridTextColumn(Header="Number", Binding=Binding("Number"), Width=DataGridLength(180), IsReadOnly=True))
         self.dg.Columns.Add(DataGridTextColumn(Header="Sheet Name", Binding=Binding("Name"), Width=DataGridLength(1, DataGridLengthUnitType.Star), IsReadOnly=True))
-        self.dg.Columns.Add(DataGridTextColumn(Header="Revision", Binding=Binding("Revision"), Width=DataGridLength(100), IsReadOnly=True))
+        self.dg.Columns.Add(DataGridTextColumn(Header="Revision", Binding=Binding("Revision"), Width=DataGridLength(80), IsReadOnly=True))
         
         preview_col = DataGridTextColumn(Header="Preview Filename", Binding=Binding("PreviewName"), IsReadOnly=True, Width=DataGridLength(350))
         self.dg.Columns.Add(preview_col)
@@ -340,10 +432,10 @@ class SuperSheetsUltimate(Window):
     # --- LOGIC ---
     def _initial_load(self, s, e):
         self._refresh_data()
+        self._load_view_groups()
         self._load_profiles_from_disk()
         self._load_project_params_list()
         self._load_all_params()
-        self._load_print_sets()
         self._load_last_settings() 
         self._update_all_previews()
         
@@ -677,9 +769,37 @@ class SuperSheetsUltimate(Window):
 
     def _refresh_data(self):
         sheets = DB.FilteredElementCollector(doc).OfClass(DB.ViewSheet).ToElements()
-        self._all_items = [ExportItem(s) for s in sheets if not s.IsPlaceholder]
-        self._all_items.sort(key=lambda x: x.Number)
+        browser_org = None
+        try:
+            browser_org = DB.BrowserOrganization.GetCurrentBrowserOrganizationForSheets(doc)
+        except:
+            pass
+        self._all_items = [ExportItem(s, browser_org) for s in sheets if not s.IsPlaceholder]
+        self._all_items.sort(key=lambda x: (x.ViewGroup, x.SubGroup, x.Number))
         self.dg.ItemsSource = ObservableCollection[ExportItem](self._all_items)
+
+    def _load_view_groups(self):
+        if not hasattr(self, 'cboViewGroup'): return
+        self._ignore_events = True
+        self.cboViewGroup.Items.Clear()
+        self.cboViewGroup.Items.Add("- All Groups -")
+        groups = sorted(list(set(i.ViewGroup for i in self._all_items if i.ViewGroup)))
+        for g in groups:
+            self.cboViewGroup.Items.Add(g)
+        self.cboViewGroup.SelectedIndex = 0
+        
+        if hasattr(self, 'cboSubGroup'):
+            self.cboSubGroup.Items.Clear()
+            self.cboSubGroup.Items.Add("- All Subs -")
+            subs = sorted(list(set(i.SubGroup for i in self._all_items if i.SubGroup)))
+            for s in subs:
+                self.cboSubGroup.Items.Add(s)
+            self.cboSubGroup.SelectedIndex = 0
+            
+        self._ignore_events = False
+
+    def _on_view_group_select(self, s, e):
+        self._filter_grid(None, None)
 
     def _load_profiles_from_disk(self):
         if os.path.exists(CONFIG_FILE):
@@ -688,7 +808,7 @@ class SuperSheetsUltimate(Window):
             for k in sorted(self._profiles.keys()): self.cboProfile.Items.Add(k)
 
     def _load_project_params_list(self):
-        for p in ["SheetNumber", "SheetName", "Current Revision", "Drawn By", "Checked By", "Approved By"]: self.lstP.Items.Add(p)
+        for p in ["SheetCollection", "ViewGroup", "SubGroup", "SheetNumber", "SheetName", "Current Revision", "Drawn By", "Checked By", "Approved By"]: self.lstP.Items.Add(p)
 
     def _update_all_previews(self):
         if self._ignore_events: return
@@ -696,6 +816,7 @@ class SuperSheetsUltimate(Window):
         for item in self._all_items:
             fn = pre + pat + suf
             fn = fn.replace("{SheetNumber}", item.Number).replace("{SheetName}", item.Name).replace("{Current Revision}", item.Revision)
+            fn = fn.replace("{ViewGroup}", item.ViewGroup).replace("{SubGroup}", item.SubGroup)
             if "{" in fn:
                 for p_name in [x.strip("{}") for x in re.findall(r'\{.*?\}', fn)]:
                     val = item.get_param_val(p_name)
@@ -730,19 +851,38 @@ class SuperSheetsUltimate(Window):
 
     def _filter_grid(self, s, e):
         if self._ignore_events: return
-        t = self.txtSearch.Text.lower()
+        t = self.txtSearch.Text.lower().strip()
         active_filters = [chk.Content.lower() for chk in self._filter_checkboxes if chk.IsChecked]
+        
+        sel_group = None
+        if hasattr(self, 'cboViewGroup') and self.cboViewGroup.SelectedItem:
+            g_str = str(self.cboViewGroup.SelectedItem)
+            if g_str != "- All Groups -":
+                sel_group = g_str
+                
+        sel_sub = None
+        if hasattr(self, 'cboSubGroup') and self.cboSubGroup.SelectedItem:
+            s_str = str(self.cboSubGroup.SelectedItem)
+            if s_str != "- All Subs -":
+                sel_sub = s_str
         
         filtered = []
         for i in self._all_items:
+            if sel_group and i.ViewGroup != sel_group:
+                continue
+            if sel_sub and i.SubGroup != sel_sub:
+                continue
+                
             num = i.Number.lower()
             name = i.Name.lower()
+            vg = i.ViewGroup.lower()
+            sg = i.SubGroup.lower()
             
-            match_search = not t or t in num or t in name
+            match_search = not t or (t in num or t in name or t in vg or t in sg)
             
             match_buttons = True
             for f in active_filters:
-                if f not in num and f not in name:
+                if f not in num and f not in name and f not in vg and f not in sg:
                     match_buttons = False
                     break
                     
@@ -787,19 +927,7 @@ class SuperSheetsUltimate(Window):
             self._filter_checkboxes.remove(chk)
         self._filter_grid(None, None)
 
-    def _load_print_sets(self):
-        self.cboSets.Items.Add("- Sheet Set -")
-        for s in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheetSet): self.cboSets.Items.Add(s.Name)
-        self.cboSets.SelectedIndex = 0
 
-    def _on_set_select(self, s, e):
-        n = self.cboSets.SelectedItem
-        if n and n != "- Sheet Set -":
-            vset = next((x for x in DB.FilteredElementCollector(doc).OfClass(DB.ViewSheetSet) if x.Name == n), None)
-            if vset:
-                ids = [v.Id for v in vset.Views]
-                for i in self._all_items: i.Include = i.Id in ids
-                self.dg.Items.Refresh()
 
     def _add_param(self, s, e):
         if self.lstP.SelectedItem:
@@ -814,7 +942,7 @@ class SuperSheetsUltimate(Window):
             if t in p.lower(): self.lstP.Items.Add(p)
 
     def _load_all_params(self):
-        p_names = set()
+        p_names = set(["SheetCollection", "ViewGroup", "SubGroup"])
         if self._all_items:
             for p in self._all_items[0].item_obj.Parameters:
                 if p.Definition: p_names.add(p.Definition.Name)
@@ -830,164 +958,23 @@ class SuperSheetsUltimate(Window):
     def _sanitize(self, name):
         return re.sub(r'[\\/*?:"<>|]', "_", name).strip()
 
-    # Keep the original filename so Revit can overwrite it when it is not locked.
+    # --- ฟังก์ชันนี้ถูกปรับเปลี่ยนให้ใช้ชื่อไฟล์เดิมเพื่อทำการเขียนทับแทนการเพิ่ม _01, _02 ---
     def _get_safe_filename(self, folder, base_name, ext):
         max_len = 250 - len(folder) - len(ext)
-        if max_len <= 0:
-            return base_name
-
+        if max_len <= 0: return base_name 
+        
         if len(base_name) > max_len:
             base_name = base_name[:max_len].strip()
-
+            
         return base_name
 
     def _create_excel(self, items, folder):
         try:
             csv_p = os.path.join(folder, "Transmittal_{}.csv".format(datetime.datetime.now().strftime("%Y%m%d")))
             with open(csv_p, 'w') as f:
-                f.write("Number,Name,Revision,Date\n")
-                for i in items: f.write("{},{},{},{}\n".format(i.Number, i.Name, i.Revision, datetime.datetime.now().date()))
+                f.write("Group,Sub,Number,Name,Revision,Date\n")
+                for i in items: f.write("{},{},{},{},{},{}\n".format(i.ViewGroup, i.SubGroup, i.Number, i.Name, i.Revision, datetime.datetime.now().date()))
         except: pass
-
-    def _is_bw_export(self):
-        """Return True when the export color selector is set to B&W."""
-        try:
-            selected = self.cboColor.SelectedItem
-            if selected is not None:
-                selected_text = str(selected).strip().lower()
-                if selected_text in ("b&w", "b & w", "black and white"):
-                    return True
-            return self.cboColor.SelectedIndex == 1
-        except:
-            return False
-
-    def _configure_dwg_color(self, opt_dwg, use_view_overrides=False):
-        """Apply the SuperSheet color choice to DWG export options.
-
-        Revit's DWG API does not expose a BlackAndWhite enum. ACI color 7 is
-        the standard black/white CAD color. When temporary view overrides are
-        active, preserve those overrides so the DWG exporter receives black
-        RGB values from the view.
-        """
-        if not self._is_bw_export():
-            return
-
-        if use_view_overrides:
-            opt_dwg.Colors = DB.ExportColorMode.TrueColorPerView
-            opt_dwg.PropOverrides = DB.PropOverrideMode.ByEntity
-        else:
-            opt_dwg.Colors = DB.ExportColorMode.IndexColors
-            opt_dwg.PropOverrides = DB.PropOverrideMode.ByLayer
-
-        layer_table = opt_dwg.GetExportLayerTable()
-        for layer_key in layer_table.GetKeys():
-            layer_info = layer_table.GetExportLayerInfo(layer_key)
-            layer_info.ColorNumber = 7
-            layer_info.CutColorNumber = 7
-            layer_table[layer_key] = layer_info
-        opt_dwg.SetExportLayerTable(layer_table)
-
-    def _create_bw_graphic_overrides(self):
-        """Create black graphic overrides for visible line and pattern colors."""
-        black = DB.Color(0, 0, 0)
-        overrides = DB.OverrideGraphicSettings()
-        for setter_name in [
-            "SetProjectionLineColor",
-            "SetCutLineColor",
-            "SetSurfaceForegroundPatternColor",
-            "SetSurfaceBackgroundPatternColor",
-            "SetCutForegroundPatternColor",
-            "SetCutBackgroundPatternColor"
-        ]:
-            try:
-                getattr(overrides, setter_name)(black)
-            except:
-                pass
-        try:
-            overrides.SetSurfaceTransparency(0)
-        except:
-            pass
-        try:
-            overrides.SetHalftone(False)
-        except:
-            pass
-        return overrides
-
-    def _apply_bw_overrides_to_sheet(self, sheet_id):
-        """Temporarily override visible elements in a sheet and its placed views."""
-        sheet = doc.GetElement(sheet_id)
-        if not sheet:
-            return 0
-
-        view_ids = [sheet.Id]
-        try:
-            for viewport in DB.FilteredElementCollector(doc, sheet.Id).OfClass(DB.Viewport):
-                if viewport.ViewId not in view_ids:
-                    view_ids.append(viewport.ViewId)
-        except:
-            pass
-
-        overrides = self._create_bw_graphic_overrides()
-        changed = 0
-        for view_id in view_ids:
-            try:
-                view = doc.GetElement(view_id)
-                if not view or not view.AreGraphicsOverridesAllowed():
-                    continue
-
-                element_ids = DB.FilteredElementCollector(doc, view_id) \
-                    .WhereElementIsNotElementType().ToElementIds()
-                for element_id in element_ids:
-                    try:
-                        view.SetElementOverrides(element_id, overrides)
-                        changed += 1
-                    except:
-                        pass
-            except:
-                pass
-        return changed
-
-    def _export_dwg(self, folder, filename, sheet_id):
-        """Export one DWG, using temporary black view overrides when B&W is selected."""
-        export_group = None
-        transaction = None
-        use_view_overrides = False
-        try:
-            if self._is_bw_export():
-                try:
-                    export_group = DB.TransactionGroup(doc, "Temporary B&W DWG Export")
-                    export_group.Start()
-
-                    transaction = DB.Transaction(doc, "Apply Temporary B&W DWG Overrides")
-                    transaction.Start()
-                    changed = self._apply_bw_overrides_to_sheet(sheet_id)
-                    transaction.Commit()
-                    use_view_overrides = changed > 0
-                    print("DWG B&W temporary overrides applied to {} visible elements.".format(changed))
-                except:
-                    use_view_overrides = False
-                    try:
-                        if transaction:
-                            transaction.RollBack()
-                    except:
-                        pass
-                    try:
-                        if export_group:
-                            export_group.RollBack()
-                    except:
-                        pass
-                    export_group = None
-
-            opt_dwg = DB.DWGExportOptions()
-            opt_dwg.MergedViews = True
-            self._configure_dwg_color(opt_dwg, use_view_overrides)
-            return doc.Export(folder, filename, List[DB.ElementId]([sheet_id]), opt_dwg)
-        finally:
-            try:
-                if export_group:
-                    export_group.RollBack()
-            except:
-                pass
 
     def _apply_pdf_options(self, opt):
         try:
@@ -1123,10 +1110,23 @@ class SuperSheetsUltimate(Window):
                     
                     if not fn.strip():
                         fn = "Sheet_" + (item.Number if item.Number else str(item.Id))
+                        
+                    # Separate exports into project subfolders if AutoFolder is checked
+                    vg_safe = self._sanitize(item.ViewGroup)
+                    item_pdf_path = os.path.join(pdf_path, vg_safe) if self.chkAutoFolder.IsChecked else pdf_path
+                    item_dwg_path = os.path.join(dwg_path, vg_safe) if self.chkAutoFolder.IsChecked else dwg_path
+                    item_ifc_path = os.path.join(folder, "IFC", vg_safe) if self.chkAutoFolder.IsChecked else folder
+                    item_nwc_path = os.path.join(folder, "NWC", vg_safe) if self.chkAutoFolder.IsChecked else folder
+                    
+                    if self.chkAutoFolder.IsChecked:
+                        for d_path in [item_pdf_path, item_dwg_path, item_ifc_path, item_nwc_path]:
+                            if not os.path.exists(d_path):
+                                try: os.makedirs(d_path)
+                                except: pass
 
                     if self.chkPDF.IsChecked and not self.chkCombine.IsChecked:
                         try:
-                            safe_pdf_fn = self._get_safe_filename(pdf_path, fn, ".pdf")
+                            safe_pdf_fn = self._get_safe_filename(item_pdf_path, fn, ".pdf")
                             
                             opt = DB.PDFExportOptions()
                             opt.FileName = safe_pdf_fn
@@ -1136,7 +1136,7 @@ class SuperSheetsUltimate(Window):
                             opt.ZoomPercentage = 100
                             
                             self._apply_pdf_options(opt)
-                            doc.Export(pdf_path, List[DB.ElementId]([item.Id]), opt)
+                            doc.Export(item_pdf_path, List[DB.ElementId]([item.Id]), opt)
                         except Exception as ex:
                             print("PDF Error {}: {}".format(fn, ex))
                         c += 1
@@ -1145,8 +1145,11 @@ class SuperSheetsUltimate(Window):
                     if self.chkDWG.IsChecked:
                         try:
                             clean_fn = fn.replace(".dwg", "")
-                            safe_dwg_fn = self._get_safe_filename(dwg_path, clean_fn, ".dwg")
-                            self._export_dwg(dwg_path, safe_dwg_fn, item.Id)
+                            safe_dwg_fn = self._get_safe_filename(item_dwg_path, clean_fn, ".dwg")
+                            
+                            opt_dwg = DB.DWGExportOptions()
+                            opt_dwg.MergedViews = True 
+                            doc.Export(item_dwg_path, safe_dwg_fn, List[DB.ElementId]([item.Id]), opt_dwg)
                         except Exception as ex: 
                             print("DWG Error {}: {}".format(fn, ex))
                         c += 1
@@ -1156,8 +1159,8 @@ class SuperSheetsUltimate(Window):
                         t = DB.Transaction(doc, "Export IFC Temp")
                         t.Start()
                         try: 
-                            safe_ifc_fn = self._get_safe_filename(folder, fn, ".ifc")
-                            doc.Export(folder, safe_ifc_fn, DB.IFCExportOptions())
+                            safe_ifc_fn = self._get_safe_filename(item_ifc_path, fn, ".ifc")
+                            doc.Export(item_ifc_path, safe_ifc_fn, DB.IFCExportOptions())
                         except Exception as ex:
                             print("IFC Error {}: {}".format(fn, ex))
                         finally:
@@ -1169,8 +1172,8 @@ class SuperSheetsUltimate(Window):
                         t = DB.Transaction(doc, "Export NWC Temp")
                         t.Start()
                         try: 
-                            safe_nwc_fn = self._get_safe_filename(folder, fn, ".nwc")
-                            doc.Export(folder, safe_nwc_fn, DB.NavisworksExportOptions())
+                            safe_nwc_fn = self._get_safe_filename(item_nwc_path, fn, ".nwc")
+                            doc.Export(item_nwc_path, safe_nwc_fn, DB.NavisworksExportOptions())
                         except Exception as ex:
                             print("NWC Error {}: {}".format(fn, ex))
                         finally:

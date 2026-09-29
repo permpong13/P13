@@ -1,19 +1,21 @@
 title: "Base_Level\nParameter"
 
 tooltip: |
-  🇬🇧 [EN] "Base_Level Parameter" is a pyRevit command to automatically set the 'Base_Level' parameter for elements using the elevation value of their host Level.
+  🇬🇧 [EN] "Base_Level Parameter" is a pyRevit command to automatically set the 'Base_Level', 'CNT_Base Level', or custom parameter for elements using the elevation value of their host Level.
   Key Features:
-  • Detects the host Level of each element.
-  • Reads Elevation value (converts to meters if needed).
-  • Automatically populates the 'Base_Level' parameter.
-  • Supports multiple categories simultaneously.
+  • Allows selecting target parameter ('Base_Level', 'CNT_Base Level', or custom).
+  • Supports running on selected elements or entire model.
+  • Detects the host Level of each element (Structural, Architectural, MEP).
+  • Reads Elevation value and formats accurately (Length, Number, or Text in meters).
+  • Safely preserves all existing parameters and data.
   
-  🇹🇭 [TH] “Base_Level Parameter” คือคำสั่ง pyRevit สำหรับตั้งค่า Parameter ชื่อ ‘Base_Level’ ขององค์ประกอบทั้งหมด โดยใช้ค่า Elevation ของ Level ที่องค์ประกอบนั้นวางอยู่เป็นตัวอ้างอิง
+  🇹🇭 [TH] “Base_Level Parameter” คือคำสั่ง pyRevit สำหรับตั้งค่าระดับความสูง Level ลงใน Parameter ปลายทาง (เช่น ‘Base_Level’, ‘CNT_Base Level’ หรือระบุเอง)
   ฟังก์ชันหลัก:
-  • ตรวจจับ Level ขององค์ประกอบแต่ละตัว
-  • อ่านค่า Elevation ของ Level (ฟุต → เมตร ถ้าต้องการ)
-  • ตั้งค่าลงใน Parameter ‘Base_Level’ อัตโนมัติ
-  • รองรับหลาย Category พร้อมกัน
+  • เลือกระบุ Parameter ปลายทางได้ตามต้องการ
+  • เลือกประมวลผลเฉพาะชิ้นที่เลือก หรือทั้งโปรเจคได้
+  • ตรวจจับ Level ได้แม่นยำ ครอบคลุมทั้งงานโครงสร้าง สถาปัตย์ และระบบ MEP
+  • รองรับ Data Type ทั้ง Length, Number และ Text (ทศนิยม 3 ตำแหน่ง)
+  • ปลอดภัย ไม่ลบพารามิเตอร์หรือข้อมูลเดิมในโมเดล
 
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
-description: "Set the ‘Base_Level’ parameter based on host Level elevation. / ตั้งค่าพารามิเตอร์ Base_Level ตามความสูงของ Level อัตโนมัติ"
+description: "Set Level elevation into Base_Level / CNT_Base Level parameter. / ตั้งค่าระดับความสูง Level ลงในพารามิเตอร์อัตโนมัติ"

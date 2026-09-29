@@ -1,0 +1,27 @@
+title: "Sheet Turbo\nRenamer"
+
+tooltip: |
+  🇹🇭 [TH] เครื่องมือเปลี่ยน Sheet Number และ Sheet Name แบบกลุ่ม (Batch Rename) สไตล์ File Renamer Turbo
+  ช่วยให้เปลี่ยนหมายเลขและชื่อแบบได้รวดเร็วในหน้าต่างเดียว ไม่ต้องคลิกเปลี่ยนทีละแผ่น และไม่ต้องเสียเวลา Export ไปแก้ใน Excel แล้ว Import กลับเข้ามา
+
+  ฟังก์ชันเด่น:
+  • ค้นหาและแทนที่ (Search & Replace): รองรับข้อความธรรมดา, ตัวพิมพ์เล็ก-ใหญ่ (Case-sensitive), ตรงทั้งคำ (Whole Word) และ Regex
+  • แทรกข้อความ (Insert / Prefix / Suffix): แทรกข้อความข้างหน้า (Prefix), ข้างหลัง (Suffix) หรือแทรกตามตำแหน่งตัวอักษรที่ต้องการ
+  • ลบและตัดคำ (Remove & Trim): ตัดตัวอักษร N ตัวแรก/ท้าย, ตัดช่วงตำแหน่ง, ลบคำเฉพาะ และตัดช่องว่างส่วนเกิน
+  • รันเลขลำดับอัตโนมัติ (Auto-Numbering / Counter): กำหนดเลขเริ่มต้น, Step, Zero-padding (เช่น 01, 001), คำนำหน้า/ต่อท้าย
+  • เปลี่ยนรูปแบบตัวพิมพ์ (Change Case): UPPERCASE, lowercase, Title Case, Sentence case
+  • แก้ไขในตารางได้ทันที (Excel-like Grid Edit): สามารถดับเบิลคลิกแก้ไข New Number หรือ New Name ได้โดยตรง
+  • ระบบป้องกันเลขซ้ำและ Two-Pass Transaction: ตรวจสอบความถูกต้องแบบ Real-time และเปลี่ยนเลขแบบปลอดภัย 100% รองรับ Undo (Ctrl+Z)
+
+  🇬🇧 [EN] Turbo batch renaming for Revit Sheet Numbers and Sheet Names inspired by File Renamer Turbo.
+  Key Features:
+  • Search & Replace (Exact, Case sensitive, Whole word, Regex)
+  • Insert Prefix, Suffix, or at specific character position
+  • Remove first/last N characters, character range, or specific text
+  • Auto-numbering / Sequence with custom padding (e.g., 01, 001)
+  • Change letter casing (UPPERCASE, lowercase, Title Case, Sentence case)
+  • Inline table editing without Excel round-tripping
+  • Safe two-pass transaction preventing sheet number duplicate collisions, with full Undo support
+
+author: "OHM282"
+description: "Batch rename Sheet Numbers and Sheet Names inspired by File Renamer Turbo. / เครื่องมือเปลี่ยน Sheet Number และ Sheet Name สไตล์ File Renamer Turbo"

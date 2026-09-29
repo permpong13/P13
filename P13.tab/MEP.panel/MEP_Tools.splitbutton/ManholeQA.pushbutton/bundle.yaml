@@ -10,7 +10,7 @@ tooltip: |
   - Provides modeless review UI with search, select, focus, isolate, commit, and export.
   - Runs fully from script.py without Dynamo graph dependencies.
 
-author: "OHM"
+author: "OHM282"
 description: "Scan, review, and sync manhole conduit connections via a modeless QA UI."
 
 engine:

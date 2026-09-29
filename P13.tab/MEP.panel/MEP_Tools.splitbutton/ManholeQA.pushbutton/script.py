@@ -104,6 +104,12 @@ XAML = r"""
 
     <DockPanel Margin="16">
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,12" Height="36">
+            <TextBlock Text="Scope" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#666"/>
+            <ComboBox x:Name="CbScope" Width="125" Height="30" VerticalContentAlignment="Center" Margin="0,0,12,0">
+                <ComboBoxItem Content="Active View" IsSelected="True"/>
+                <ComboBoxItem Content="Entire Project"/>
+            </ComboBox>
+
             <TextBlock Text="Worksets" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#666"/>
             <ToggleButton x:Name="BtnWorksetToggle" Content="Select Worksets..." Width="150" Height="30" VerticalAlignment="Center" Margin="0,0,12,0"/>
             <Popup x:Name="PopupWorkset" IsOpen="{Binding IsChecked, ElementName=BtnWorksetToggle}" StaysOpen="False" PlacementTarget="{Binding ElementName=BtnWorksetToggle}">
@@ -112,8 +118,8 @@ XAML = r"""
                 </Border>
             </Popup>
 
-            <TextBlock Text="Status" VerticalAlignment="Center" Margin="12,0,6,0" Foreground="#666"/>
-            <ComboBox x:Name="CbStatus" Width="150" Height="30" VerticalContentAlignment="Center">
+            <TextBlock Text="Status" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#666"/>
+            <ComboBox x:Name="CbStatus" Width="130" Height="30" VerticalContentAlignment="Center" Margin="0,0,12,0">
                 <ComboBoxItem Content="All" IsSelected="True"/>
                 <ComboBoxItem Content="Changed"/>
                 <ComboBoxItem Content="Review"/>
@@ -121,8 +127,8 @@ XAML = r"""
                 <ComboBoxItem Content="Data Error"/>
             </ComboBox>
 
-            <TextBlock Text="Search" VerticalAlignment="Center" Margin="12,0,6,0" Foreground="#666"/>
-            <TextBox x:Name="TxtSearch" Width="170" Height="30" VerticalContentAlignment="Center"/>
+            <TextBlock Text="Search" VerticalAlignment="Center" Margin="0,0,6,0" Foreground="#666"/>
+            <TextBox x:Name="TxtSearch" Width="160" Height="30" VerticalContentAlignment="Center"/>
 
             <Button x:Name="BtnScan" Content="Scan View" Margin="12,0,0,0" Width="110"/>
         </StackPanel>
@@ -607,11 +613,69 @@ def validate_mv_manhole_data(manhole, old_main):
     return errors
 
 
+def is_sc_manhole(manhole):
+    try:
+        sys_type = (read_param_as_string(manhole, "CNT_System Type") or "").lower()
+        if "sec" in sys_type or "sc" in sys_type:
+            return True
+        elem_type = manhole.Document.GetElement(manhole.GetTypeId())
+        if elem_type:
+            fam_name = ""
+            if hasattr(elem_type, "FamilyName"):
+                fam_name = elem_type.FamilyName or ""
+            elif hasattr(elem_type, "Family") and elem_type.Family:
+                fam_name = elem_type.Family.Name or ""
+            if "sec" in fam_name.lower() or "sc" in fam_name.lower():
+                return True
+        cnt_num = (read_param_as_string(manhole, "CNT_Number") or "").lower()
+        if cnt_num.startswith("sc-") or cnt_num.startswith("sc"):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def validate_sc_manhole_data(manhole, old_main, old_extra):
+    errors = []
+    for i in range(4):
+        idx = i + 1
+        height = old_main[i]
+        type_str = read_param_as_string(manhole, "CNT_Connection {} Type".format(idx))
+        has_height = height > 0
+        has_type = side_has_hole(type_str)
+        side_name = "C{}".format(idx)
+        if has_height and not has_type:
+            errors.append("{} มี Height ขาด Type".format(side_name))
+        if has_type and not has_height:
+            errors.append("{} มี Type ขาด Height".format(side_name))
+
+        e_height = old_extra[i]
+        e_type_str = read_param_as_string(manhole, "CNT_Connection {} Type Extra".format(idx))
+        e_has_height = e_height > 0
+        e_has_type = side_has_hole(e_type_str)
+        p_e_off = manhole.LookupParameter("CNT_Connection offset Service {}".format(idx))
+        e_has_offset = bool(p_e_off and p_e_off.HasValue and p_e_off.AsDouble() > 0)
+
+        e_side_name = "E{}".format(idx)
+        if e_has_height and not e_has_type:
+            errors.append("{} มี Height ขาด Type".format(e_side_name))
+        if e_has_type and not e_has_height:
+            errors.append("{} มี Type ขาด Height".format(e_side_name))
+        if e_has_type and not e_has_offset:
+            errors.append("{} ขาด Offset".format(e_side_name))
+        if e_has_offset and not (e_has_type and e_has_height):
+            errors.append("{} มี Offset แต่ขาด Type/Height".format(e_side_name))
+
+    return errors
+
+
 def validate_manhole_data(manhole, old_main, old_extra):
     if is_ict_manhole(manhole):
         return validate_ict_manhole_data(manhole, old_main)
     if is_mv_manhole(manhole):
         return validate_mv_manhole_data(manhole, old_main)
+    if is_sc_manhole(manhole):
+        return validate_sc_manhole_data(manhole, old_main, old_extra)
     return validate_lv_elv_manhole_data(manhole, old_main, old_extra)
 
 def get_id_value(element_id):
@@ -1008,28 +1072,48 @@ def get_original_depth_point(point_0, point_1, local_point_0, local_point_1, loc
     return point_0 if dist_0 < dist_1 else point_1
 
 
-def scan_manholes(document, active_view_id, progress_callback=None):
+def scan_manholes(document, active_view_id=None, progress_callback=None, scan_all=False):
     try:
-        view_equipments = (
-            FilteredElementCollector(document, active_view_id)
-            .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
-        view_conduits = (
-            FilteredElementCollector(document, active_view_id)
-            .OfCategory(BuiltInCategory.OST_Conduit)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
-        view_fittings = (
-            FilteredElementCollector(document, active_view_id)
-            .OfCategory(BuiltInCategory.OST_ConduitFitting)
-            .WhereElementIsNotElementType()
-            .ToElements()
-        )
+        if scan_all or not active_view_id:
+            view_equipments = (
+                FilteredElementCollector(document)
+                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+            view_conduits = (
+                FilteredElementCollector(document)
+                .OfCategory(BuiltInCategory.OST_Conduit)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+            view_fittings = (
+                FilteredElementCollector(document)
+                .OfCategory(BuiltInCategory.OST_ConduitFitting)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+        else:
+            view_equipments = (
+                FilteredElementCollector(document, active_view_id)
+                .OfCategory(BuiltInCategory.OST_ElectricalEquipment)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+            view_conduits = (
+                FilteredElementCollector(document, active_view_id)
+                .OfCategory(BuiltInCategory.OST_Conduit)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
+            view_fittings = (
+                FilteredElementCollector(document, active_view_id)
+                .OfCategory(BuiltInCategory.OST_ConduitFitting)
+                .WhereElementIsNotElementType()
+                .ToElements()
+            )
     except Exception as exc:
-        raise Exception("Unable to collect elements in the active view: {}".format(exc))
+        raise Exception("Unable to collect elements: {}".format(exc))
 
     valid_manholes = [
         item
@@ -1039,6 +1123,34 @@ def scan_manholes(document, active_view_id, progress_callback=None):
 
     total_manholes = len(valid_manholes)
     results = []
+
+    conduit_data = []
+    for conduit in view_conduits:
+        if not hasattr(conduit.Location, "Curve"):
+            continue
+        curve = conduit.Location.Curve
+        point_0 = curve.GetEndPoint(0)
+        point_1 = curve.GetEndPoint(1)
+        conduit_type = document.GetElement(conduit.GetTypeId())
+        type_name = ""
+        if conduit_type:
+            type_param = conduit_type.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)
+            type_name = type_param.AsString().lower() if type_param else ""
+        conduit_name = conduit.Name.lower() if conduit.Name else ""
+        is_extra = "without duct" in type_name or "without duct" in conduit_name
+        min_x = min(point_0.X, point_1.X)
+        max_x = max(point_0.X, point_1.X)
+        min_y = min(point_0.Y, point_1.Y)
+        max_y = max(point_0.Y, point_1.Y)
+        min_z = min(point_0.Z, point_1.Z)
+        max_z = max(point_0.Z, point_1.Z)
+        conduit_data.append((conduit, point_0, point_1, min_x, max_x, min_y, max_y, min_z, max_z, is_extra))
+
+    fitting_data = []
+    for fitting in view_fittings:
+        fitting_point = get_location_point(fitting)
+        if fitting_point:
+            fitting_data.append((fitting, fitting_point))
 
     for index, manhole in enumerate(valid_manholes):
         try:
@@ -1064,16 +1176,31 @@ def scan_manholes(document, active_view_id, progress_callback=None):
             local_bounds = get_manhole_local_bounds(document, manhole, transform, bbox, buffer_ft)
             is_ict = is_ict_manhole(manhole)
             is_mv = is_mv_manhole(manhole)
+            is_sc = is_sc_manhole(manhole)
 
             has_hole_main = [side_has_hole(read_param_as_string(manhole, "CNT_Connection {} Type".format(i))) for i in range(1, 5)]
-            has_hole_extra = [side_has_hole(read_param_as_string(manhole, "CNT_Connection {} Type Extra".format(i))) for i in range(1, 5)] if not (is_ict or is_mv) else [False, False, False, False]
+            if is_ict or is_mv:
+                has_hole_extra = [False, False, False, False]
+            else:
+                has_hole_extra = [side_has_hole(read_param_as_string(manhole, "CNT_Connection {} Type Extra".format(i))) for i in range(1, 5)]
 
-            for conduit in view_conduits:
-                if not hasattr(conduit.Location, "Curve"):
+            mh_min_x = (bbox.Min.X - 5.0) if bbox else (origin.X - 5.0)
+            mh_max_x = (bbox.Max.X + 5.0) if bbox else (origin.X + 5.0)
+            mh_min_y = (bbox.Min.Y - 5.0) if bbox else (origin.Y - 5.0)
+            mh_max_y = (bbox.Max.Y + 5.0) if bbox else (origin.Y + 5.0)
+            mh_min_z = base_z + min_allowed_depth
+            mh_max_z = base_z + max_allowed_depth
+
+            flip_x = bool(hasattr(manhole, "HandOrientation") and manhole.HandOrientation and transform.BasisX.DotProduct(manhole.HandOrientation) < -0.5)
+            flip_y = bool(hasattr(manhole, "FacingOrientation") and manhole.FacingOrientation and transform.BasisY.DotProduct(manhole.FacingOrientation) < -0.5)
+
+            for conduit, point_0, point_1, c_min_x, c_max_x, c_min_y, c_max_y, c_min_z, c_max_z, is_extra in conduit_data:
+                if c_max_x < mh_min_x or c_min_x > mh_max_x:
                     continue
-                curve = conduit.Location.Curve
-                point_0 = curve.GetEndPoint(0)
-                point_1 = curve.GetEndPoint(1)
+                if c_max_y < mh_min_y or c_min_y > mh_max_y:
+                    continue
+                if c_max_z < mh_min_z or c_min_z > mh_max_z:
+                    continue
 
                 z0 = point_0.Z - base_z
                 z1 = point_1.Z - base_z
@@ -1093,13 +1220,6 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 if not connection_candidates:
                     continue
 
-                conduit_type = document.GetElement(conduit.GetTypeId())
-                type_name = ""
-                if conduit_type:
-                    type_param = conduit_type.get_Parameter(BuiltInParameter.SYMBOL_NAME_PARAM)
-                    type_name = type_param.AsString().lower() if type_param else ""
-                conduit_name = conduit.Name.lower() if conduit.Name else ""
-                is_extra = "without duct" in type_name or "without duct" in conduit_name
                 depth_point = get_original_depth_point(
                     point_0,
                     point_1,
@@ -1117,17 +1237,43 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     side = candidate.get("side")
                     if side is None:
                         side = get_side_from_bounds(candidate["local_point"], local_bounds)
+                    if flip_x:
+                        if side == 0:
+                            side = 2
+                        elif side == 2:
+                            side = 0
+                    if flip_y:
+                        if side == 1:
+                            side = 3
+                        elif side == 3:
+                            side = 1
                     if is_ict:
                         side = (side + 1) % 4
-                    if is_extra:
-                        extra_depths[side].append(depth)
+
+                    if is_sc:
+                        if has_hole_extra[side] and not has_hole_main[side]:
+                            extra_depths[side].append(depth)
+                        elif has_hole_main[side] and not has_hole_extra[side]:
+                            main_depths[side].append(depth)
+                        elif has_hole_main[side] and has_hole_extra[side]:
+                            if is_extra:
+                                extra_depths[side].append(depth)
+                            else:
+                                main_depths[side].append(depth)
+                        else:
+                            if is_extra:
+                                extra_depths[side].append(depth)
+                            else:
+                                main_depths[side].append(depth)
                     else:
-                        main_depths[side].append(depth)
+                        if is_extra:
+                            extra_depths[side].append(depth)
+                        else:
+                            main_depths[side].append(depth)
 
             min_x, min_y, max_x, max_y = local_bounds
-            for fitting in view_fittings:
-                fitting_point = get_location_point(fitting)
-                if not fitting_point:
+            for fitting, fitting_point in fitting_data:
+                if abs(fitting_point.X - origin.X) > 10.0 or abs(fitting_point.Y - origin.Y) > 10.0:
                     continue
                 local_point = transform.Inverse.OfPoint(fitting_point)
                 dx = max(0.0, max(min_x - local_point.X, local_point.X - max_x))
@@ -1135,6 +1281,16 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 if (dx**2 + dy**2)**0.5 > mm_to_ft(100.0):
                     continue
                 fit_side = get_side_from_bounds(local_point, local_bounds)
+                if flip_x:
+                    if fit_side == 0:
+                        fit_side = 2
+                    elif fit_side == 2:
+                        fit_side = 0
+                if flip_y:
+                    if fit_side == 1:
+                        fit_side = 3
+                    elif fit_side == 3:
+                        fit_side = 1
                 if is_ict:
                     fit_side = (fit_side + 1) % 4
                 has_fitting[fit_side] = True
@@ -1153,6 +1309,11 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                 old_extra = [0, 0, 0, 0]
                 final_extra = [0, 0, 0, 0]
                 has_change = (old_main != final_main)
+            elif is_sc:
+                new_extra = [get_new_value(extra_depths[i], has_fitting[i]) for i in range(4)]
+                old_extra = [read_connection_mm(manhole, "CNT_Connection 1.{}".format(i)) for i in range(1, 5)]
+                final_extra = [new_extra[i] if new_extra[i] is not None else old_extra[i] for i in range(4)]
+                has_change = (old_main != final_main or old_extra != final_extra)
             else:
                 new_extra = [get_new_value(extra_depths[i], has_fitting[i]) for i in range(4)]
                 old_extra = [read_connection_mm(manhole, "CNT_Connection {} Extra".format(i)) for i in range(1, 5)]
@@ -1194,6 +1355,7 @@ def scan_manholes(document, active_view_id, progress_callback=None):
                     "ws": get_workset_name(document, manhole),
                     "is_ict": is_ict,
                     "is_mv": is_mv,
+                    "is_sc": is_sc,
                     "status": status,
                     "remarks": " | ".join(remarks_list),
                     "missing": missing_list,
@@ -1260,6 +1422,10 @@ class ManholeRow(object):
     @property
     def is_mv(self):
         return self._record.get("is_mv", False)
+
+    @property
+    def is_sc(self):
+        return self._record.get("is_sc", False)
 
     @property
     def element(self):
@@ -1394,6 +1560,7 @@ class ManholeQAForm(object):
 
         self.grid = self.window.FindName("ListRecords")
         self.btn_scan = self.window.FindName("BtnScan")
+        self.cb_scope = self.window.FindName("CbScope")
         self.btn_workset = self.window.FindName("BtnWorksetToggle")
         self.list_worksets = self.window.FindName("ListWorksets")
         self.cb_status = self.window.FindName("CbStatus")
@@ -1410,6 +1577,8 @@ class ManholeQAForm(object):
         self.grid.ItemsSource = self.rows
 
         self.btn_scan.Click += self.on_scan
+        if self.cb_scope:
+            self.cb_scope.SelectionChanged += self.on_scope_changed
         self.cb_status.SelectionChanged += self.on_filter
         self.txt_search.TextChanged += self.on_filter
         self.grid.SelectionChanged += self.on_select_row
@@ -1463,24 +1632,36 @@ class ManholeQAForm(object):
         self.set_busy(True)
         self.revit_event.Raise()
 
+    def on_scope_changed(self, sender, args):
+        try:
+            is_all = (self.cb_scope.SelectedIndex == 1) if self.cb_scope else False
+            self.btn_scan.Content = "Scan All" if is_all else "Scan View"
+        except Exception:
+            pass
+
     def on_scan(self, sender, args):
-        self._raise_revit_action(self._scan_in_revit_context, "Scanning active view...")
+        is_all = (self.cb_scope.SelectedIndex == 1) if self.cb_scope else False
+        status_text = "Scanning entire project..." if is_all else "Scanning active view..."
+        self._raise_revit_action(self._scan_in_revit_context, status_text)
 
     def _scan_in_revit_context(self, ui_application):
         try:
             self._update_revit_context(ui_application)
             self.pb.Visibility = Visibility.Visible
             self.pb.Value = 0
-            self.lbl_status.Content = "Scanning active view..."
+            is_all = (self.cb_scope.SelectedIndex == 1) if self.cb_scope else False
+            self.lbl_status.Content = "Scanning entire project..." if is_all else "Scanning active view..."
 
             def update_progress(current, total):
                 value = (float(current) / total) * 100 if total else 0
                 self.pb.Value = value
                 self.lbl_status.Content = "Scanning {}/{}...".format(current, total)
 
-            self.records = scan_manholes(self.doc, self.doc.ActiveView.Id, update_progress)
+            view_id = self.doc.ActiveView.Id if (self.doc and self.doc.ActiveView) else None
+            self.records = scan_manholes(self.doc, view_id, update_progress, scan_all=is_all)
             if not self.records:
-                forms.alert("No valid manholes were found in the active view.", title="Manhole QA")
+                scope_desc = "in the entire project" if is_all else "in the active view"
+                forms.alert("No valid manholes were found {}.".format(scope_desc), title="Manhole QA")
             self.cb_status.SelectedIndex = 0
             self._refresh_rows()
         except Exception:
@@ -1571,6 +1752,11 @@ class ManholeQAForm(object):
             elif row.is_mv:
                 self.det_extra.ItemsSource = [
                     DetailRow("Extra Connection", "No Extra in MV", None)
+                ]
+            elif row.is_sc:
+                self.det_extra.ItemsSource = [
+                    DetailRow("Connection 1.{} (CCTV)".format(i + 1), record["old_extra"][i], record["new_extra"][i], "E{}".format(i + 1) in missing)
+                    for i in range(4)
                 ]
             else:
                 self.det_extra.ItemsSource = [
