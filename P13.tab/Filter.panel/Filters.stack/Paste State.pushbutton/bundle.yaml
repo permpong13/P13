@@ -11,13 +11,13 @@ tooltip: >-
   • Safe Pattern Checking: Ensures only valid Drafting Patterns are applied to prevent visual bugs.
 
   🇹🇭 [TH] เครื่องมือวางสถานะฟิลเตอร์ (Paste Filter State)
-  นำค่า Preset ของ Filter ที่บันทึกไว้ (JSON) ไปวางลงใน Views หรือ View Templates ได้ทีละหลายๆ รายการ
-  ฟังก์ชันการทำงาน:
-  • Auto-load: โหลดไฟล์ Preset ล่าสุดที่เพิ่งบันทึกภายใน 5 นาทีให้อัตโนมัติ โดยไม่ต้องกดเลือกไฟล์
-  • Categorized Selection: จัดกลุ่มรายการที่จะวางอย่างเป็นระเบียบ แยก View Templates และ View Types ออกจากกัน
-  • Full Graphic Override: คืนค่าการตั้งค่าเส้น ลวดลาย และสี ได้อย่างสมบูรณ์
-  • Deep Pattern Support: รองรับการวางค่าลวดลายพื้นผิวทั้งแบบ Foreground และ Background 
-  • Safe Pattern Checking: ระบบตรวจจับเพื่ออนุญาตเฉพาะ Drafting Pattern เท่านั้น ป้องกันปัญหาการแสดงผลผิดพลาด
+  นำค่า Filter Preset (JSON) ไปใช้กับ Views หรือ View Templates หลายรายการ
+  ฟังก์ชัน:
+  • โหลด Preset ล่าสุดภายใน 5 นาทีโดยอัตโนมัติ
+  • จัดกลุ่มเป้าหมายเป็น View Templates และ View Types
+  • คืนค่าความหนา รูปแบบ และสีของเส้นและลวดลาย
+  • รองรับ Surface/Cut Patterns ทั้ง Foreground และ Background
+  • ตรวจสอบและใช้เฉพาะ Drafting Patterns ที่ถูกต้อง
 
-author: "เพิ่มพงษ์ ทวีกุล (P13)"
+author: "Permpong Thawikul (P13)"
 description: "Advanced filter state application tool supporting multiple Views, Templates, and deep graphic overrides."

@@ -4,6 +4,7 @@
 import os
 import time
 import json
+import tempfile
 import System
 from pyrevit import forms, script, revit, DB, HOST_APP
 
@@ -11,19 +12,68 @@ my_config = script.get_config("p13_filter_state")
 legacy_config = script.get_config()
 
 
+def _is_writable_preset_folder(path):
+    """Return True only for an existing, non-root folder that accepts writes."""
+    if not path:
+        return False
+
+    try:
+        normalized_path = os.path.abspath(os.path.normpath(path))
+        if not os.path.isdir(normalized_path):
+            return False
+
+        # Keep Copy State and Paste State from accepting C:\\ or another root.
+        if os.path.dirname(normalized_path) == normalized_path:
+            return False
+
+        probe_fd, probe_path = tempfile.mkstemp(
+            prefix=".p13_filter_state_write_test_",
+            suffix=".tmp",
+            dir=normalized_path
+        )
+        os.close(probe_fd)
+        try:
+            os.remove(probe_path)
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
+def _save_export_path(path):
+    """Persist a validated preset folder without changing old config fields."""
+    my_config.export_path = path
+    try:
+        script.save_config()
+    except Exception:
+        # The selected folder is still usable for this run.
+        pass
+
+
 def get_export_path():
     """Return the shared preset folder and remember a user-selected fallback."""
-    configured_path = getattr(my_config, "export_path", None)
-    if not configured_path:
-        configured_path = getattr(legacy_config, "export_path", None)
-    if configured_path and os.path.isdir(configured_path):
-        return configured_path
+    configured_paths = [
+        getattr(my_config, "export_path", None),
+        getattr(legacy_config, "export_path", None)
+    ]
+    for configured_path in configured_paths:
+        if _is_writable_preset_folder(configured_path):
+            return os.path.abspath(os.path.normpath(configured_path))
 
     selected_path = forms.pick_folder(title="Select the folder containing Filter presets")
     if not selected_path:
         return None
-    my_config.export_path = selected_path
-    script.save_config()
+    if not _is_writable_preset_folder(selected_path):
+        forms.alert(
+            "The selected location is not a writable folder. "
+            "Please select the folder where Filter presets are stored.",
+            title="Invalid preset folder"
+        )
+        return None
+
+    selected_path = os.path.abspath(os.path.normpath(selected_path))
+    _save_export_path(selected_path)
     return selected_path
 
 def safe_drafting_pattern_id(doc, val):
@@ -151,9 +201,9 @@ class FilterPasteAction:
         export_path = get_export_path()
         if not export_path:
             return
-        app = HOST_APP.app # ใช้ HOST_APP แทน revit.app เพื่อดึง Application Services
+        app = HOST_APP.app  # Use HOST_APP instead of revit.app for application services.
         
-        # 1. โหลดไฟล์ JSON
+        # 1. Load the JSON preset.
         json_file = None
         try:
             if os.path.exists(export_path):
@@ -169,7 +219,7 @@ class FilterPasteAction:
         if not json_file: return
         with open(json_file, 'r') as f: data = json.load(f)
 
-        # 2. เลือกปลายทาง
+        # 2. Select the destination.
         paste_mode = forms.CommandSwitchWindow.show(
             ["1. Paste to Active View", "2. Select from list (Views or Templates)"],
             message="Select paste destination:"
@@ -192,14 +242,14 @@ class FilterPasteAction:
             target_views = forms.SelectFromList.show(options_dict, title="Select target Views", name_attr='Name', multiselect=True)
             if not target_views: return
 
-        # 3. เลือก Filters
+        # 3. Select filters.
         sel_names = forms.SelectFromList.show([f["name"] for f in data], title="Select Filters to paste", multiselect=True)
         if not sel_names: return
 
         tg = DB.TransactionGroup(doc, "Multi-View Filter Paste (With Auto-Pull)")
         tg.Start()
         try:
-            # --- ระบบ Auto-Pull ดึงโครงสร้างข้ามไฟล์ ---
+            # --- Auto-pull missing filter definitions from the source project. ---
             all_proj_filters = collect_project_filters(doc)
             missing_names = [n for n in sel_names if n not in all_proj_filters]
             

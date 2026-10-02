@@ -3,26 +3,90 @@
 """Save view-filter definitions and graphic states as portable presets."""
 import os
 import json
+import tempfile
 from pyrevit import forms, script, revit, DB
 
 my_config = script.get_config("p13_filter_state")
 legacy_config = script.get_config()
 
 
+def _is_writable_preset_folder(path):
+    """Return True only for an existing, non-root folder that accepts writes."""
+    if not path:
+        return False
+
+    try:
+        normalized_path = os.path.abspath(os.path.normpath(path))
+        if not os.path.isdir(normalized_path):
+            return False
+
+        # Never treat a drive/UNC root as a preset folder. Revit/Windows may
+        # allow reading it while still denying creation of files there.
+        if os.path.dirname(normalized_path) == normalized_path:
+            return False
+
+        probe_fd, probe_path = tempfile.mkstemp(
+            prefix=".p13_filter_state_write_test_",
+            suffix=".tmp",
+            dir=normalized_path
+        )
+        os.close(probe_fd)
+        try:
+            os.remove(probe_path)
+        except Exception:
+            pass
+        return True
+    except Exception:
+        return False
+
+
+def _save_export_path(path):
+    """Persist a validated preset folder without changing old config fields."""
+    my_config.export_path = path
+    try:
+        script.save_config()
+    except Exception:
+        # The selected folder is still usable for this run. A later run will
+        # ask again if pyRevit cannot persist the preference.
+        pass
+
+
 def get_export_path():
     """Return the shared preset folder and remember a user-selected fallback."""
-    configured_path = getattr(my_config, "export_path", None)
-    if not configured_path:
-        configured_path = getattr(legacy_config, "export_path", None)
-    if configured_path and os.path.isdir(configured_path):
-        return configured_path
+    configured_paths = [
+        getattr(my_config, "export_path", None),
+        getattr(legacy_config, "export_path", None)
+    ]
+    for configured_path in configured_paths:
+        if _is_writable_preset_folder(configured_path):
+            return os.path.abspath(os.path.normpath(configured_path))
 
     selected_path = forms.pick_folder(title="Select a folder for Filter presets")
     if not selected_path:
         return None
-    my_config.export_path = selected_path
-    script.save_config()
+    if not _is_writable_preset_folder(selected_path):
+        forms.alert(
+            "The selected location is not a writable folder. "
+            "Please select a normal project folder, such as Documents or Desktop.",
+            title="Invalid preset folder"
+        )
+        return None
+
+    selected_path = os.path.abspath(os.path.normpath(selected_path))
+    _save_export_path(selected_path)
     return selected_path
+
+
+def get_preset_file_path(export_path, preset_name):
+    """Build a safe JSON filename while preserving named-preset overwrite behavior."""
+    name = preset_name.strip()
+    if name.lower().endswith(".json"):
+        name = name[:-5].strip()
+    if not name or name in (".", ".."):
+        return None
+    if any(character in name for character in '<>:"/\\|?*'):
+        return None
+    return os.path.join(export_path, "{}.json".format(name))
 
 def get_rgb(color):
     return [int(color.Red), int(color.Green), int(color.Blue)] if color and color.IsValid else None
@@ -119,13 +183,24 @@ class FilterCopyAction:
                 export_data.append(filter_data)
 
         # 4. Save to JSON
-        file_path = os.path.join(export_path, "{}.json".format(preset_name))
+        file_path = get_preset_file_path(export_path, preset_name)
+        if not file_path:
+            forms.alert(
+                "The preset name contains invalid filename characters. "
+                "Use a simple name without \\/:*?\"<>|.",
+                title="Invalid preset name"
+            )
+            return
         try:
             with open(file_path, 'w') as f:
                 json.dump(export_data, f, indent=4)
-            forms.toast("Successfully saved preset: {}".format(preset_name), title="Copy Complete")
+            forms.toast("Successfully saved preset: {}".format(os.path.basename(file_path)), title="Copy Complete")
         except Exception as e:
-            forms.alert("Error saving file: {}".format(e))
+            forms.alert(
+                "Error saving file:\n{}\n\nFolder: {}\n\n"
+                "Choose a writable folder and try again.".format(e, export_path),
+                title="Copy State"
+            )
 
 if __name__ == "__main__":
     FilterCopyAction().copy()
