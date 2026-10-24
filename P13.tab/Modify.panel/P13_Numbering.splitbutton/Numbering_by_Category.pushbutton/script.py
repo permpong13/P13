@@ -191,6 +191,7 @@ CATEGORY_CANDIDATES = {
     "Doors": "OST_Doors",
     "Windows": "OST_Windows",
     "Generic Models": "OST_GenericModel",
+    "Detail Items": "OST_DetailComponents",
     "Plumbing Fixtures": "OST_PlumbingFixtures",
     "Pipes": "OST_PipeCurves",
     "Mechanical Equipment": "OST_MechanicalEquipment",

@@ -4,6 +4,7 @@
 import os
 import json
 import tempfile
+import System
 from pyrevit import forms, script, revit, DB
 
 my_config = script.get_config("p13_filter_state")
@@ -51,8 +52,26 @@ def _save_export_path(path):
         pass
 
 
+def _get_default_export_path():
+    """Create and return the automatic default folder under Documents."""
+    documents_path = System.Environment.GetFolderPath(
+        System.Environment.SpecialFolder.MyDocuments
+    )
+    if not documents_path:
+        documents_path = os.path.expanduser("~")
+
+    default_path = os.path.join(documents_path, "P13 Filter Presets")
+    try:
+        if not os.path.isdir(default_path):
+            os.makedirs(default_path)
+    except Exception:
+        return None
+
+    return default_path if _is_writable_preset_folder(default_path) else None
+
+
 def get_export_path():
-    """Return the shared preset folder and remember a user-selected fallback."""
+    """Return a valid preset folder, using Documents automatically when needed."""
     configured_paths = [
         getattr(my_config, "export_path", None),
         getattr(legacy_config, "export_path", None)
@@ -61,20 +80,17 @@ def get_export_path():
         if _is_writable_preset_folder(configured_path):
             return os.path.abspath(os.path.normpath(configured_path))
 
-    selected_path = forms.pick_folder(title="Select a folder for Filter presets")
-    if not selected_path:
-        return None
-    if not _is_writable_preset_folder(selected_path):
+    default_path = _get_default_export_path()
+    if not default_path:
         forms.alert(
-            "The selected location is not a writable folder. "
-            "Please select a normal project folder, such as Documents or Desktop.",
-            title="Invalid preset folder"
+            "Unable to create a writable automatic preset folder under Documents.",
+            title="Copy State"
         )
         return None
 
-    selected_path = os.path.abspath(os.path.normpath(selected_path))
-    _save_export_path(selected_path)
-    return selected_path
+    default_path = os.path.abspath(os.path.normpath(default_path))
+    _save_export_path(default_path)
+    return default_path
 
 
 def get_preset_file_path(export_path, preset_name):
