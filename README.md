@@ -217,6 +217,7 @@ The following catalog lists all 70 executable commands currently included in the
 | **Manhole QA** | Scans manholes and connected conduits, presents connection data in a modeless QA interface, and synchronizes supported manhole values. |
 | **Pipe Bloom** | Extends pipes or ducts from multiple connectors, detects systems, adjusts direction, and creates elbows automatically. |
 | **Pipe BOP** | Calculates pipe start/end bottom elevations and writes `B-Start` and `BOP.Cal` values for tagging. |
+| **Pipe Slope Ratio** | Writes a taggable `Slope_Ratio` text value such as `1:750`, including ratios above Revit's 1:500 tag display limit. |
 | **Pipe Flow** | Analyzes slope, elevation, connected equipment, systems, and neighboring pipes to estimate flow direction, then places and rotates Detail Item arrows at configurable spacing. |
 | **Rotate Fitting** | Detects connector-based rotation axes and batch-rotates pipe/duct fittings, accessories, and supported equipment using preset or custom angles. |
 | **Sync MH Absolute Clean** | Clears stale manhole text values and recalculates directional invert levels and dimensions only where the required direction and pipe width are valid. |

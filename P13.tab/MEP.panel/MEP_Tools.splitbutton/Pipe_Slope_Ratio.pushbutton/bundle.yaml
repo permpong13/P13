@@ -1,0 +1,21 @@
+title: "Pipe Slope\nRatio"
+# Thai reference: คำนวณและเขียนค่า Slope ของท่อเป็นอัตราส่วน 1:xxx เพื่อใช้ใน Tag
+
+tooltip: |
+  Calculate pipe slope as a taggable ratio such as 1:500 or 1:750.
+
+  Features:
+  - Creates and binds the shared text parameter Slope_Ratio to pipe curves.
+  - Supports selected pipes or all pipes in the active view.
+  - Handles ratios greater than 1:500 without relying on Revit's tag display limit.
+  - Reports flat, missing-slope, read-only, and grouped pipes.
+  How to use:
+  1. Select pipes, or leave the selection empty to process the active view.
+  2. Run the command.
+  3. Add the shared parameter Slope_Ratio to the pipe tag family.
+# Thai reference: สร้างค่า Slope_Ratio สำหรับ Tag และรองรับค่าอัตราส่วนที่มากกว่า 1:500
+
+author: "P13"
+# Thai reference: ผู้พัฒนา P13
+description: "Write a taggable 1:xxx slope ratio to pipe elements."
+# Thai reference: เขียนค่า Slope ของท่อเป็น 1:xxx เพื่อแสดงผลใน Tag
