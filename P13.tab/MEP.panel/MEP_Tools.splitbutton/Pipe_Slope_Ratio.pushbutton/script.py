@@ -8,7 +8,7 @@ import tempfile
 from pyrevit import DB, forms, revit, script
 
 PARAMETER_NAME = "Slope_Ratio"
-TARGET_CATEGORIES = ["OST_PipeCurves"]
+TARGET_CATEGORIES = ["OST_PipeCurves", "OST_Floors"]
 doc = revit.doc
 app = doc.Application
 output = script.get_output()
@@ -124,25 +124,63 @@ def get_or_create_shared_parameter(document, application, parameter_name):
 
 
 def collect_pipes():
-    selected_pipes = [element for element in revit.get_selection()
-                      if isinstance(element, DB.Plumbing.Pipe)]
-    if selected_pipes:
-        return selected_pipes, "Selection"
+    selected_elements = [element for element in revit.get_selection()
+                         if isinstance(element, (DB.Plumbing.Pipe, DB.Floor))]
+    if selected_elements:
+        return selected_elements, "Selection"
+
     pipes = DB.FilteredElementCollector(doc, doc.ActiveView.Id) \
         .OfCategory(DB.BuiltInCategory.OST_PipeCurves) \
         .WhereElementIsNotElementType() \
         .ToElements()
-    return [pipe for pipe in pipes if isinstance(pipe, DB.Plumbing.Pipe)], "Active View"
+    floors = DB.FilteredElementCollector(doc, doc.ActiveView.Id) \
+        .OfCategory(DB.BuiltInCategory.OST_Floors) \
+        .WhereElementIsNotElementType() \
+        .ToElements()
+    elements = []
+    elements.extend(pipes)
+    elements.extend(floors)
+    return ([element for element in elements
+             if isinstance(element, (DB.Plumbing.Pipe, DB.Floor))], "Active View")
 
 
 def read_slope(pipe):
-    parameter = pipe.get_Parameter(DB.BuiltInParameter.RBS_PIPE_SLOPE)
-    if not parameter or not parameter.HasValue:
-        return None
-    try:
-        return abs(parameter.AsDouble())
-    except Exception:
-        return None
+    if isinstance(pipe, DB.Plumbing.Pipe):
+        parameter = pipe.get_Parameter(DB.BuiltInParameter.RBS_PIPE_SLOPE)
+        if not parameter or not parameter.HasValue:
+            return None
+        try:
+            return abs(parameter.AsDouble())
+        except Exception:
+            return None
+
+    # Floors do not expose the same RBS slope parameter as pipes. Read the
+    # normal of the highest upward planar face and derive rise/run from it.
+    options = DB.Options()
+    options.IncludeNonVisibleObjects = True
+    geometry = pipe.get_Geometry(options)
+    best_slope = [None]
+
+    def inspect_geometry(geometry_objects):
+        if not geometry_objects:
+            return
+        for geometry_object in geometry_objects:
+            if isinstance(geometry_object, DB.Solid):
+                for face in geometry_object.Faces:
+                    if not isinstance(face, DB.PlanarFace):
+                        continue
+                    normal = face.FaceNormal
+                    if normal.Z <= 0.01:
+                        continue
+                    horizontal_normal = math.sqrt(normal.X * normal.X + normal.Y * normal.Y)
+                    slope = horizontal_normal / abs(normal.Z)
+                    if best_slope[0] is None or slope > best_slope[0]:
+                        best_slope[0] = slope
+            elif isinstance(geometry_object, DB.GeometryInstance):
+                inspect_geometry(geometry_object.GetInstanceGeometry())
+
+    inspect_geometry(geometry)
+    return best_slope[0]
 
 
 def format_ratio(slope):
@@ -154,10 +192,17 @@ def format_ratio(slope):
 
 def display_name(pipe):
     try:
-        parameter = pipe.LookupParameter("Size")
-        return parameter.AsValueString() if parameter else "Pipe"
+        if isinstance(pipe, DB.Plumbing.Pipe):
+            parameter = pipe.LookupParameter("Size")
+            return parameter.AsValueString() if parameter else "Pipe"
+        type_parameter = pipe.get_Parameter(DB.BuiltInParameter.ELEM_TYPE_PARAM)
+        return type_parameter.AsValueString() if type_parameter else "Floor"
     except Exception:
-        return "Pipe"
+        return "Floor" if isinstance(pipe, DB.Floor) else "Pipe"
+
+
+def element_category(pipe):
+    return "Pipe" if isinstance(pipe, DB.Plumbing.Pipe) else "Floor"
 
 
 def element_id_value(element_id):
@@ -209,7 +254,8 @@ def main():
                 continue
             parameter.Set(ratio_text)
             updated += 1
-            rows.append((element_id_value(pipe.Id), display_name(pipe), slope * 100.0, ratio_text))
+            rows.append((element_id_value(pipe.Id), element_category(pipe),
+                         display_name(pipe), slope * 100.0, ratio_text))
         transaction.Commit()
     except Exception:
         transaction.RollBack()
@@ -228,10 +274,10 @@ def main():
     if skipped_groups:
         output.print_md("- Skipped grouped pipes: **{}**".format(skipped_groups))
     if rows:
-        output.print_md("\n| Pipe ID | Size | Slope (%) | Tag value |")
-        output.print_md("| --- | --- | ---: | --- |")
+        output.print_md("\n| Element ID | Category | Type / Size | Slope (%) | Tag value |")
+        output.print_md("| --- | --- | --- | ---: | --- |")
         for row in rows[:50]:
-            output.print_md("| {} | {} | {:.4f} | `{}` |".format(*row))
+            output.print_md("| {} | {} | {} | {:.4f} | `{}` |".format(*row))
         if len(rows) > 50:
             output.print_md("\n_Showing the first 50 results._")
     if updated:
