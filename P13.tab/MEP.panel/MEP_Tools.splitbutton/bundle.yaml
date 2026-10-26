@@ -6,7 +6,7 @@ layout:
   - Pipe_Bloom
   - Pipe_Flow
   - Pipe_BOP
-  - Pipe_Slope_Ratio
+  - Slope_Ratio
   - Rotete_Fitting
   - ManholeQA
   - Sync MH Absolute Clean
