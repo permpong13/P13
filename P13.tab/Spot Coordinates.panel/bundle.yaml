@@ -1,4 +1,5 @@
+title: Coordinates
+tooltip: Precision spot coordinate alignment.
 layout:
-  - Spot Align 1
-  - Spot Align 2
-  - Reset
+  - Align
+  - Reset Spot Text Position

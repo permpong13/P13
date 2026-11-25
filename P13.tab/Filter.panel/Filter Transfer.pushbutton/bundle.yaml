@@ -1,0 +1,19 @@
+title: "Filter\nTransfer"
+
+tooltip: |-
+  [EN] Copy, paste, and transfer View Filters across views, View Templates, and projects.
+  - Preserves Enable, Visibility, Halftone, Transparency, Lines, and FG/BG Patterns
+  - Stores Filter Rules & Categories in JSON presets; builds missing filters on target models
+  - Applies to active view or multiple views/templates (Merge or Replace mode)
+  - Supports multi-row selection (Shift/Ctrl + Click) and priority sorting
+
+  [TH] คัดลอก วาง และโอนย้ายชุด View Filter ข้าม View, View Template และข้ามไฟล์โปรเจกต์
+  - เก็บค่า V/G ครบชุด: Enable, Visibility, Halftone, Transparency, เส้นและลาย FG/BG
+  - บันทึกเงื่อนไข Filter Rules ลงไฟล์ JSON สร้าง Filter ที่ยังไม่มีในโมเดลปลายทางให้อัตโนมัติ
+  - เลือกวางลงหลาย View หรือ View Template พร้อมกันได้ (เลือกโหมด Merge หรือ Replace ได้)
+  - รองรับการกด Shift/Ctrl เลือกหลายแถว และจัดเรียงลำดับก่อนนำไปใช้
+
+  Shift+Click: Set preset storage folder  |  Revit 2019-2026
+
+author: "Permpong Taweekul (P13)"
+description: "Advanced filter state backup tool with Named Presets and Selective Copy"

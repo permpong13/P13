@@ -1,19 +1,30 @@
 title: "Update"
-
+author: "Permpong Taweekul (P13)"
 tooltip: |
-  Update the P13.extension toolset to the latest GitHub version.
+  [EN] P13.extension Cloud Updater (Pro)
+  Check, preview changelog, and sync P13 tools from GitHub.
 
-  Icon status:
-  - Green: this installation matches the latest GitHub version.
-  - Red: a newer GitHub version is available.
-  - Gray: update status could not be checked.
+  Icon Status:
+  - Green: Up to date with GitHub main branch.
+  - Red: New update available on GitHub.
+  - Gray: Offline or status not yet checked.
 
-  Key features:
-  - Downloads the latest tools from the configured GitHub repository.
-  - Hidden for admin/developer users to prevent accidental source overwrite.
-  - Checks the installed script version against the GitHub main branch.
-  - Copies files safely and skips locked files.
-  - Reloads pyRevit after the update completes.
+  Features:
+  - Non-blocking background check with ETag (zero API quota waste)
+  - Preview commit changelog before installing updates
+  - Instant Rename-Aside handling for locked DLL/icon files
+  - Automatic cleanup of renamed or removed buttons (Manifest Diff)
+  - Hidden automatically on developer (.git) installations
 
-author: "P13"
-description: "Sync and update P13 tools from GitHub Cloud with automatic pyRevit reload."
+  Shift+Click: Force Re-Sync, View Changelog, or Open Sync Log
+
+  ------------------------------------------------------------
+  [TH] อัปเดตชุดเครื่องมือ P13.extension จาก GitHub
+  ตรวจสอบเวอร์ชัน ดูรายการเปลี่ยนแปลง และซิงค์เครื่องมืออัตโนมัติ
+
+  สถานะสีไอคอน:
+  - สีเขียว: เป็นเวอร์ชันล่าสุดแล้ว
+  - สีแดง: มีเวอร์ชันใหม่พร้อมอัปเดตบน GitHub
+  - สีเทา: ออฟไลน์หรือยังไม่ได้ตรวจสอบสถานะ
+
+  Shift+Click: บังคับซิงค์ไฟล์ใหม่ทั้งหมด / ดูประวัติอัปเดต / เปิดไฟล์ Log
