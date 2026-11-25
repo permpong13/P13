@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # pylint: disable=import-error,invalid-name,broad-except,too-many-lines,too-many-instance-attributes
-"""Support P13.extension - Clean Open-Source Supporter Hub & Community Idea Box."""
+"""Support P13.extension - Clean Open-Source Supporter Hub (Ko-fi + GitHub + PromptPay)."""
 from __future__ import print_function
 
 import os
@@ -105,21 +105,29 @@ def attach_owner(win, parent_win=None):
 QR_ZOOM_XAML = """
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Scan QR Code" Width="460" Height="520"
+        Title="Scan QR Code" Width="460" Height="530"
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         Background="#FFFFFF" FontFamily="Segoe UI">
     <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <TextBlock Name="lbl_qr_title" FontSize="18" FontWeight="Bold" Foreground="#111827" HorizontalAlignment="Center" Margin="0,0,0,10"/>
-        <Border Grid.Row="1" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="12" Background="#FAFAFA">
+        <TextBlock Name="lbl_qr_title" FontSize="18" FontWeight="Bold" Foreground="#111827"
+                   HorizontalAlignment="Center"/>
+        <TextBlock Name="lbl_qr_sub" Grid.Row="1" FontSize="12" Foreground="#6B7280"
+                   HorizontalAlignment="Center" Margin="0,3,0,10"/>
+        <Border Grid.Row="2" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8"
+                Padding="12" Background="#FAFAFA">
             <Image Name="img_qr_large" Stretch="Uniform"/>
         </Border>
-        <Button Name="btn_qr_close" Grid.Row="2" Content="Close" Width="100" Height="30" Margin="0,14,0,0"
-                HorizontalAlignment="Center" IsCancel="True"/>
+        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,14,0,0">
+            <Button Name="btn_qr_open_url" Content="Open in Browser" Height="30" Padding="14,0"
+                    Margin="0,0,8,0" Visibility="Collapsed"/>
+            <Button Name="btn_qr_close" Content="Close" Width="100" Height="30" IsCancel="True"/>
+        </StackPanel>
     </Grid>
 </Window>
 """
@@ -205,7 +213,7 @@ IDEA_BOX_XAML = """
                 <Button Name="btn_idea_github" Content="Post on GitHub Issues" Height="30" Padding="12,0" Margin="0,0,8,0"
                         Background="#FFFFFF" BorderBrush="#D1D5DB"/>
                 <Button Name="btn_idea_kofi" Content="Copy Note &amp; Open Ko-fi" Height="30" Padding="14,0"
-                        Background="#0284C7" Foreground="#FFFFFF" FontWeight="SemiBold" BorderThickness="0"/>
+                        Background="#FF5E5B" Foreground="#FFFFFF" FontWeight="SemiBold" BorderThickness="0"/>
             </StackPanel>
         </Grid>
     </Grid>
@@ -286,7 +294,7 @@ SUPPORT_WINDOW_XAML = """
             </StackPanel>
         </Grid>
 
-        <!-- 2. Global Instant Support Card (Ko-fi + GitHub Sponsors) -->
+        <!-- 2. Global Instant Support Card (Ko-fi Stripe + GitHub Sponsors) -->
         <Border Grid.Row="1" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1"
                 CornerRadius="8" Padding="14,12" Margin="0,12,0,10">
             <Grid>
@@ -295,8 +303,8 @@ SUPPORT_WINDOW_XAML = """
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <StackPanel Grid.Column="0" Margin="0,0,12,0">
-                    <TextBlock Text="Buy Tee a Coffee (Card / Apple Pay / Google Pay / GitHub)" FontSize="14" FontWeight="Bold" Foreground="#111827"/>
-                    <TextBlock Text="Quick global checkout via Ko-fi (no account required) or monthly/one-time support via GitHub Sponsors."
+                    <TextBlock Text="Worldwide Support (Card / Apple Pay / Google Pay / GitHub)" FontSize="14" FontWeight="Bold" Foreground="#111827"/>
+                    <TextBlock Text="Fast global checkout via Ko-fi powered by Stripe (no account needed) or via GitHub Sponsors."
                                Foreground="#4B5563" TextWrapping="Wrap" Margin="0,3,0,0"/>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
@@ -326,7 +334,7 @@ SUPPORT_WINDOW_XAML = """
             </Grid>
         </Border>
 
-        <!-- 4. QR Cards (PayPal Worldwide & PromptPay Thailand/ASEAN) -->
+        <!-- 4. QR Cards (Ko-fi Mobile QR Worldwide & PromptPay Thailand/ASEAN) -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
@@ -334,6 +342,7 @@ SUPPORT_WINDOW_XAML = """
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
+            <!-- Left Card: Ko-fi QR (Worldwide Phone Camera -> Apple Pay / Google Pay / Card) -->
             <Border Grid.Column="0" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -342,21 +351,30 @@ SUPPORT_WINDOW_XAML = """
                         <RowDefinition Height="*"/>
                         <RowDefinition Height="Auto"/>
                     </Grid.RowDefinitions>
-                    <TextBlock Text="PayPal QR (Worldwide)" FontSize="14.5" FontWeight="Bold" Foreground="#003087" HorizontalAlignment="Center"/>
-                    <TextBlock Grid.Row="1" Text="Scan with PayPal App (Click QR to enlarge)" FontSize="11" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,2,0,6"/>
-                    <Border Name="bdr_paypal_qr" Grid.Row="2" Background="#FAFAFA" BorderBrush="#F3F4F6" BorderThickness="1" CornerRadius="6" Padding="8" Cursor="Hand"
-                            ToolTip="Click to enlarge PayPal QR Code">
+                    <TextBlock Text="Ko-fi Mobile QR (Worldwide)" FontSize="14.5" FontWeight="Bold" Foreground="#D9383A" HorizontalAlignment="Center"/>
+                    <TextBlock Grid.Row="1" Text="Scan with Phone Camera - Apple Pay / Google Pay / Card" FontSize="11" Foreground="#6B7280" HorizontalAlignment="Center" Margin="0,2,0,6"/>
+                    <Border Name="bdr_kofi_qr" Grid.Row="2" Background="#FAFAFA" BorderBrush="#F3F4F6" BorderThickness="1" CornerRadius="6" Padding="8" Cursor="Hand"
+                            ToolTip="Click to enlarge QR Code or open Ko-fi">
                         <Grid>
-                            <Image Name="img_paypal" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <TextBlock Name="lbl_no_paypal" Text="qr_paypal.png not found" Foreground="#9CA3AF"
-                                       HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"/>
+                            <Image Name="img_kofi" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <StackPanel Name="pnl_kofi_fallback" VerticalAlignment="Center" HorizontalAlignment="Center" Visibility="Collapsed" Margin="12">
+                                <TextBlock Text="Support on Mobile or Desktop" FontSize="13.5" FontWeight="Bold" Foreground="#111827" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Accepts Visa, Mastercard, Apple Pay &amp; Google Pay worldwide with no login required."
+                                           Foreground="#4B5563" TextWrapping="Wrap" TextAlignment="Center" Margin="0,6,0,12"/>
+                                <Button Name="btn_kofi_card_fallback" Style="{StaticResource ActionBtn}"
+                                        Content="Open ko-fi.com/permpong13" Background="#FF5E5B" Foreground="#FFFFFF" BorderBrush="#FF5E5B"
+                                        HorizontalAlignment="Center"/>
+                                <TextBlock Text="(Add qr_kofi.png to button folder to display scannable QR)"
+                                           FontSize="10" Foreground="#9CA3AF" HorizontalAlignment="Center" Margin="0,10,0,0"/>
+                            </StackPanel>
                         </Grid>
                     </Border>
-                    <TextBlock Grid.Row="3" Text="PERMPONG TAWEEKUL" FontSize="11" FontWeight="SemiBold"
+                    <TextBlock Grid.Row="3" Text="ko-fi.com/permpong13 (Stripe Verified)" FontSize="11" FontWeight="SemiBold"
                                Foreground="#374151" HorizontalAlignment="Center" Margin="0,6,0,0"/>
                 </Grid>
             </Border>
 
+            <!-- Right Card: PromptPay / ASEAN Cross-Border QR -->
             <Border Grid.Column="2" Background="#FFFFFF" BorderBrush="#E5E7EB" BorderThickness="1" CornerRadius="8" Padding="12">
                 <Grid>
                     <Grid.RowDefinitions>
@@ -483,18 +501,18 @@ class IdeaBoxDialog(object):
 
 
 class SupportCleanDialog(object):
-    def __init__(self, paypal_qr_path, promptpay_qr_path):
+    def __init__(self, kofi_qr_path, promptpay_qr_path):
         self.win = XamlReader.Parse(SUPPORT_WINDOW_XAML)
         attach_owner(self.win)
 
-        self.paypal_bmp = load_unlocked_image(paypal_qr_path)
+        self.kofi_bmp = load_unlocked_image(kofi_qr_path)
         self.promptpay_bmp = load_unlocked_image(promptpay_qr_path)
 
         for cname in [
             "btn_star_repo", "btn_share_link",
             "btn_kofi", "btn_copy_kofi", "btn_sponsors",
             "btn_open_ideabox",
-            "bdr_paypal_qr", "img_paypal", "lbl_no_paypal",
+            "bdr_kofi_qr", "img_kofi", "pnl_kofi_fallback", "btn_kofi_card_fallback",
             "bdr_promptpay_qr", "img_promptpay", "lbl_no_promptpay", "lbl_promptpay_acct",
             "lbl_feedback", "btn_close"
         ]:
@@ -506,6 +524,7 @@ class SupportCleanDialog(object):
         self._bind_qr_images()
 
         self.btn_kofi.Click += self._on_open_kofi
+        self.btn_kofi_card_fallback.Click += self._on_open_kofi
         self.btn_copy_kofi.Click += self._on_copy_kofi
         self.btn_sponsors.Click += self._on_open_sponsors
         self.btn_open_ideabox.Click += self._on_open_ideabox
@@ -514,27 +533,41 @@ class SupportCleanDialog(object):
         self.btn_close.Click += lambda s, a: self.win.Close()
 
     def _bind_qr_images(self):
-        if self.paypal_bmp is not None:
-            self.img_paypal.Source = self.paypal_bmp
-            self.bdr_paypal_qr.MouseLeftButtonUp += lambda s, a: self._zoom_qr(
-                "PayPal QR (PERMPONG TAWEEKUL)", self.paypal_bmp
+        if self.kofi_bmp is not None:
+            self.img_kofi.Source = self.kofi_bmp
+            self.bdr_kofi_qr.MouseLeftButtonUp += lambda s, a: self._zoom_qr(
+                "Ko-fi Mobile QR (Worldwide)",
+                "Scan with phone camera for Apple Pay, Google Pay, or Card",
+                self.kofi_bmp,
+                KOFI_URL
             )
         else:
-            self.lbl_no_paypal.Visibility = Visibility.Visible
+            self.img_kofi.Visibility = Visibility.Collapsed
+            self.pnl_kofi_fallback.Visibility = Visibility.Visible
 
         if self.promptpay_bmp is not None:
             self.img_promptpay.Source = self.promptpay_bmp
             self.bdr_promptpay_qr.MouseLeftButtonUp += lambda s, a: self._zoom_qr(
-                "PromptPay / ASEAN QR", self.promptpay_bmp
+                "PromptPay / ASEAN QR",
+                "Thai Banking Apps & Supported Cross-Border QR",
+                self.promptpay_bmp,
+                None
             )
         else:
             self.lbl_no_promptpay.Visibility = Visibility.Visible
 
-    def _zoom_qr(self, title_str, bmp):
+    def _zoom_qr(self, title_str, sub_str, bmp, target_url=None):
         zwin = XamlReader.Parse(QR_ZOOM_XAML)
         attach_owner(zwin, self.win)
         zwin.FindName("lbl_qr_title").Text = to_text(title_str)
+        zwin.FindName("lbl_qr_sub").Text = to_text(sub_str)
         zwin.FindName("img_qr_large").Source = bmp
+
+        btn_url = zwin.FindName("btn_qr_open_url")
+        if target_url:
+            btn_url.Visibility = Visibility.Visible
+            btn_url.Click += lambda s, a: script.open_url(target_url)
+
         zwin.FindName("btn_qr_close").Click += lambda s, a: zwin.Close()
         zwin.ShowDialog()
 
@@ -587,11 +620,11 @@ def main():
         return
 
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    paypal_qr_path = os.path.join(current_dir, "qr_paypal.png")
+    kofi_qr_path = os.path.join(current_dir, "qr_kofi.png")
     promptpay_qr_path = os.path.join(current_dir, "qr_promptpay.png")
 
     try:
-        dlg = SupportCleanDialog(paypal_qr_path, promptpay_qr_path)
+        dlg = SupportCleanDialog(kofi_qr_path, promptpay_qr_path)
         dlg.show_dialog()
     except Exception as exc:
         forms.alert("Could not open Support P13 window:\n{}".format(exc), title="Support P13")
