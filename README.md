@@ -25,35 +25,50 @@ Maintained by **Permpong Taweekul (P13)**. Free and open-source, with no locked 
 ## What's inside the P13 tab
 
 ### A-Sync — Worksharing & updates
+<img width="92" height="98" alt="image" src="https://github.com/user-attachments/assets/8a64b08d-5b21-4ab1-9c96-1d36fcfede10" />
+
 - **Sync Owner:** Syncs your workshared model with Central while keeping your checked-out elements and workset ownership, so you don't lose exclusive edits mid-task.
 - **Update:** Pulls the latest version of `P13.extension` straight from GitHub and reloads pyRevit. The button icon shows whether your copy is up to date (`Shift+Click` opens recovery options such as force re-sync and update logs).
 
 ### Calculation — Elevations, levels & area
+<img width="293" height="97" alt="image" src="https://github.com/user-attachments/assets/437d6225-b8af-43d4-b950-494d9f666612" />
+
 - **Element elevation calculators:** Writes host level elevations, top/bottom levels, and sill/head offsets to parameters for walls (`Wall Cal`), structural columns (`Columns Cal`), doors (`Door Cal`), windows (`Windows Cal`), and multi-category elements (`Base_Level Parameter`).
 - **Smart Area:** Measures picked boundaries, converts areas to Thai units (*Rai–Ngan–Square Wa*), estimates rough cost, tracks running totals, and copies results to the clipboard.
 
 ### Check Tools & Coordinate — QA/QC and survey points
+<img width="296" height="99" alt="image" src="https://github.com/user-attachments/assets/a85e8a79-5f10-49af-ad2a-8f9d233bfbe0" />
+
+
 - **Get ID / Search ID:** Copies selected Element IDs or finds elements by Element ID, UniqueId, or GUID during clash checks and model audits.
 - **Survey & real-world coordinates:** `Families Coord` and `Pole Found. Coord` calculate Northing/Easting values from the Project Base Point and True North rotation and export CSV reports. `Move N/E` moves elements to exact survey coordinates, and `Google Maps` opens picked UTM locations (Thailand Zones 47N/48N) in your browser.
 
 ### Import & Export — Excel, schedules, legends & sheets
+<img width="171" height="101" alt="image" src="https://github.com/user-attachments/assets/d8681609-ee25-4ea9-ba6e-6f861cfac1a3" />
+
 - **Schedules:** Export schedules to Excel, import edited parameter values back safely, sync changes, or copy schedules from another open Revit file.
 - **Survey placement:** Place families or detail items in bulk from CSV or Excel Northing/Easting tables.
 - **Legends & drafting:** Batch-copy legends and drafting views across open projects, sync legend positions across sheets, tag legend components, and generate Filled Region legends.
 - **Sheets:** Create sheets from copied Excel rows or copy complete sheets (title blocks, annotations, and supported viewports) between projects.
 
 ### Manager — Project & model cleanup
+<img width="853" height="102" alt="image" src="https://github.com/user-attachments/assets/1211fc9f-bc1d-42a3-a3ef-edba22e844ff" />
+
 - **Sheets & views:** `Sheet Manager`, `Sheet Turbo Renamer`, `SuperSheet Exporter` (batch PDF/CAD export with naming rules), `View Manager`, `Duplicate Dependent Views`, and `Template Manager`.
 - **Content & standards:** `Families Manager`, `Parameter Manager` (JSON export/import and unused parameter checks), `Keynote Manager`, and `ImportCAD Manager` (find, explode, or purge CAD imports/links).
 - **Worksets, phases & color checks:** `Workset Manager`, `Change Phasing` (supports nested groups), `G-Element Status`, and `Spectrum Color` (color-codes views by workset or parameter values).
 
-### Modify, Grids, Filter, Line Color & Spot Coordinates
+### Modify, Grids, Filter, Line Color & Spot Coordinate
+<img width="465" height="101" alt="image" src="https://github.com/user-attachments/assets/e450cc69-bcbc-4ba5-9be1-bdcc33a0222c" />
+
 - **View cleanup & detailing:** `Overkill View` removes overlapping lines and duplicate dimensions, tags, text notes, and detail items in one undoable step. Also includes `Chain Dim`, `Cut Wall Angle`, `DisAllow Beam-Joint`, and `Number Auto` (directional auto-numbering and manual pick numbering).
 - **Grids:** `Grid Bubble Manager`, `Grid Dimension`, and `Grids 2D` (switches grids to 2D view-specific extents without resetting custom line ends or elbows, with an option to reset to 3D extents when needed).
 - **Filters & visual overrides:** `Filter Transfer` saves and applies view filters, filter rules, and V/G overrides across views, View Templates, and projects; `Filter Select` selects elements by category and parameter rules (including linked models); `Line Color` (`Set Color` / `Reset`) applies quick element color overrides.
 - **Spot Coordinates:** Aligns (`Align-L/R/T/Bot`), evenly distributes, or resets Spot Coordinate text without shifting the referenced model point.
 
 ### MEP — Piping, manholes & openings
+<img width="187" height="348" alt="image" src="https://github.com/user-attachments/assets/8024978f-71c0-4529-b6df-4f3a2c9af0e6" />
+
 - Grouped under the **MEP (`Bloom Pipes`)** panel: extend multiple pipes or ducts with auto-elbows (`Pipe Bloom`), write bottom-of-pipe values (`Pipe BOP`), format high slope ratios like `1:750` for tagging, place flow-direction arrows (`Pipe Flow`), rotate fittings around connector axes, check/sync manhole inverts (`Manhole QA`), and place taggable sloped/skewed MEP wall openings.
 
 ---
