@@ -19,3 +19,7 @@ logs/
 dimension_learning.json
 *.request.json
 *.result.json
+
+.p13_sync_version
+.p13_dev_lock
+*.old_locked_*
