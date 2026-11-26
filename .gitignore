@@ -22,4 +22,5 @@ dimension_learning.json
 
 .p13_sync_version
 .p13_dev_lock
+.p13_updating.lock
 *.old_locked_*
