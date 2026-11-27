@@ -3,8 +3,7 @@
 ![Autodesk Revit](https://img.shields.io/badge/Autodesk%20Revit-2024%20%7C%202025%20%7C%202026-0696D7)
 ![pyRevit](https://img.shields.io/badge/Powered%20by-pyRevit-orange)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D4)
-<img width="2461" height="100" alt="image" src="https://github.com/user-attachments/assets/227aa7c0-18ea-46e9-9517-fb17a5ec0c1b" />
-
+<img width="1851" height="99" alt="image" src="https://github.com/user-attachments/assets/f2afc1c0-1c2f-4b7a-a92f-771f50810416" />
 **P13.extension** is a collection of pyRevit tools built for day-to-day BIM production in **Autodesk Revit 2024, 2025, and 2026**.
 
 Most of these scripts started out as small fixes for repetitive tasks on real engineering and architectural projects—cleaning up messy 2D views, checking survey coordinates, pushing schedules back and forth with Excel, managing sheets and templates, and handling MEP piping details—and grew into a single ribbon tab.
@@ -23,44 +22,43 @@ Maintained by **Permpong Taweekul (P13)**. Free and open-source, with no locked 
 ---
 
 ## What's inside the P13 tab
-
-### A-Sync — Worksharing & updates
-<img width="92" height="98" alt="image" src="https://github.com/user-attachments/assets/8a64b08d-5b21-4ab1-9c96-1d36fcfede10" />
-
-- **Sync Owner:** Syncs your workshared model with Central while keeping your checked-out elements and workset ownership, so you don't lose exclusive edits mid-task.
-- **Update:** Pulls the latest version of `P13.extension` straight from GitHub and reloads pyRevit. The button icon shows whether your copy is up to date (`Shift+Click` opens recovery options such as force re-sync and update logs).
-
 ### Calculation — Elevations, levels & area
-<img width="293" height="97" alt="image" src="https://github.com/user-attachments/assets/437d6225-b8af-43d4-b950-494d9f666612" />
+<img width="293" height="95" alt="image" src="https://github.com/user-attachments/assets/b1d456eb-a643-49f9-87ec-8f40445e43f7" />
+
 
 - **Element elevation calculators:** Writes host level elevations, top/bottom levels, and sill/head offsets to parameters for walls (`Wall Cal`), structural columns (`Columns Cal`), doors (`Door Cal`), windows (`Windows Cal`), and multi-category elements (`Base_Level Parameter`).
 - **Smart Area:** Measures picked boundaries, converts areas to Thai units (*Rai–Ngan–Square Wa*), estimates rough cost, tracks running totals, and copies results to the clipboard.
 
 ### Check Tools & Coordinate — QA/QC and survey points
-<img width="296" height="99" alt="image" src="https://github.com/user-attachments/assets/a85e8a79-5f10-49af-ad2a-8f9d233bfbe0" />
+<img width="207" height="99" alt="image" src="https://github.com/user-attachments/assets/8dd4d867-8d73-4b33-88a4-6fe9e452756d" />
+
 
 
 - **Get ID / Search ID:** Copies selected Element IDs or finds elements by Element ID, UniqueId, or GUID during clash checks and model audits.
 - **Survey & real-world coordinates:** `Families Coord` and `Pole Found. Coord` calculate Northing/Easting values from the Project Base Point and True North rotation and export CSV reports. `Move N/E` moves elements to exact survey coordinates, and `Google Maps` opens picked UTM locations (Thailand Zones 47N/48N) in your browser.
 
 ### Import & Export — Excel, schedules, legends & sheets
-<img width="171" height="101" alt="image" src="https://github.com/user-attachments/assets/d8681609-ee25-4ea9-ba6e-6f861cfac1a3" />
-
+<img width="305" height="100" alt="image" src="https://github.com/user-attachments/assets/094ba5fa-9e3f-4381-a333-867db06ad8a7" />
+<img width="307" height="203" alt="image" src="https://github.com/user-attachments/assets/e81ecc57-50c5-439b-a797-70c7c14cba4b" />
+<img width="297" height="174" alt="image" src="https://github.com/user-attachments/assets/cac92647-36bb-49ff-9c00-42cd86310091" />
+<img width="374" height="142" alt="image" src="https://github.com/user-attachments/assets/50f185c3-f60d-44f2-a29a-0aa64b2de81a" />
+<img width="300" height="203" alt="image" src="https://github.com/user-attachments/assets/65b1f13e-fc0d-4a5b-bbac-a454e3e6747b" />
 - **Schedules:** Export schedules to Excel, import edited parameter values back safely, sync changes, or copy schedules from another open Revit file.
 - **Survey placement:** Place families or detail items in bulk from CSV or Excel Northing/Easting tables.
 - **Legends & drafting:** Batch-copy legends and drafting views across open projects, sync legend positions across sheets, tag legend components, and generate Filled Region legends.
 - **Sheets:** Create sheets from copied Excel rows or copy complete sheets (title blocks, annotations, and supported viewports) between projects.
 
 ### Manager — Project & model cleanup
-<img width="853" height="102" alt="image" src="https://github.com/user-attachments/assets/1211fc9f-bc1d-42a3-a3ef-edba22e844ff" />
-
+<img width="602" height="192" alt="image" src="https://github.com/user-attachments/assets/ffbd9fc2-2da4-4ae7-bb59-6bb7cc009f43" />
 - **Sheets & views:** `Sheet Manager`, `Sheet Turbo Renamer`, `SuperSheet Exporter` (batch PDF/CAD export with naming rules), `View Manager`, `Duplicate Dependent Views`, and `Template Manager`.
 - **Content & standards:** `Families Manager`, `Parameter Manager` (JSON export/import and unused parameter checks), `Keynote Manager`, and `ImportCAD Manager` (find, explode, or purge CAD imports/links).
 - **Worksets, phases & color checks:** `Workset Manager`, `Change Phasing` (supports nested groups), `G-Element Status`, and `Spectrum Color` (color-codes views by workset or parameter values).
 
 ### Modify, Grids, Filter, Line Color & Spot Coordinate
-<img width="465" height="101" alt="image" src="https://github.com/user-attachments/assets/e450cc69-bcbc-4ba5-9be1-bdcc33a0222c" />
-
+<img width="317" height="98" alt="image" src="https://github.com/user-attachments/assets/c33d14aa-ed21-4274-986c-e566d18e2552" />
+<img width="178" height="170" alt="image" src="https://github.com/user-attachments/assets/8d64c9f8-06dd-49fe-9ca2-09f51efcaf1b" />
+<img width="215" height="130" alt="image" src="https://github.com/user-attachments/assets/f3841c2f-15fa-4440-b2f0-551ebc4381ff" />
+<img width="101" height="98" alt="image" src="https://github.com/user-attachments/assets/f18d2d3d-0995-476e-bc3a-09434f11fec3" />
 - **View cleanup & detailing:** `Overkill View` removes overlapping lines and duplicate dimensions, tags, text notes, and detail items in one undoable step. Also includes `Chain Dim`, `Cut Wall Angle`, `DisAllow Beam-Joint`, and `Number Auto` (directional auto-numbering and manual pick numbering).
 - **Grids:** `Grid Bubble Manager`, `Grid Dimension`, and `Grids 2D` (switches grids to 2D view-specific extents without resetting custom line ends or elbows, with an option to reset to 3D extents when needed).
 - **Filters & visual overrides:** `Filter Transfer` saves and applies view filters, filter rules, and V/G overrides across views, View Templates, and projects; `Filter Select` selects elements by category and parameter rules (including linked models); `Line Color` (`Set Color` / `Reset`) applies quick element color overrides.
