@@ -2,17 +2,20 @@ title: "CSV to\nFamilies"
 
 tooltip: |
   [EN]
-  Import or update 3D Structural Piles, Foundations, and Columns from CSV survey coordinates.
-  - Supports Shared/Survey Coordinates (UTM), Project Base Point, and Internal Origin.
+  Import, update, and QA-check 3D Structural Piles, Foundations, and Columns from CSV survey coordinates (Pro v2.0).
+  - Exact matrix transformation for Shared/Survey Coordinates (UTM), Project Base Point, and Internal Origin.
   - Smart Upsert mode updates existing piles by Mark/Number without creating duplicates.
-  - Live CSV table preview, flexible column mapping, Cut-Off elevation offset, and rotation control.
-  - 100% 3D Model Family filter (blocks 2D Detail Items automatically).
+  - As-Built Pile Deviation QA calculator (dE, dN, 2D Offset in mm) with tolerance check & CSV report export.
+  - Supports Cut-Off Z, individual Pile Length / Tip Elevation, Rotation, and Target Workset assignment.
+  - Worksharing checkout protection + batch Revit warning suppressor (100% 3D Model filter).
 
   [TH]
-  นำเข้าหรืออัปเดตเสาเข็มและฐานราก 3D จากไฟล์พิกัดสำรวจ CSV
-  - รองรับพิกัดสำรวจจริง (Survey/UTM), Project Base Point และหน่วย m / mm / ft
-  - โหมด Smart Upsert อัปเดตตำแหน่งและระดับหัวเข็มตัวเดิมตามชื่อเข็มโดยไม่สร้างซ้อนทับ
-  - มีตารางพรีวิวข้อมูลสด เลือกจับคู่คอลัมน์อิสระ คำนวณระดับตัดหัวเข็ม (Cut-Off) และมุมหมุนอัตโนมัติ
+  นำเข้า อัปเดต และตรวจสอบค่าเยื้องศูนย์เสาเข็ม/ฐานราก 3D จากไฟล์พิกัดสำรวจ CSV (รุ่น Pro v2.0)
+  - แม่นยำระดับพิกัดสำรวจ (Survey/UTM, Project Base Point) รองรับหน่วย m / mm / ft
+  - โหมด Smart Upsert อัปเดตเสาเข็มเดิมตามหมายเลขเข็ม พร้อมคำนวณระยะเข็มหนีศูนย์ (As-Built Deviation mm) และออกรายงาน CSV
+  - รองรับระดับตัดหัวเข็ม (Cut-Off) ความยาวเข็มรายต้น / ระดับปลายเข็ม (Tip Z) มุมหมุน และการกำหนด Workset
+  - ป้องกันการชนสิทธิ์ในไฟล์ Worksharing และปิดหน้าต่างแจ้งเตือนค้างขณะรันจำนวนมากอัตโนมัติ
+  
 author: "เพิ่มพงษ์ ทวีกุล (P13)"
 
 description: "Import Families from CSV with E/N coordinate transformation, dynamic parameter mapping, auto-type matching, and macOS-style UI. / นำเข้า Families จาก CSV พร้อมระบบแปลงพิกัด เลือกพารามิเตอร์อิสระ และหน้าต่าง UI สไตล์ macOS"
