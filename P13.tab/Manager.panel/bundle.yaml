@@ -1,0 +1,19 @@
+title: Manager
+tooltip: Open P13+ model, view, sheet, family, and standards managers.
+layout:
+  - SuperSheet
+  - Parameters
+  - Sheet Manager
+  - View_Manager
+  - ">>>"
+  - Family_Manager
+  - G-Status
+  - WorkSetManager
+  - Spectrum Color
+  - Template_Manager
+  - Sheet Turbo Renamer
+  - Duplicate Dependent Views
+  - Chang Phasing
+  - Keynote_Manager
+  - Overkill
+
